@@ -1,0 +1,20 @@
+{
+  "name": "@toolkit-tw-bot/ops",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "backup:players": "node src/backup-players.js",
+    "db:check:id": "node src/db/check-one-id.js",
+    "db:cleanup:duplicates": "node src/db/cleanup-duplicates-players.js",
+    "db:cleanup:expired": "node src/db/cleanup-players.js",
+    "db:data:scan:expired": "node src/db/scan-data-json.js",
+    "db:data:scan:month": "node src/db/scan-data-this-month.js",
+    "db:data:search:id": "node src/db/search-data-id.js",
+    "db:inspect": "node src/db/inspect-players.js",
+    "db:restore:data-file": "node src/db/restore-from-data-json.js",
+    "restore:players:latest": "node src/restore-players-latest.js"
+  }
+}

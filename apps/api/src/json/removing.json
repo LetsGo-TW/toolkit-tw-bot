@@ -1,0 +1,19 @@
+{
+  "update": 0,
+  "itens": {
+    "window": [
+      "google_js_reporting_queue",
+      "google_measure_js_timing",
+      "google_tag_data = null",
+      "google_tag_topics_state",
+      "googletag"
+    ],
+    "shit": ["gpt.js", "googletag", "securepubads", "doubleclick", "/tag/"],
+    "img-craker": null,
+    "origin-trial": null,
+    "node": [
+      "goog_topics_frame",
+      "#world_selection_clicktrap"
+    ]
+  }
+}

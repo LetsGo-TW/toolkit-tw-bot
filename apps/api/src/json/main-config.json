@@ -1,0 +1,13 @@
+{
+  "update": 1692442466000,
+  "rewars": false,
+  "missions": [false, false],
+  "villages": [
+    {
+      "id":"village-id",
+      "template": "template-id",
+      "pop": 10,
+      "reserve": []
+    }
+  ]
+}

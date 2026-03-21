@@ -1,0 +1,9 @@
+{
+  "update": 1692442466000,
+  "villages-active": [
+    {
+      "id": "village-id",
+      "template": "template-id"
+    }
+  ]
+}

@@ -1,4 +1,35 @@
 {
-  "name": "toolkit-tw-bot",
-  "packageManager": "yarn@4.11.0"
+  "name": "toolkit-tw-monorepo",
+  "private": true,
+  "packageManager": "yarn@4.11.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspace @toolkit-tw-bot/api dev",
+    "start": "yarn workspace @toolkit-tw-bot/api start",
+    "build": "node -e \"console.log('No build step required for current workspaces.')\"",
+
+    "backup:players": "yarn workspace @toolkit-tw-bot/ops backup:players",
+
+    "db:dev:down": "docker compose down",
+    "db:dev:logs": "docker compose logs -f mongo",
+    "db:dev:up": "docker compose up -d mongo",
+
+    "db:dev:up:restore": "docker compose up -d mongo && yarn db:dev:restore:players:latest",
+    "db:dev:restore:players:latest": "yarn workspace @toolkit-tw-bot/ops restore:players:latest",
+
+    "db:inspect": "yarn workspace @toolkit-tw-bot/ops db:inspect",
+    "db:check:id": "yarn workspace @toolkit-tw-bot/ops db:check:id",
+    "db:cleanup:duplicates": "yarn workspace @toolkit-tw-bot/ops db:cleanup:duplicates",
+    "db:cleanup:expired": "yarn workspace @toolkit-tw-bot/ops db:cleanup:expired",
+    "db:data:scan:expired": "yarn workspace @toolkit-tw-bot/ops db:data:scan:expired",
+    "db:data:scan:month": "yarn workspace @toolkit-tw-bot/ops db:data:scan:month",
+    "db:data:search:id": "yarn workspace @toolkit-tw-bot/ops db:data:search:id",
+    "db:restore:data-file": "yarn workspace @toolkit-tw-bot/ops db:restore:data-file"
+  }
 }

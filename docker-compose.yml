@@ -1,0 +1,14 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: toolkit-tw-bot-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: toolkit_tw_bot_dev
+    volumes:
+      - toolkit_twb_mongo_data:/data/db
+
+volumes:
+  toolkit_twb_mongo_data:

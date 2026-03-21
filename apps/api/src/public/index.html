@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Let's GO! - Player assistant</title>
+
+    <!-- favicon -->
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/128.png"
+    />
+
+    <!-- tema do navegador -->
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- css -->
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- HEADER FIXO -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-brand">
+          <img
+            src="128.png"
+            alt="Let's GO! - Player assistant"
+            width="60"
+            height="60"
+          />
+          <div class="header-text">
+            <span class="header-title">Let's GO! - Player assistant</span>
+            <span class="header-subtitle">
+              Assistente avançado para Tribal Wars desde 2022
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- SEÇÃO HERO / APRESENTAÇÃO -->
+      <section class="card hero">
+        <div class="hero-text">
+          <h1 class="hero-title">
+            Jogue em alto nível sem abrir mão da sua rotina
+          </h1>
+          <p>
+            Desde julho de 2022 o <strong>Let's GO</strong> ajuda tribos e
+            jogadores a conquistar mundos no
+            <strong>Tribal Wars</strong> sem abrir mão de sua vida pessoal ou carreira.<br/>
+            Dedique-se a estratégia que cuidamos das tarefas repetitivas.
+          </p>
+
+          <p class="hero-note small">
+            <b>Let's GO! - Player assistant</b> é um projeto independente, não é afiliado à InnoGames ou seus associados. Qualquer consequência por sua utilização é de total responsabilidade do usuário.
+          </p>
+
+          <div class="legal-section">
+            <label class="legal-checkbox">
+              <input type="checkbox" id="accept-terms" />
+              <span>
+                Li e concordo com os
+                <button class="link-button" id="open-modal-check">
+                  Termos de uso & Política de privacidade
+                </button>
+              </span>
+            </label>
+
+            <p id="legal-warning" class="legal-warning hidden">
+              ⚠️ Você precisa ler e aceitar antes de baixar.
+            </p>
+          </div>
+
+          <div class="hero-cta">
+            <a
+              id="btn-download"
+              class="btn-download disabled"
+              href="/downloads/Extension.v3-1.19.3.zip"
+              download
+              aria-disabled="true"
+            >
+              Baixar extensão (.zip)
+            </a>
+            <span class="hero-cta-note small">
+              Versão atual: <code>1.19.3</code> – instalação manual no
+              Chrome/Edge.
+            </span>
+          </div>
+        </div>
+
+        <!-- VÍDEO YOUTUBE -->
+        <div class="hero-video">
+          <div class="video-wrapper">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/8bhphV0c93Y"
+              title="Let's GO! - Apresentação"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          </div>
+          <p class="small video-caption">
+            Assista à apresentação do Let's GO e veja como ele automatiza as
+            tarefas repetitivas do Tribal Wars.
+          </p>
+        </div>
+      </section>
+
+      <!-- FUNCIONALIDADES (COLAPSÁVEL) -->
+      <section class="card features">
+        <button
+          class="features-header"
+          type="button"
+          data-features-toggle
+          aria-expanded="true"
+        >
+          <h2>Funcionalidades principais</h2>
+          <span class="features-toggle-indicator" aria-hidden="true">▼</span>
+        </button>
+
+        <div class="features-body" data-features-list>
+          <ul>
+            <li><strong class="large">✅</strong> Evolução automática com perfil específico e editável;</li>
+            <li><strong class="large">✅</strong> Recolhe missões e recompensas automaticamente;</li>
+            <li><strong class="large">✅</strong> Recrutamento automático de tropas;</li>
+            <li>
+              <strong class="large">✅</strong> Pesquisa tropas no ferreiro conforme modelo de recrutamento;
+            </li>
+            <li><strong class="large">✅</strong> Coleta simples automática ou manual;</li>
+            <li>
+              <strong class="large">✅</strong> Coleta em massa automática ou manual com configurações por
+              grupos(nescessário conta premium acima de 1 vila);
+            </li>
+            <li><strong class="large">✅</strong> Configurações de coleta com ataques chegando;</li>
+            <li><strong class="large">✅</strong> Desbloqueio automático de coleta;</li>
+            <li><strong class="large">✅</strong> Farm-Max (auto-farm) <strong class="large">🆕</strong>;</li>
+            <li><strong class="large">✅</strong> Farm-Max (quebra-muralha) <strong class="large">🆕</strong>;</li>
+            <li><strong class="large">✅</strong> Farm-Max (controle de bárbaras com tropas) <strong class="large">🆕</strong>;</li>
+            <li><strong class="large">✅</strong> Etiquetador automático de ataques;</li>
+            <li>
+              <strong class="large">✅</strong> Programação de comandos – ataques, apoios, NT e farm-player;
+            </li>
+            <li><strong class="large">✅</strong> Mercado premium auto (sprinter / trade) – altíssimo volume;</li>
+            <li><strong class="large">✅</strong> Aceita ofertas automaticamente no mercado para balancear recursos;</li>
+            <li><strong class="large">✅</strong> Balanceador automático de recursos entre as próprias vilas;</li>
+            <li><strong class="large">✅</strong> Envio automático de recursos para outro jogador cunhar;</li>
+            <li>
+              <strong class="large">✅</strong> Puxar recursos automaticamente para cunhar – identifica bandeira
+              de cunhar ativa;
+            </li>
+            <li><strong class="large">✅</strong> Cunhagem de moedas automática com verificação de bandeira;</li>
+            <li><strong class="large">✅</strong> Busca novas de bárbaras(que ainda não estão nos relatórios do AS) no mapa usando modelo A do AS;</li>
+            <li><strong class="large">✅</strong> Identificação e pausa automática quando aparece hCaptcha;</li>
+            <li><strong class="large">✅</strong> Alarme no navegador ao identificar hCaptcha;</li>
+            <li><strong class="large">✅</strong> Notificação de hCaptcha e ataques chegando no celular;</li>
+            <li><strong class="large">✅</strong> Reconnect – reconecta ao ser derrubado pelo servidor do TW(session expires);</li>
+            <li><strong class="large">✅</strong> Coleta de bônus diário para não perder recompensas;</li>
+            <li><strong class="large">✅</strong> Suporte ao modo de férias (MDF) dentro dos limites do jogo.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- INFO TÉCNICA -->
+<section class="card meta">
+  <h2>Informações técnicas</h2>
+
+  <p class="small">
+    Esta página usa <strong>HTML</strong>, <strong>CSS</strong> e
+    <strong>JavaScript</strong>, e é servida pela nossa <strong>API</strong>.
+  </p>
+
+  <p class="small">
+    A <strong>API (backend)</strong> roda em <strong>Node.js + Express</strong>,
+    com banco de dados <strong>MongoDB Atlas</strong>.
+  </p>
+
+  <p class="small">
+    A <strong>extensão</strong> (Manifest v3) usa
+    <strong>HTML</strong>, <strong>Bootstrap</strong>,
+    <strong>JavaScript</strong> e <strong>Webpack</strong>.
+    É responsável por validar a licença e controlar a execução do
+    <strong>app (bot)</strong>.
+  </p>
+
+  <p class="small">
+    O <strong>app (bot)</strong> usa <strong>HTML</strong>,
+    <strong>CSS</strong>, <strong>JavaScript</strong> e
+    <strong>Webpack</strong>, executando apenas um
+    <strong>job</strong> por vez de forma programática.
+  </p>
+</section>
+
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+
+        <h4 class="footer-brand">
+          <button class="link-button" id="open-modal-footer">
+            Termos de uso & Política de privacidade
+          </button>
+        </h4>
+
+        <div class="footer-support">
+          <h4>Apoie-nos</h4>
+          <div class="footer-support-content">
+            <img
+              class="pix-qrcode"
+              alt="QR Code para contribuição via PIX"
+              src="data:image/png;base64,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"
+            />
+            <div class="pix-info">
+              <p class="small">Chave PIX</p>
+            </div>
+            <div class="footer-email">
+              <h4>Contato:</h4>
+              <a href="mailto:letsgo.tribalwars@gmail.com">
+                letsgo.tribalwars@gmail.com
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- BOTÃO FLUTUANTE WHATSAPP -->
+    <a
+      href="https://api.whatsapp.com/send/?phone=5511916302834&text&type=phone_number&app_absent=0"
+      class="whatsapp-fab"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Falar no WhatsApp"
+    >
+      <img class="whatsapp-icon" src="whattsapp.png" alt="WhatsApp">
+    </a>
+
+    <!-- MODAL POLICY & TERMS -->
+    <div class="modal-overlay" id="legal-modal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="legal-title">
+
+        <button class="modal-close" id="close-legal" aria-label="Fechar janela">
+          ×
+        </button>
+
+        <h2 id="legal-title">Termos de uso & Política de privacidade</h2>
+
+        <p>
+          O <strong>Let's GO! - Player assistant</strong> é uma ferramenta independente
+          criada para auxiliar jogadores nas funcionalidades do jogo Tribal Wars.
+          Não somos afiliados à InnoGames ou seus associados.
+        </p>
+
+        <p>
+          Ao utilizar a extensão e nosso aplicativo, o usuário se responsabiliza
+          por quaisquer consequências impostas pelo jogo
+          (como bloqueios, punições ou exclusões).
+        </p>
+
+        <p>
+          O usuário reconhece que não poderá ceder, copiar, reproduzir, modificar,
+          licenciar, alugar, alienar ou transferir, total ou parcialmente,
+          sob quaisquer modalidades, gratuitas ou onerosas,
+          provisórias ou permanentes, a extensão ou o aplicativo, bem como o direito
+          de uso ou quaisquer informações e direitos relacionados.
+          Também é proibido aplicar engenharia reversa, desmontagem,
+          descompilação, ou qualquer tentativa de descobrir o código-fonte,
+          no todo ou em parte.
+        </p>
+
+        <p>
+          Em caso de relação comercial firmada (Contrato de Licença de Uso de Software),
+          esta será regida pela legislação brasileira e pelo
+          <a href="https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.html"
+            target="_blank" rel="noopener noreferrer">
+            Código de Defesa do Consumidor
+          </a>.
+        </p>
+
+        <h3>Coleta e uso de dados</h3>
+        <p>Declaramos que:</p>
+
+        <ul>
+          <li>Salvamos no servidor <b>player_id</b> e <b>world</b> fornecidos pelo usuário para gerar a licença;</li>
+          <li>A extensão coleta <b>player_id</b> e <b>world</b> exclusivamente para validação da licença;</li>
+          <li>Não coletamos senhas ou dados sensíveis e pessoais dos usuários ou do jogo;</li>
+          <li>Não coletamos cookies ou dados de navegação;</li>
+          <li>As licenças são armazenadas por até 3 meses após a data de expiração;</li>
+          <li>Não vendemos nem compartilhamos informações com terceiros.</li>
+        </ul>
+
+        <h3>Responsabilidade</h3>
+        <ul>
+          <li>Comprometemo-nos a manter esta Política de Privacidade atualizada e observar todas as suas disposições.</li>
+          <li>Assumimos o compromisso de buscar condições técnicas e organizacionais adequadas para proteger todo o processo de tratamento de dados.</li>
+          <li>Seguiremos qualquer orientação da Autoridade Nacional de Proteção de Dados (ANPD).</li>
+          <li>Em caso de incidentes de segurança que gerem risco ou dano relevante para os usuários, notificaremos os afetados e a ANPD conforme a LGPD.</li>
+        </ul>
+
+        <h3>Segurança e isenção de responsabilidade</h3>
+        <ul>
+          <li>Utilizamos medidas físicas, eletrônicas e administrativas adequadas para proteger suas informações.</li>
+          <li>Nenhuma página virtual é inteiramente segura. Ainda que adotemos as melhores práticas, podem ocorrer incidentes causados por terceiros, como ataques cibernéticos, ou por negligência do próprio usuário.</li>
+          <li>Não nos responsabilizamos por consequências decorrentes de negligência, imprudência ou imperícia do usuário.</li>
+          <li>O usuário é responsável por manter a confidencialidade dos seus dados de acesso.</li>
+          <li>Não nos responsabilizamos por ações maliciosas de terceiros, como ataques de hackers.</li>
+          <li>Não nos responsabilizamos pela inserção de informações falsas pelo usuário; quaisquer consequências dessa conduta são de responsabilidade exclusiva do usuário.</li>
+        </ul>
+
+        <h3>Contato</h3>
+        <ul>
+          <li>
+            Dúvidas, suporte ou pedidos de remoção de dados:
+            <a href="mailto:letsgo.tribalwars@gmail.com">letsgo.tribalwars@gmail.com</a>
+          </li>
+        </ul>
+
+        <p class="small">
+          Ao utilizar o aplicativo <b>Let's GO! - Player assistant</b>, o usuário
+          declara que leu e concorda com estes termos.
+        </p>
+
+      </div>
+    </div>
+
+    <!-- JS -->
+    <script type="module" src="index.js"></script>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+{
+  "update": 0,
+  "en": {
+    "container": ["Configurations", "Youtube channel", "Instructions", "Credits", "On/Off", "Information"],
+    "monthLiteral": ["jan", "feb", "mar", "apr", "may", "jun", "jul", "ago", "sep", "out", "nov", "dec"],
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "build": ["Main", "Barracks", "Stable", "Garage", "First church", "Church", "Watchtower", "smith", "Snob", "Place", "Statue", "Market", "Wood", "Stone", "Iron", "Farm", "Storage", "Hide", "Wall", "university"],
+    "main": ["Rewards", "Select to collect the rewards", "Missions", "Select to collect quests", "Warehouse", "Select to collect warehouse mission", "Preference", "Select this village's evolution preference (everyone completes the starting quests and reaches Stable Level 3)", "Barracks", "Priority in the barracks, stables and workshop", "Nobles", "Priority in the gym", "Premium", "Priority in the market and warehouse", "Resources", "Prioritize resource evolution", "Farm", "Prioritizes farm and warehouse evolution", "Wall", "Prioritizes the evolution of the wall", "Edit", "Edit the active model", "Close", "Close model editing", "Percentage to queue the farm for evolution", "Time your model's continuous recruitment will populate the farm", "Edit the template", "Save", "Save the active model", "Copy", "Copy text to clipboard", "Reset", "Restore all original templates"],
+    "units": ["spear", "sword", "axe", "archer", "spy", "light", "marcher", "heavy", "ram", "catapult", "knight", "snob"],
+    "market": {
+        "confirm": ["sell", "buy"]
+    },
+    "snob": ["coins"],
+    "snobInterface": ["Coining Settings", "Enables and disables automatic minting of coins", "Enable coinage", "Coinage information", "No active premium account", "minting works only up to 1 village. Minting leaving 4x in reserve. Above 1 village DO NOT mint without active premium account", "Worlds with flags", "(active premium account): Will mint leaving 4x in reserve for villages with flag with lower cost of active coins, and villages without flags with lower cost of coins will only mint 1x when some resource (wood, clay or iron) exceeds 95% of warehouse capacity", "Worlds without flags", "(active premium account): Mint leaving 4x in reserve for all villages"],
+    "incomings": ["attack", "support"]
+  },
+  "us": {
+    "container": ["Configurations", "Youtube channel", "Instructions", "Credits", "On/Off", "Information"],
+    "monthLiteral": ["jan", "feb", "mar", "apr", "may", "jun", "jul", "ago", "sep", "out", "nov", "dec"],
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "build": ["Main", "Barracks", "Stable", "Garage", "First church", "Church", "Watchtower", "smith", "Snob", "Place", "Statue", "Market", "Wood", "Stone", "Iron", "Farm", "Storage", "Hide", "Wall", "university"],
+    "main": ["Rewards", "Select to collect the rewards", "Missions", "Select to collect quests", "Warehouse", "Select to collect warehouse mission", "Preference", "Select this village's evolution preference (everyone completes the starting quests and reaches Stable Level 3)", "Barracks", "Priority in the barracks, stables and workshop", "Nobles", "Priority in the gym", "Premium", "Priority in the market and warehouse", "Resources", "Prioritize resource evolution", "Farm", "Prioritizes farm and warehouse evolution", "Wall", "Prioritizes the evolution of the wall", "Edit", "Edit the active model", "Close", "Close model editing", "Percentage to queue the farm for evolution", "Time your model's continuous recruitment will populate the farm", "Edit the template", "Save", "Save the active model", "Copy", "Copy text to clipboard", "Reset", "Restore all original templates"],
+    "units": ["spear", "sword", "axe", "archer", "spy", "light", "marcher", "heavy", "ram", "catapult", "knight", "snob"],
+    "market": {
+        "confirm": ["sell", "buy"]
+    },
+    "snob": ["coins"],
+    "snobInterface": ["Coining Settings", "Enables and disables automatic minting of coins", "Enable coinage", "Coinage information", "No active premium account", "minting works only up to 1 village. Minting leaving 4x in reserve. Above 1 village DO NOT mint without active premium account", "Worlds with flags", "(active premium account): Will mint leaving 4x in reserve for villages with flag with lower cost of active coins, and villages without flags with lower cost of coins will only mint 1x when some resource (wood, clay or iron) exceeds 95% of warehouse capacity", "Worlds without flags", "(active premium account): Mint leaving 4x in reserve for all villages"],
+    "incomings": ["attack", "support"]
+  },
+  "br": {
+    "container": ["Configurações", "Canal do youtube", "Instruções", "Créditos", "Liga/Desliga", "Informações"],
+    "monthLiteral": ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+    "today": "hoje",
+    "tomorrow": "amanhã",
+    "build": ["Edifício Principal", "Quartel", "Estábulo", "Oficina", "Primeira igreja", "Igreja", "Torre de vigia", "Ferreiro", "Academia", "Praça de reunião", "Estátua", "Mercado", "Bosque", "Poço de argila", "Mina de ferro", "Fazenda", "Armazém", "Esconderijo", "Muralha", "universidade"],
+    "main": ["Recompensas", "Selecione para coletar as recompensas", "Missões", "Selecione para coletar missões", "Armazém", "Selecione para coletar a missão do armazém", "Preferência", "Selecione a preferência de evolução desta aldeia (todos completam a começando missões e alcança Estábulo Nível 3)", "Quartel", "Prioridade no quartel, estábulos e oficina", "Nobres", "Prioridade na academia", "Premium", "Prioridade no mercado e armazém", "Recursos", "Priorizar a evolução dos recursos", "Fazenda", "Priorizar a evolução da fazenda e do armazém", "Muralha", "Priorizar a evolução da muralha", "Editar", "Editar o modelo ativo", "Fechar", " Fechar edição do modelo", "Porcentagem mínima para incluir a fazenda na fila", "Tempo em que o recrutamento contínuo do seu modelo preencherá o farm", "Editar o modelo", "Salvar", "Salvar o modelo ativo", "Copiar", "Copiar texto para a área de transferência", "Redefinir", "Restaurar todos os modelos originais"],
+    "units": ["Lanceiro", "Espada", "Bárbaro", "Arqueiro", "Explorador", "Cavalaria Leve", "Arqueiro a cavalo", "Cavalaria pesada", "Aríete", "Catapulta", "Paladino", "Nobre"],
+    "market": {
+        "confirm": ["vender", "comprar"]
+    },
+    "snob": ["moedas"],
+    "snobInterface": ["Configurações da cunhagem", "Ativa e desativa a cunhagem automática de moedas(todas as vilas)", "Ativar cunhagem", "Informações sorbe cunhagem", "Sem conta premium ativa", "a cunhagem funciona somente até 1 vila. Cunha deixando a 'reserva selecionada'. Acima de 1 vilas NÃO cunha sem conta premium ativa", "Mundos com bandeiras", "(conta premium ativa) : Irá cunhar deixando a 'reserva selecionada' nas aldeias com bandeira de menor custo de moedas ativa e, aldeias sem bandeiras de menor custo de moedas somente irá cunhar 1x quando algum recurso(madeira, argila ou ferro) ultrapassar 95% da capacidade do armazém", "Mundos sem bandeiras", "(conta premium ativa) : Irá cunhar deixando a 'reserva selecionada' para todas as aldeias", "Selecione quantas vezes do custo de moeda reservar", "Reservar", "Nenhuma", "<p style='margin:0 0 4px;'>Selecione o intervalo máximo entre as cunhagens, de 1 a 20 minutos.</p><p style='margin:0 0 4px;'>Obs.: se estiver puxando recursos para cunhar (mundo com bandeiras), você pode usar o tempo, em minutos, que o mercador percorre 1 campo.</p><p style='margin:0 0 4px;'>A cunhagem é executada no menor valor entre esse intervalo e o horário em que o armazém da vila de cunhar enche.</p><p style='margin:0;'>O Let's GO avalia o armazém de até 5 vilas com as maiores bandeiras de cunhar ativas.</p>", "minutos"],
+    "incomings": ["ataque", "suporte"]
+  },
+  "pt": {
+    "container": ["Configurações", "Canal do youtube", "Instruções", "Créditos", "Liga/Desliga", "Informações"],
+    "monthLiteral": ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+    "today": "hoje",
+    "tomorrow": "amanhã",
+    "build": ["Edifício Principal", "Quartel", "Estábulo", "Oficina", "Primeira igreja", "Igreja", "Torre de vigia", "Ferreiro", "Academia", "Praça de reunião", "Estátua", "Mercado", "Bosque", "Poço de argila", "Mina de ferro", "Fazenda", "Armazém", "Esconderijo", "Muralha", "universidade"],
+    "main": ["Recompensas", "Selecione para coletar as recompensas", "Missões", "Selecione para coletar missões", "Armazém", "Selecione para coletar a missão do armazém", "Preferência", "Selecione a preferência de evolução desta aldeia (todos completam a começando missões e alcança Estábulo Nível 3)", "Quartel", "Prioridade no quartel, estábulos e oficina", "Nobres", "Prioridade na academia", "Premium", "Prioridade no mercado e armazém", "Recursos", "Priorizar a evolução dos recursos", "Fazenda", "Priorizar a evolução da fazenda e do armazém", "Parede", "Priorizar a evolução da muralha", "Editar", "Editar o modelo ativo", "Fechar", "Fechar edição do modelo", "Porcentagem mínima para incluir a fazenda na fila", "Tempo em que o recrutamento contínuo do seu modelo preencherá o farm", "Editar o modelo", "Salvar", "Salvar o modelo ativo", "Copiar", "Copiar texto para a área de transferência", "Redefinir", "Restaurar todos os modelos originais"],
+    "units": ["Lanceiro", "Espada", "Bárbaro", "Arqueiro", "Explorador", "Cavalaria Leve", "Arqueiro a cavalo", "Cavalaria pesada", "Aríete", "Catapulta", "Paladino", "Nobre"],
+    "market": {
+        "confirm": ["vender", "comprar"]
+    },
+    "snob": ["moedas"],
+    "snobInterface": ["Configurações da cunhagem", "Ativa e desativa a cunhagem automática de moedas(todas as vilas)", "Ativar cunhagem", "Informações sorbe cunhagem", "Sem conta premium ativa", "a cunhagem funciona somente até 1 vila. Cunha deixando a 'reserva selecionada'. Acima de 1 vilas NÃO cunha sem conta premium ativa", "Mundos com bandeiras", "(conta premium ativa) : Irá cunhar deixando a 'reserva selecionada' nas aldeias com bandeira de menor custo de moedas ativa e, aldeias sem bandeiras de menor custo de moedas somente irá cunhar 1x quando algum recurso(madeira, argila ou ferro) ultrapassar 95% da capacidade do armazém", "Mundos sem bandeiras", "(conta premium ativa) : Irá cunhar deixando a 'reserva selecionada' para todas as aldeias", "Selecione quantas vezes do custo de moeda reservar", "Reservar", "Nenhuma", "<p style='margin:0 0 4px;'>Selecione o intervalo máximo entre as cunhagens, de 1 a 20 minutos.</p><p style='margin:0 0 4px;'>Obs.: se estiver puxando recursos para cunhar (mundo com bandeiras), você pode usar o tempo, em minutos, que o mercador percorre 1 campo.</p><p style='margin:0 0 4px;'>A cunhagem é executada no menor valor entre esse intervalo e o horário em que o armazém da vila de cunhar enche.</p><p style='margin:0;'>O Let's GO avalia o armazém de até 5 vilas com as maiores bandeiras de cunhar ativas.</p>", "minutos"],
+    "incomings": ["ataque", "suporte"]
+  },
+  "it": {
+    "container": ["Configurazioni", "Canale YouTube", "Istruzioni", "Riconoscimenti", "On/Off", "Informazioni"],
+    "monthLiteral": ["gen", "feb", "mar", "apr", "may", "jun", "jul", "aug", "set", "oct", "nov", "dec"],
+    "today": "oggi",
+    "tomorrow": "domani",
+    "build": ["Quartier Generale", "Caserma", "Stalla", "Officina", "Prima Chiesa", "Chiesa", "Torre di Guardia", "Fabbro", "Accademia", "Raduno", "Statua", "Mercato", "Legno", "Pietra", "Ferro", "Fattoria", "Magazzino", "Nascondiglio", "Mura", "Università"],
+    "main": ["Premi", "Seleziona per raccogliere i premi", "Missioni", "Seleziona per raccogliere missioni", "Magazzino", "Seleziona per raccogliere missione magazzino", "Preferenza", "Seleziona la preferenza di evoluzione di questo villaggio (tutti completano il inizia le missioni e raggiunge il livello Stalla 3)", "Caserma", "Priorità in caserma, stalla e officina", "Nobili", "Priorità in palestra", "Premium", "Priorità in mercato e magazzino", " Risorse", "Dai priorità all'evoluzione delle risorse", "Azienda agricola", "Dà priorità all'evoluzione dell'azienda agricola e del magazzino", "Muro", "Dà priorità all'evoluzione del muro", "Modifica", "Modifica il modello attivo", "Chiudi", " Chiudi modifica modello", "Percentuale di accodamento della farm per l'evoluzione", "Tempo in cui il reclutamento continuo del tuo modello popolerà la farm", "Modifica il modello", "Salva", "Salva il modello attivo", "Copia", "Copia testo negli appunti", "Ripristina", "Ripristina tutti i modelli originali"],
+    "units": ["Lanciere", "Spadaccino", "Guerriero con ascia", "Arciere", "Esploratore", "Cavalleria leggera", "Arciere a cavallo", "Cavalleria pesante", "Ariete", "Catapulta", "Paladino", "Nobile"],
+    "market": {
+        "confirm": ["vendi", "compra"]
+    },
+    "snob": ["monete"],
+    "snobInterface": ["Impostazioni di conio", "Abilita e disabilita il conio automatico delle monete (tutti i villaggi)", "Abilita conio", "Informazioni sulle monete", "Nessun account premium attivo", "il conio funziona solo fino a 1 villaggio. Il conio esce dalla 'riserva selezionata'. Al di sopra di 1 villaggio NON coniare senza account premium attivo", "Mondi con bandiere", "(account premium attivo): verrà coniato lasciando la 'riserva selezionata' nei villaggi con la bandiera del costo in monete più basso attiva, e i villaggi senza le bandiere del costo in monete più basso conieranno solo 1x quando qualche risorsa (legno, argilla o ferro) supera il 95% di capacità del magazzino", "Mondi senza bandiere", "(conto premium attivo): verrà coniato lasciando 'riserva selezionata' per tutti i villaggi", "Seleziona quante volte il costo della moneta da prenotare", "Riserva", "Nessuno", "Seleziona l'intervallo tra il conio da 1 a 20 minuti", "minuti"],
+    "incomings": ["attacco", "supporto"]
+  }
+}

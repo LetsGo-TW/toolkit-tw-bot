@@ -1,0 +1,619 @@
+:root {
+  --bg-body: #020617;
+  --bg-card: rgba(15, 23, 42, 0.96);
+  --bg-header: rgba(15, 23, 42, 0.95);
+  --border-subtle: rgba(148, 163, 184, 0.4);
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+  --accent: #4ade80;
+  --accent-soft: rgba(74, 222, 128, 0.15);
+  --shadow-card: 0 20px 40px rgba(15, 23, 42, 0.7);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+}
+
+/* Tema claro (respeita preferência do sistema) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-body: #f3f4f6;
+    --bg-card: #ffffff;
+    --bg-header: #ffffffcc;
+    --border-subtle: rgba(148, 163, 184, 0.55);
+    --text-main: #111827;
+    --text-muted: #4b5563;
+    --accent: #16a34a;
+    --accent-soft: rgba(22, 163, 74, 0.08);
+    --shadow-card: 0 16px 30px rgba(15, 23, 42, 0.12);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: radial-gradient(circle at top, #1e293b 0, var(--bg-body) 55%);
+  color: var(--text-main);
+  min-height: 100vh;
+}
+
+/* HEADER FIXO */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  background: var(--bg-header);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-brand img {
+  border-radius: 8px;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* LAYOUT PRINCIPAL */
+
+.page {
+  max-width: 1100px;
+  margin: 24px auto 80px auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* CARD BASE */
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  padding: 20px 20px 22px;
+}
+
+/* HERO */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2.6fr);
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.hero-title {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 26px;
+  line-height: 1.25;
+  color: var(--accent);
+}
+
+.hero-text p {
+  margin: 8px 0;
+  line-height: 1.6;
+  font-size: 18px;
+}
+
+.hero-text .small, .small {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+strong.large {
+  font-size: large;
+}
+
+code {
+  background: rgba(15, 23, 42, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: light) {
+  code {
+    background: rgba(15, 23, 42, 0.08);
+  }
+}
+
+.hero-cta {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-cta-note {
+  display: inline-block;
+}
+
+.legal-section {
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.legal-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.legal-checkbox input {
+  transform: scale(1.2);
+}
+
+p.legal-warning {
+  color: #ff7171;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* BOTÃO DE DOWNLOAD */
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(52, 211, 153, 0.7);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ecfdf5;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 16px 30px rgba(22, 163, 74, 0.4);
+  cursor: pointer;
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
+    filter 0.08s ease-out;
+}
+
+.btn-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 40px rgba(22, 163, 74, 0.45);
+  filter: brightness(1.03);
+}
+
+.btn-download:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.35);
+}
+
+/* desabilita visualmente o botão, mas ainda permite clique para mostrar aviso */
+.btn-download.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* VÍDEO */
+
+.hero-video {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #020617;
+}
+
+/* 16:9 */
+.video-wrapper::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%;
+}
+
+.video-wrapper iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.video-caption {
+  margin: 0;
+}
+
+/* FUNCIONALIDADES (COLAPSÁVEL) */
+
+.features-header {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 0 10px 0;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.features-header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.features-toggle-indicator {
+  font-size: 18px;
+  transform-origin: center;
+  transition: transform 0.15s ease-out;
+}
+
+/* Corpo colapsável com transição suave */
+.features-body {
+  overflow: hidden;
+  max-height: 900px;
+  transition: max-height 0.22s ease-out;
+
+  ul {
+    list-style: none;   /* remove os pontos */
+    padding: 0;    /* remove o recuo padrão */
+    margin: 0;
+  }
+}
+
+.features-body ul {
+  margin: 0;
+  /* padding-left: 18px; */
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.features-body li {
+  margin-bottom: 4px;
+}
+
+/* Estado fechado (classe adicionada via JS) */
+.features-collapsed .features-body {
+  max-height: 0;
+}
+
+.features-collapsed .features-toggle-indicator {
+  transform: rotate(-90deg);
+}
+
+/* META / INFO TÉCNICA */
+
+.meta h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+
+/* RODAPÉ */
+
+.site-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.96);
+  padding: 20px 16px 26px;
+}
+
+@media (prefers-color-scheme: light) {
+  .site-footer {
+    background: #f9fafb;
+  }
+}
+
+.footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.footer-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.footer-column h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+}
+
+.footer-column p {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.hero-note {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* botão-link para abrir o modal de termos */
+.link-button {
+  background: none;
+  border: none;
+  color: #4ade80;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  opacity: 0.85;
+}
+
+.footer-email a {
+  text-decoration: underline;
+}
+
+/* Bloco de apoio / PIX */
+
+.footer-support {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.4);
+}
+
+.footer-support h4 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+}
+
+.footer-support p {
+  /* margin: 4px 0; */
+}
+
+.footer-support-content {
+  /* margin-top: 8px; */
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footer-email {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.pix-qrcode {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #ffffff;
+}
+
+.pix-info {
+  min-width: 180px;
+}
+
+/* WHATSAPP FLOATING BUTTON */
+.whatsapp-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #22c55e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.45);
+  text-decoration: none;
+  z-index: 60;
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out,
+    filter 0.12s ease-out;
+}
+
+.whatsapp-icon {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+
+.whatsapp-fab:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.55);
+  filter: brightness(1.05);
+}
+
+.whatsapp-fab:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* Link tipo botão no rodapé */
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent-color, #4ade80);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  opacity: 0.85;
+}
+
+/* Modal genérico */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-overlay.is-open {
+  display: flex;
+}
+
+.modal {
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+  border-radius: 16px;
+  padding: 24px 24px 20px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.6);
+  font-size: 14px;
+}
+
+/* Respeita tema claro/escuro */
+@media (prefers-color-scheme: dark) {
+  .modal {
+    background: #020617;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    color: #e5e7eb;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .modal {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+  }
+}
+
+.modal h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 20px;
+}
+
+.modal h3 {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.modal ul {
+  margin: 0 0 8px 18px;
+  padding: 0;
+}
+
+.modal-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* RESPONSIVO */
+@media (max-width: 800px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page {
+    margin-top: 16px;
+  }
+
+  .header-inner {
+    padding-inline: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 16px 14px 18px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .footer-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .whatsapp-fab {
+    right: 12px;
+    bottom: 12px;
+    width: 50px;
+    height: 50px;
+  }
+}
+
+.home-button {
+  padding: 0.5rem;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  font-size: x-large;
+  border-radius: 0.5rem;
+
+  button.link-button {
+    text-decoration: none;
+  }
+}
+

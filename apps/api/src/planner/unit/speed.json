@@ -1,0 +1,25 @@
+{
+  "incoming": {
+    "snob" : 35,
+    "ram" : 30,
+    "sword" : 22,
+    "axe" : 18,
+    "heavy" : 11,
+    "light" : 10,
+    "spy" : 9
+  },
+  "command": {
+    "snob" : 35,
+    "catapult" : 30,
+    "ram" : 30,
+    "sword" : 22,
+    "axe" : 18,
+    "spear" : 18,
+    "archer" : 18,
+    "heavy" : 11,
+    "light" : 10,
+    "marcher" : 10,
+    "knight" : 10,
+    "spy" : 9
+  }
+}
