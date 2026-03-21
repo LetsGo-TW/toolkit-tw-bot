@@ -1,1 +1,5 @@
-module.exports = require("../../../../packages/db/src/config/mongo");
+const { resolveMongoConfig } = require("@toolkit-tw-bot/db");
+
+module.exports = {
+  resolveMongoConfig,
+};

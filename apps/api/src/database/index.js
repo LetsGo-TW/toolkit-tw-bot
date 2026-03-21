@@ -1,1 +1,3 @@
-module.exports = require("../../../../packages/db/src/mongoose");
+const { mongoose } = require("@toolkit-tw-bot/db");
+
+module.exports = mongoose;

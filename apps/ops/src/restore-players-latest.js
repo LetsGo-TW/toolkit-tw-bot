@@ -86,7 +86,7 @@ function assertAllowedEnvironment(nodeEnv) {
 
 async function main() {
   ensureRuntimeEnv();
-  const { Player, mongoose, waitForConnection } = require("../../../packages/db/src");
+  const { Player, mongoose, waitForConnection } = require("@toolkit-tw-bot/db");
 
   try {
     assertAllowedEnvironment(process.env.NODE_ENV || "development");

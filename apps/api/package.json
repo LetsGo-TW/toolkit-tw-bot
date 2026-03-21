@@ -22,6 +22,8 @@
     "nodemon": "^3.0.1"
   },
   "dependencies": {
+    "@toolkit-tw-bot/db": "workspace:*",
+    "@toolkit-tw-bot/utils": "workspace:*",
     "axios": "^1.7.1",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",

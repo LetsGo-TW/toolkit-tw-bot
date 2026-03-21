@@ -63,6 +63,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@toolkit-tw-bot/api@workspace:apps/api"
   dependencies:
+    "@toolkit-tw-bot/db": "workspace:*"
+    "@toolkit-tw-bot/utils": "workspace:*"
     axios: "npm:^1.7.1"
     body-parser: "npm:^1.20.2"
     cors: "npm:^2.8.5"
@@ -78,9 +80,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@toolkit-tw-bot/db@workspace:*, @toolkit-tw-bot/db@workspace:packages/db":
+  version: 0.0.0-use.local
+  resolution: "@toolkit-tw-bot/db@workspace:packages/db"
+  languageName: unknown
+  linkType: soft
+
 "@toolkit-tw-bot/ops@workspace:apps/ops":
   version: 0.0.0-use.local
   resolution: "@toolkit-tw-bot/ops@workspace:apps/ops"
+  dependencies:
+    "@toolkit-tw-bot/db": "workspace:*"
+  languageName: unknown
+  linkType: soft
+
+"@toolkit-tw-bot/utils@workspace:*, @toolkit-tw-bot/utils@workspace:packages/utils":
+  version: 0.0.0-use.local
+  resolution: "@toolkit-tw-bot/utils@workspace:packages/utils"
   languageName: unknown
   linkType: soft
 

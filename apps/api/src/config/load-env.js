@@ -1,1 +1,15 @@
-module.exports = require("../../../../packages/db/src/config/load-env");
+const {
+  getAppRoot,
+  getEnvPaths,
+  getMonorepoRoot,
+  getNodeEnv,
+  loadEnv,
+} = require("@toolkit-tw-bot/db");
+
+module.exports = {
+  getAppRoot,
+  getEnvPaths,
+  getMonorepoRoot,
+  getNodeEnv,
+  loadEnv,
+};

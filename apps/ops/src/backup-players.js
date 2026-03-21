@@ -86,7 +86,7 @@ function pruneOldBackups(dirPath, databaseName) {
 
 async function main() {
   ensureRuntimeEnv();
-  const { Player, mongoose, waitForConnection } = require("../../../packages/db/src");
+  const { Player, mongoose, waitForConnection } = require("@toolkit-tw-bot/db");
 
   try {
     await waitForConnection(mongoose);

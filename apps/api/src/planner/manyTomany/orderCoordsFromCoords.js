@@ -1,4 +1,4 @@
-import Distance from '../../Distance/index.js'
+import { Distance } from '@toolkit-tw-bot/utils'
 
 function normalizeCoord(input) {
   if (!input) return null

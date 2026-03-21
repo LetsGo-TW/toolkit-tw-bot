@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 function getDbPackage() {
-  return require("../../../../packages/db/src");
+  return require("@toolkit-tw-bot/db");
 }
 
 function resolveMongoRuntime() {

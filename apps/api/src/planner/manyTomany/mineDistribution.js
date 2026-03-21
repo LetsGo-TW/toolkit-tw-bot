@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import Distance from '../../Distance/index.js'
+import { Distance } from '@toolkit-tw-bot/utils'
 import { computeSlowestUnit } from '../shared/slowestUnit.js'
 import distributeSendersByTargets from './distributeSendersByTargets.js'
 

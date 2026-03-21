@@ -13,7 +13,7 @@ async function main() {
     process.env.NODE_ENV = "development";
   }
 
-  const { mongoose, Player, waitForConnection } = require("../../../../packages/db/src");
+  const { mongoose, Player, waitForConnection } = require("@toolkit-tw-bot/db");
 
   await waitForConnection();
   const dbName = mongoose.connection.db.databaseName;

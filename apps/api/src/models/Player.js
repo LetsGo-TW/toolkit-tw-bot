@@ -1,1 +1,3 @@
-module.exports = require("../../../../packages/db/src/models/Player");
+const { Player } = require("@toolkit-tw-bot/db");
+
+module.exports = Player;
