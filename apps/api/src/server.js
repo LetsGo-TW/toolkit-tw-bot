@@ -60,6 +60,7 @@ require("./controllers/solver.controller")(app);
 require("./controllers/data.controller")(app);
 require("./controllers/auth.controller")(app);
 require("./controllers/admin.controller")(app);
+require("./controllers/telegram.controller")(app);
 
 const defaultPort = nodeEnv === "development" ? 4568 : nodeEnv === "test" ? 4570 : 4567;
 const port = process.env.PORT || defaultPort;

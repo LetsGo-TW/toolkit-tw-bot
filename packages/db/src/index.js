@@ -1,5 +1,7 @@
 const mongoose = require("./mongoose");
 const Player = require("./models/Player");
+const TelegramLinkToken = require("./models/TelegramLinkToken");
+const TelegramSubscription = require("./models/TelegramSubscription");
 const {
   getAppRoot,
   getEnvPaths,
@@ -27,6 +29,8 @@ async function waitForConnection(client = mongoose) {
 
 module.exports = {
   Player,
+  TelegramLinkToken,
+  TelegramSubscription,
   getAppRoot,
   getEnvPaths,
   getMonorepoRoot,

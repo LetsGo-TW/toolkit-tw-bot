@@ -43,6 +43,12 @@ module.exports = (req, res, next) => {
       return res.status(403).send({ error: 'Forbidden - Licence expired'})
     }
 
+    req.auth = {
+      id: decoded.id,
+      due: decoded.due,
+      token,
+    }
+
     return next()
   })
 }
