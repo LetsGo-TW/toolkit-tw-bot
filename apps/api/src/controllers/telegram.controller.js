@@ -82,6 +82,23 @@ function resolveAuthorizedPlayerId(req, player) {
   return authenticatedPlayerId;
 }
 
+function resolveAuthorizedPlayerIdFromValue(requestedPlayerIdRaw, player) {
+  const authenticatedPlayerId = toPlayerId(player?.player_id);
+  const requestedPlayerId = requestedPlayerIdRaw == null
+    ? null
+    : toPlayerId(requestedPlayerIdRaw);
+
+  if (!authenticatedPlayerId) {
+    throw createHttpError(400, "Bad request - Invalid authenticated playerId");
+  }
+
+  if (requestedPlayerId != null && requestedPlayerId !== authenticatedPlayerId) {
+    throw createHttpError(403, "Forbidden - playerId does not match authenticated licence");
+  }
+
+  return authenticatedPlayerId;
+}
+
 function internalAuthMiddleware(req, res, next) {
   try {
     const providedSecret = parseAuthorizationHeader(req.headers.authorization);
@@ -119,6 +136,8 @@ authRouter.get("/link", async (req, res) => {
       playerId,
       token: payload.token,
       url: payload.url,
+      appUrl: payload.appUrl || null,
+      command: payload.command || null,
       ttlSeconds: payload.ttlSeconds,
       expiresAt: payload.expiresAt?.toISOString() || null,
       qrCodeDataUrl: payload.qrCodeDataUrl || null,
@@ -140,6 +159,7 @@ authRouter.get("/qr", async (req, res) => {
     res.set("Cache-Control", "no-store");
     res.set("Content-Type", "image/png");
     res.set("X-Telegram-Link-Url", payload.url);
+    res.set("X-Telegram-App-Url", payload.appUrl || payload.url);
 
     if (payload.expiresAt) {
       res.set("X-Telegram-Link-Expires-At", payload.expiresAt.toISOString());
@@ -165,6 +185,22 @@ authRouter.get("/status", async (req, res) => {
       playerId,
       subscriptions,
     });
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+authRouter.post("/notify", async (req, res) => {
+  try {
+    const player = await getAuthenticatedPlayer(req);
+    const playerId = resolveAuthorizedPlayerIdFromValue(req.body?.playerId, player);
+    const payload = req.body || {};
+    const result = await notifyTelegramByPlayer({
+      playerId,
+      message: payload.message ?? payload.mensagem,
+    });
+
+    return res.send(result);
   } catch (error) {
     return sendError(res, error);
   }

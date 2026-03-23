@@ -9,6 +9,16 @@ const {
   generateQrCodeDataUrl,
   generateQrCodePngBuffer,
 } = require("../utils/qr-code");
+const {
+  getLastOutboundAtMs,
+  getTelegramMax429Retries,
+  getTelegramNotifyChatCooldownMs,
+  getTelegramNotifyPlayerCooldownMs,
+  getTelegramRetryAfterMs,
+  resolveCooldownRemainingMs,
+  sleep,
+  splitTelegramText,
+} = require("./telegram.notify.utils");
 
 const DEFAULT_LINK_TTL_SECONDS = 15 * 60;
 
@@ -95,7 +105,15 @@ function isStartTokenFormatValid(token) {
 }
 
 function buildTelegramStartUrl(startToken) {
-  return `https://t.me/${getTelegramBotUsername()}?start=${encodeURIComponent(startToken)}`;
+  return `https://t.me/${getTelegramBotUsername()}?start=${encodeURIComponent(String(startToken || "").trim())}`;
+}
+
+function buildTelegramStartAppUrl(startToken) {
+  return `tg://resolve?domain=${getTelegramBotUsername()}&start=${encodeURIComponent(String(startToken || "").trim())}`;
+}
+
+function buildTelegramStartCommand(startToken) {
+  return `/start ${String(startToken || "").trim()}`;
 }
 
 function getTelegramApiUrl(method) {
@@ -127,7 +145,11 @@ function parseTelegramCommand(text = "") {
 
 function formatChatSubscriptionsMessage(subscriptions = []) {
   if (!subscriptions.length) {
-    return "Nenhum player esta vinculado a este chat.";
+    return [
+      "Nenhum player esta vinculado a este chat.",
+      "",
+      "Para ativar, gere um novo /start <token> no painel e envie aqui.",
+    ].join("\n");
   }
 
   const lines = subscriptions
@@ -146,18 +168,29 @@ function formatChatSubscriptionsMessage(subscriptions = []) {
 function formatLinkSuccessMessage(playerId) {
   return [
     `Player ${playerId} vinculado com sucesso a este Telegram.`,
-    "Use /status para listar os players deste chat.",
-    "Use /stop <playerId> para cancelar um vinculo especifico.",
+    "",
+    "Comandos disponiveis neste chat:",
+    "/status",
+    "/stop <playerId>",
+    "/stop_all",
   ].join("\n");
 }
 
 function formatHelpMessage() {
   return [
-    "Comandos disponiveis:",
-    "/start <token> - vincula um player ao chat atual",
-    "/status - lista os players vinculados neste chat",
-    "/stop <playerId> - cancela um vinculo especifico",
-    "/stop_all - cancela todos os vinculos deste chat",
+    "Para vincular este chat, copie e envie:",
+    "/start <token>",
+    "",
+    "Depois que cadastrar, use:",
+    "/status",
+    "/stop <playerId>",
+    "/stop_all",
+  ].join("\n");
+}
+
+function formatReactivateMessage() {
+  return [
+    "Para ativar novamente, gere um novo /start <token> no painel e envie aqui.",
   ].join("\n");
 }
 
@@ -168,11 +201,21 @@ async function createTelegramLinkPayload({ playerId, includeQrDataUrl = false } 
     throw createHttpError(400, "Bad request - Invalid or missing playerId");
   }
 
+  const now = new Date();
   const linkToken = generateOpaqueLinkToken();
   const tokenHash = hashLinkToken(linkToken);
   const ttlSeconds = getTelegramLinkTtlSeconds();
-  const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+  const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
   const url = buildTelegramStartUrl(linkToken);
+  const appUrl = buildTelegramStartAppUrl(linkToken);
+  const command = buildTelegramStartCommand(linkToken);
+
+  await TelegramLinkToken.deleteMany({
+    playerId: normalizedPlayerId,
+    purpose: "telegram-link",
+    usedAt: null,
+    expiresAt: { $gt: now },
+  });
 
   await TelegramLinkToken.create({
     tokenHash,
@@ -185,6 +228,8 @@ async function createTelegramLinkPayload({ playerId, includeQrDataUrl = false } 
     playerId: normalizedPlayerId,
     token: linkToken,
     url,
+    appUrl,
+    command,
     ttlSeconds,
     expiresAt,
   };
@@ -208,6 +253,8 @@ async function createTelegramQrPayload({ playerId, token = null } = {}) {
       playerId: toPlayerId(playerId),
       token,
       url: buildTelegramStartUrl(token),
+      appUrl: buildTelegramStartAppUrl(token),
+      command: buildTelegramStartCommand(token),
       ttlSeconds: null,
       expiresAt: null,
     };
@@ -417,7 +464,7 @@ async function listChatSubscriptions(chatId, { includeInactive = false } = {}) {
     .lean();
 }
 
-async function sendTelegramTextMessage(chatId, text) {
+async function sendTelegramTextMessagePart(chatId, text) {
   const normalizedChatId = toChatId(chatId);
 
   if (!normalizedChatId) {
@@ -430,9 +477,54 @@ async function sendTelegramTextMessage(chatId, text) {
     disable_web_page_preview: true,
   };
 
-  return axios.post(getTelegramApiUrl("sendMessage"), body, {
-    timeout: 10000,
-  });
+  let attempt = 0;
+  const max429Retries = getTelegramMax429Retries();
+
+  while (true) {
+    try {
+      return await axios.post(getTelegramApiUrl("sendMessage"), body, {
+        timeout: 10000,
+      });
+    } catch (error) {
+      const statusCode = Number(error?.response?.status || 0);
+
+      if (statusCode !== 429 || attempt >= max429Retries) {
+        throw error;
+      }
+
+      attempt += 1;
+      await sleep(getTelegramRetryAfterMs(error));
+    }
+  }
+}
+
+async function sendTelegramTextMessage(chatId, text, { parts = null } = {}) {
+  const normalizedChatId = toChatId(chatId);
+
+  if (!normalizedChatId) {
+    throw createHttpError(400, "Bad request - Invalid chatId");
+  }
+
+  const messageParts = Array.isArray(parts) && parts.length
+    ? parts
+    : splitTelegramText(text);
+
+  if (!messageParts.length) {
+    throw createHttpError(400, "Bad request - Invalid or missing message");
+  }
+
+  const responses = [];
+
+  for (const part of messageParts) {
+    responses.push(await sendTelegramTextMessagePart(normalizedChatId, part));
+  }
+
+  return {
+    ok: true,
+    chatId: normalizedChatId,
+    partsCount: messageParts.length,
+    responses,
+  };
 }
 
 async function hasActiveLicense(playerId) {
@@ -450,7 +542,7 @@ async function hasActiveLicense(playerId) {
   return players.some((player) => verifyDue(player?.due));
 }
 
-async function markSendSuccess(subscription) {
+async function markSendSuccess(subscription, sentAt = new Date()) {
   await TelegramSubscription.findOneAndUpdate(
     {
       playerId: subscription.playerId,
@@ -458,7 +550,7 @@ async function markSendSuccess(subscription) {
     },
     {
       $set: {
-        lastOutboundAt: new Date(),
+        lastOutboundAt: sentAt,
         lastErrorAt: null,
         lastErrorMessage: null,
       },
@@ -498,6 +590,7 @@ async function markSendFailure(subscription, error) {
   return {
     statusCode,
     message,
+    retryAfterMs: statusCode === 429 ? getTelegramRetryAfterMs(error) : 0,
   };
 }
 
@@ -534,23 +627,84 @@ async function notifyTelegramByPlayer({ playerId, message }) {
     };
   }
 
+  const playerCooldownMs = getTelegramNotifyPlayerCooldownMs();
+  const chatCooldownMs = getTelegramNotifyChatCooldownMs();
+  const nowMs = Date.now();
+  const messageParts = splitTelegramText(text);
   const results = [];
+  const playerCooldownRemainingMs = resolveCooldownRemainingMs(
+    getLastOutboundAtMs(subscriptions),
+    playerCooldownMs,
+    nowMs,
+  );
 
-  for (const subscription of subscriptions) {
-    try {
-      await sendTelegramTextMessage(subscription.chatId, text);
-      await markSendSuccess(subscription);
+  if (playerCooldownRemainingMs > 0) {
+    for (const subscription of subscriptions) {
       results.push({
         chatId: subscription.chatId,
         ok: true,
+        sent: false,
+        skipped: true,
+        reason: "player_cooldown",
+        retryAfterMs: playerCooldownRemainingMs,
+      });
+    }
+
+    return {
+      ok: true,
+      playerId: normalizedPlayerId,
+      subscriptionsCount: subscriptions.length,
+      sentCount: 0,
+      failedCount: 0,
+      skippedCount: results.length,
+      blockedCount: 0,
+      partsCount: messageParts.length,
+      results,
+    };
+  }
+
+  for (const subscription of subscriptions) {
+    const chatCooldownRemainingMs = resolveCooldownRemainingMs(
+      subscription.lastOutboundAt,
+      chatCooldownMs,
+      nowMs,
+    );
+
+    if (chatCooldownRemainingMs > 0) {
+      results.push({
+        chatId: subscription.chatId,
+        ok: true,
+        sent: false,
+        skipped: true,
+        reason: "chat_cooldown",
+        retryAfterMs: chatCooldownRemainingMs,
+      });
+      continue;
+    }
+
+    try {
+      const sendResult = await sendTelegramTextMessage(subscription.chatId, text, {
+        parts: messageParts,
+      });
+      const sentAt = new Date();
+
+      await markSendSuccess(subscription, sentAt);
+      results.push({
+        chatId: subscription.chatId,
+        ok: true,
+        sent: true,
+        partsCount: sendResult.partsCount,
+        sentAt: sentAt.toISOString(),
       });
     } catch (error) {
       const failure = await markSendFailure(subscription, error);
       results.push({
         chatId: subscription.chatId,
         ok: false,
+        sent: false,
         statusCode: failure.statusCode,
         error: failure.message,
+        retryAfterMs: failure.retryAfterMs,
       });
     }
   }
@@ -559,9 +713,11 @@ async function notifyTelegramByPlayer({ playerId, message }) {
     ok: true,
     playerId: normalizedPlayerId,
     subscriptionsCount: subscriptions.length,
-    sentCount: results.filter((item) => item.ok).length,
+    sentCount: results.filter((item) => item.sent).length,
     failedCount: results.filter((item) => !item.ok).length,
+    skippedCount: results.filter((item) => item.skipped).length,
     blockedCount: results.filter((item) => item.statusCode === 403).length,
+    partsCount: messageParts.length,
     results,
   };
 }
@@ -628,7 +784,14 @@ async function handleStopCommand({ chatId, args }) {
     const subscriptions = await listChatSubscriptions(chatId, { includeInactive: false });
 
     if (!subscriptions.length) {
-      await sendTelegramTextMessage(chatId, "Nenhum player ativo esta vinculado a este chat.");
+      await sendTelegramTextMessage(
+        chatId,
+        [
+          "Nenhum player ativo esta vinculado a este chat.",
+          "",
+          formatReactivateMessage(),
+        ].join("\n"),
+      );
       return { handled: true, action: "stop_none" };
     }
 
@@ -640,7 +803,11 @@ async function handleStopCommand({ chatId, args }) {
 
       await sendTelegramTextMessage(
         chatId,
-        `Player ${subscriptions[0].playerId} removido deste chat.`,
+        [
+          `Player ${subscriptions[0].playerId} removido deste chat.`,
+          "",
+          formatReactivateMessage(),
+        ].join("\n"),
       );
 
       return {
@@ -670,13 +837,24 @@ async function handleStopCommand({ chatId, args }) {
   if (!revoked) {
     await sendTelegramTextMessage(
       chatId,
-      `Nenhum vinculo ativo encontrado para o player ${playerId} neste chat.`,
+      [
+        `Nenhum vinculo ativo encontrado para o player ${playerId} neste chat.`,
+        "",
+        formatReactivateMessage(),
+      ].join("\n"),
     );
 
     return { handled: true, action: "stop_not_found", playerId };
   }
 
-  await sendTelegramTextMessage(chatId, `Player ${playerId} removido deste chat.`);
+  await sendTelegramTextMessage(
+    chatId,
+    [
+      `Player ${playerId} removido deste chat.`,
+      "",
+      formatReactivateMessage(),
+    ].join("\n"),
+  );
 
   return { handled: true, action: "stop", playerId };
 }
@@ -687,8 +865,16 @@ async function handleStopAllCommand({ chatId }) {
   await sendTelegramTextMessage(
     chatId,
     count
-      ? `Todos os vinculos deste chat foram removidos (${count}).`
-      : "Nenhum vinculo ativo encontrado para este chat.",
+      ? [
+          `Todos os vinculos deste chat foram removidos (${count}).`,
+          "",
+          formatReactivateMessage(),
+        ].join("\n")
+      : [
+          "Nenhum vinculo ativo encontrado para este chat.",
+          "",
+          formatReactivateMessage(),
+        ].join("\n"),
   );
 
   return {
