@@ -10,3 +10,4 @@ node_modules/
 backup
 data.json
 scripts/dev
+src/public/cdn/

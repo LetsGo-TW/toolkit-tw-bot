@@ -1,6 +1,6 @@
 // apps/cdn/webpack/webpack.resolve-entry-map.js
 const path = require('path')
-const entries = require('../entries')
+const entries = require('../entries/entries')
 
 function resolveEntries(group) {
   return Object.fromEntries(

@@ -18,8 +18,26 @@
     "build:obfuscate:medium": "OBFUSCATE=true OBFUSCATE_LEVEL=medium webpack --config webpack/webpack.config.js --env env=prod"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@toolkit-tw-bot/release": "workspace:*",
-    "@toolkit-tw-bot/webpack": "workspace:*"
+    "@toolkit-tw-bot/webpack": "workspace:*",
+    "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "^7.1.2",
+    "dotenv-webpack": "^8.1.1",
+    "html-webpack-plugin": "^5.6.4",
+    "javascript-obfuscator": "^4.1.1",
+    "rimraf": "^6.0.1",
+    "style-loader": "^4.0.0",
+    "terser-webpack-plugin": "^5.3.14",
+    "webpack": "^5.101.3",
+    "webpack-bundle-analyzer": "^4.10.2",
+    "webpack-cli": "^6.0.1",
+    "webpack-merge": "^6.0.1",
+    "webpack-obfuscator": "^3.5.1"
   },
   "dependencies": {
     "@toolkit-tw-bot/utils": "workspace:*"

@@ -16,16 +16,12 @@
     "build:assets": "bash ./scripts/build-assets.sh",
     "publish:cdn": "bash ./scripts/publish-cdn.sh",
     "zip:extension": "bash ./apps/extension/generate-extension-zip.sh",
-
     "backup:players": "yarn workspace @toolkit-tw-bot/ops backup:players",
-
     "db:dev:up": "docker compose up -d mongo",
     "db:dev:down": "docker compose down",
     "db:dev:logs": "docker compose logs -f mongo",
-
     "db:dev:up:restore": "docker compose up -d mongo && yarn db:dev:restore:players:latest",
     "db:dev:restore:players:latest": "yarn workspace @toolkit-tw-bot/ops restore:players:latest",
-
     "db:inspect": "yarn workspace @toolkit-tw-bot/ops db:inspect",
     "db:check:id": "yarn workspace @toolkit-tw-bot/ops db:check:id",
     "db:cleanup:duplicates": "yarn workspace @toolkit-tw-bot/ops db:cleanup:duplicates",

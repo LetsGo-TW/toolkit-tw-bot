@@ -10,6 +10,8 @@ const { makeDynamicI18nPatterns } = require('./webpack.make-dynamic-i18n-pattern
 const { resolveEntries } = require('./webpack.resolve-entry-map')
 
 module.exports = () => {
+  const dynamicI18nPatterns = makeDynamicI18nPatterns()
+
   const web = {
     name: 'WEB',
 
@@ -62,15 +64,20 @@ module.exports = () => {
 
     plugins: [
       new Dotenv(),
-      new CopyPlugin({
-        patterns: [
-          ...makeDynamicI18nPatterns(),
-        ],
-      }),
       new WebpackManifestPlugin({
         publicPath: '',
       }),
     ],
+  }
+
+  if (dynamicI18nPatterns.length > 0) {
+    web.plugins.splice(
+      1,
+      0,
+      new CopyPlugin({
+        patterns: dynamicI18nPatterns,
+      }),
+    )
   }
 
   if (process.env.OBFUSCATE === 'true') {
