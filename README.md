@@ -21,6 +21,133 @@ yarn dev
 
 O exemplo de desenvolvimento ja usa a porta `4568` para evitar colisao com a `4567` de producao.
 
+## Release, CDN e extensao
+
+Os metadados centrais de release ficam em [`packages/release/src/index.js`](packages/release/src/index.js).
+
+Hoje esse arquivo define:
+
+- `compatVersion`
+- `extensionVersion`
+- `cdnVersion`
+- `assetBasePath`
+- nome base do zip da extensao
+
+O caminho publico dos assets do CDN e derivado de `compatVersion`:
+
+```text
+/cdn/<compatVersion>
+```
+
+Exemplo atual:
+
+```text
+/cdn/2.0
+```
+
+Isso permite manter a compatibilidade entre extensao e scripts do CDN usando a versao de compatibilidade como namespace publico.
+
+### Build de artefatos
+
+Para buildar CDN e extensao:
+
+```bash
+yarn build:assets
+```
+
+Para buildar so um dos dois:
+
+```bash
+yarn build:assets --only=cdn
+yarn build:assets --only=extension
+```
+
+Para buildar em desenvolvimento:
+
+```bash
+yarn build:assets --env=dev
+```
+
+O script da raiz usado por esses comandos e:
+
+```text
+scripts/build-assets.sh
+```
+
+### Publicacao do CDN
+
+O publish do CDN e separado do build. O script copia `apps/cdn/dist` para um destino versionado por `compatVersion`.
+
+Destino na API/origin:
+
+```text
+apps/api/src/public/cdn/<compatVersion>
+```
+
+Comando:
+
+```bash
+yarn publish:cdn
+```
+
+Modos nao interativos:
+
+```bash
+yarn publish:cdn --target=api
+yarn publish:cdn --target=cdn --cdn-dir=/caminho/do/cdn
+yarn publish:cdn --target=both --cdn-dir=/caminho/do/cdn
+```
+
+Observacoes:
+
+- `build` gera artefato, nao decide destino
+- `publish` decide se copia para API, CDN externo ou ambos
+- o caminho publico esperado dos scripts continua sendo `/cdn/<compatVersion>`
+
+### Zip da extensao
+
+O zip da extensao e gerado a partir de `apps/extension/dist` e usa o nome derivado de `packages/release/src/index.js`.
+
+Comando:
+
+```bash
+yarn zip:extension
+```
+
+Destino padrao:
+
+```text
+apps/api/src/public/downloads
+```
+
+Se quiser outro destino local, use:
+
+```bash
+ZIP_DEST_DIR=/caminho/de/saida yarn zip:extension
+```
+
+### Manifest da extensao
+
+O template base do manifest fica em:
+
+```text
+apps/extension/manifest/version3.json
+```
+
+O `manifest.json` final e gerado no build da extensao.
+
+Partes geradas automaticamente:
+
+- `version` a partir de `@toolkit-tw-bot/release`
+- `background.service_worker`
+- `action.default_popup`
+- `content_scripts` a partir de `apps/extension/entries/entries.js`
+
+Ou seja:
+
+- `version3.json` deve conter apenas campos estaticos do manifest
+- `entries.js` define o que vira bundle e o que entra no manifest
+
 ### Arquivos de ambiente
 
 - `apps/api/.env.development`

@@ -1,0 +1,29 @@
+{
+  "name": "@toolkit-tw-bot/cdn",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Build-only CDN bundles for Toolkit TW Bot",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "dev": "webpack --config webpack/webpack.config.js --env env=dev --watch",
+    "prebuild": "yarn generate:dynamic-imports",
+    "build:dev": "webpack --config webpack/webpack.config.js --env env=dev",
+    "build:prod": "webpack --config webpack/webpack.config.js --env env=prod",
+    "build": "yarn build:prod",
+    "build:analyze": "ANALYZE=true webpack --config webpack/webpack.config.js --env env=prod",
+    "build:obfuscate:default": "OBFUSCATE=true OBFUSCATE_LEVEL=default webpack --config webpack/webpack.config.js --env env=prod",
+    "build:obfuscate:low": "OBFUSCATE=true OBFUSCATE_LEVEL=low webpack --config webpack/webpack.config.js --env env=prod",
+    "build:obfuscate:medium": "OBFUSCATE=true OBFUSCATE_LEVEL=medium webpack --config webpack/webpack.config.js --env env=prod",
+    "generate:dynamic-imports": "node scripts/generate-dynamic-imports.js"
+  },
+  "devDependencies": {
+    "@toolkit-tw-bot/release": "workspace:*",
+    "@toolkit-tw-bot/webpack": "workspace:*"
+  },
+  "dependencies": {
+    "@toolkit-tw-bot/utils": "workspace:*"
+  }
+}

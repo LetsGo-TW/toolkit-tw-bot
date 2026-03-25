@@ -1,0 +1,131 @@
+{
+  "manifest_version": 3,
+  "name": "Let's GO! - DeveloperV3",
+  "author": "Clezio Marcos",
+  "description": "Player Assistant",
+  "minimum_chrome_version": "120",
+  "icons": {
+    "16": "./icons/16.png",
+    "32": "./icons/32.png",
+    "42": "./icons/ico.gray.48.png",
+    "43": "./icons/ico.png",
+    "45": "./icons/white-black.48.png",
+    "46": "./icons/red.48.png",
+    "47": "./icons/yellow.48.png",
+    "48": "./icons/48.png",
+    "128": "./icons/128.png"
+  },
+  "action": {
+    "default_title": "Let's GO! - Player Assistant",
+    "enabled": false,
+    "default_icon": {
+      "42": "./icons/ico.gray.48.png"
+    }
+  },
+  "permissions": [
+    "debugger",
+    "webNavigation",
+    "activeTab",
+    "tabs",
+    "storage",
+    "declarativeNetRequest",
+    "declarativeContent",
+    "scripting",
+    "notifications",
+    "alarms",
+    "cookies",
+    "browsingData",
+    "webRequest"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://*.tribalwars.com.br/*",
+      "https://*.die-staemme.de/*",
+      "https://*.staemme.ch/*",
+      "https://*.tribalwars.net/*",
+      "https://*.tribalwars.nl/*",
+      "https://*.plemiona.pl/*",
+      "https://*.tribalwars.com.pt/*",
+      "https://*.divokekmeny.cz/*",
+      "https://*.triburile.ro/*",
+      "https://*.voynaplemyon.com/*",
+      "https://*.fyletikesmaxes.gr/*",
+      "https://*.divoke-kmene.sk/*",
+      "https://*.klanhaboru.hu/*",
+      "https://*.tribals.it/*",
+      "https://*.klanlar.org/*",
+      "https://*.guerretribale.fr/*",
+      "https://*.guerrastribales.es/*",
+      "https://*.tribalwars.ae/*",
+      "https://*.tribalwars.co.uk/*",
+      "https://*.tribalwars.works/*",
+      "https://*.tribalwars.us/*",
+      "https://*.tribalwars.cash/*"
+    ]
+  },
+  "declarative_net_request" : {
+    "rule_resources" : [{
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "./rules/rules.json"
+    }]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [ "/img/*", "/sounds/*" ],
+      "matches": [
+        "https://*.tribalwars.com.br/*",
+        "https://*.die-staemme.de/*",
+        "https://*.staemme.ch/*",
+        "https://*.tribalwars.net/*",
+        "https://*.tribalwars.nl/*",
+        "https://*.plemiona.pl/*",
+        "https://*.tribalwars.com.pt/*",
+        "https://*.divokekmeny.cz/*",
+        "https://*.triburile.ro/*",
+        "https://*.voynaplemyon.com/*",
+        "https://*.fyletikesmaxes.gr/*",
+        "https://*.divoke-kmene.sk/*",
+        "https://*.klanhaboru.hu/*",
+        "https://*.tribals.it/*",
+        "https://*.klanlar.org/*",
+        "https://*.guerretribale.fr/*",
+        "https://*.guerrastribales.es/*",
+        "https://*.tribalwars.ae/*",
+        "https://*.tribalwars.co.uk/*",
+        "https://*.tribalwars.works/*",
+        "https://*.tribalwars.us/*",
+        "https://*.tribalwars.cash/*"
+      ]
+    }
+  ],
+  "host_permissions": [
+    "https://*.tribalwars.com.br/*",
+    "https://*.die-staemme.de/*",
+    "https://*.staemme.ch/*",
+    "https://*.tribalwars.net/*",
+    "https://*.tribalwars.nl/*",
+    "https://*.plemiona.pl/*",
+    "https://*.tribalwars.com.pt/*",
+    "https://*.divokekmeny.cz/*",
+    "https://*.triburile.ro/*",
+    "https://*.voynaplemyon.com/*",
+    "https://*.fyletikesmaxes.gr/*",
+    "https://*.divoke-kmene.sk/*",
+    "https://*.klanhaboru.hu/*",
+    "https://*.tribals.it/*",
+    "https://*.klanlar.org/*",
+    "https://*.guerretribale.fr/*",
+    "https://*.guerrastribales.es/*",
+    "https://*.tribalwars.ae/*",
+    "https://*.tribalwars.co.uk/*",
+    "https://*.tribalwars.works/*",
+    "https://*.tribalwars.us/*",
+    "https://*.hcaptcha.com/*",
+    "wss://*/socket.io/*",
+    "http://localhost:4567/*",
+    "https://api-controller-lets-go.herokuapp.com/*",
+    "https://dsbr.innogamescdn.com/assets/*/js/game/*'",
+    "https://*.tribalwars.cash/*"
+  ]
+}

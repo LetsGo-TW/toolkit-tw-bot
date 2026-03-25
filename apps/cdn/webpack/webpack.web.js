@@ -1,0 +1,85 @@
+// apps/cdn/webpack/webpack.web.js
+// apps/cdn/webpack/webpack.web.js
+const path = require('path')
+const Dotenv = require('dotenv-webpack')
+const CopyPlugin = require('copy-webpack-plugin')
+const WebpackObfuscator = require('webpack-obfuscator')
+const { WebpackManifestPlugin } = require('webpack-manifest-plugin')
+const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
+const { makeDynamicI18nPatterns } = require('./webpack.make-dynamic-i18n-patterns')
+const { resolveEntries } = require('./webpack.resolve-entry-map')
+
+module.exports = () => {
+  const web = {
+    name: 'WEB',
+
+    target: 'web',
+
+    entry: resolveEntries('web'),
+
+    resolve: {
+      extensions: ['.ts', '.js'],
+      extensionAlias: {
+        '.js': ['.js', '.ts'],
+      },
+    },
+
+    module: {
+      rules: [
+        {
+          test: /\.[cm]?[jt]sx?$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+          },
+        },
+        {
+          test: /\.html$/i,
+          loader: 'html-loader',
+        },
+        {
+          test: /\.css$/i,
+          use: ['style-loader', 'css-loader'],
+        },
+        {
+          test: /\.png$/i,
+          type: 'asset',
+        },
+        {
+          test: /\.svg$/i,
+          type: 'asset',
+        },
+      ],
+    },
+
+    output: {
+      clean: true,
+      path: path.resolve(__dirname, '../dist/web'),
+      filename: '[name].js',
+      chunkFilename: '[name].js',
+      assetModuleFilename: '[name].[contenthash][ext][query]',
+    },
+
+    plugins: [
+      new Dotenv(),
+      new CopyPlugin({
+        patterns: [
+          ...makeDynamicI18nPatterns(),
+        ],
+      }),
+      new WebpackManifestPlugin({
+        publicPath: '',
+      }),
+    ],
+  }
+
+  if (process.env.OBFUSCATE === 'true') {
+    web.plugins.push(
+      new WebpackObfuscator(
+        getObfuscatorOptions(process.env.OBFUSCATE_LEVEL || 'default'),
+      ),
+    )
+  }
+
+  return web
+}

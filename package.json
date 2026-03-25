@@ -13,6 +13,9 @@
     "dev": "yarn workspace @toolkit-tw-bot/api dev",
     "start": "yarn workspace @toolkit-tw-bot/api start",
     "build": "node -e \"console.log('No build step required for current workspaces.')\"",
+    "build:assets": "bash ./scripts/build-assets.sh",
+    "publish:cdn": "bash ./scripts/publish-cdn.sh",
+    "zip:extension": "bash ./apps/extension/generate-extension-zip.sh",
 
     "backup:players": "yarn workspace @toolkit-tw-bot/ops backup:players",
 
