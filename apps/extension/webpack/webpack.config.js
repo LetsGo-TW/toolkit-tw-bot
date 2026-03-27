@@ -1,5 +1,4 @@
 const { merge } = require('webpack-merge')
-const commonConfig = require('./webpack.common.js')
 const WebpackObfuscator = require('webpack-obfuscator')
 const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
 
@@ -23,9 +22,13 @@ function getConfigObfuscatorOptions(configName) {
 
 module.exports = (envVars = {}) => {
   const { env = 'dev' } = envVars
+  process.env.WEBPACK_BUILD_ENV = env
+
+  const makeCommonConfigs = require('./webpack.common.js')
+  const commonConfigs = makeCommonConfigs()
   const envConfig = require(`./webpack.${env}.js`)
 
-  return commonConfig.map((config) => {
+  return commonConfigs.map((config) => {
     const merged = merge(config, envConfig)
 
     if (env === 'prod' && process.env.OBFUSCATE !== 'false') {

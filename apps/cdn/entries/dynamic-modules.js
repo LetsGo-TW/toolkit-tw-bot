@@ -1,10 +1,15 @@
 module.exports = {
-  // game: {
-  //   importPath: '../LetsGO',
-  //   chunkName: 'game',
-  //   exportName: 'default',
-  // },
+  game: {
+    importPath: './game',
+    chunkName: 'game',
+    exportName: 'default',
+  },
 
+  login: {
+    importPath: './login',
+    chunkName: 'login',
+    exportName: 'default',
+  },
   // solver: {
   //   importPath: '../hCaptcha',
   //   chunkName: 'solver',

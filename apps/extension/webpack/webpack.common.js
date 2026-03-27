@@ -4,14 +4,18 @@ const webpackContentScriptShadowdom = require('./webpack.content-script-shadowdo
 const webpackPages = require('./webpack.pages')
 const { hasEntryConfigs } = require('./webpack.get-entry-config')
 
-const configs = [
-  webpackServiceWorker(),
-  webpackContentScriptVanilla(),
-  webpackPages(),
-]
+function makeCommonConfigs() {
+  const configs = [
+    webpackServiceWorker(),
+    webpackContentScriptVanilla(),
+    webpackPages(),
+  ]
 
-if (hasEntryConfigs('csShadowDom')) {
-  configs.push(webpackContentScriptShadowdom())
+  if (hasEntryConfigs('csShadowDom')) {
+    configs.push(webpackContentScriptShadowdom())
+  }
+
+  return configs
 }
 
-module.exports = configs
+module.exports = makeCommonConfigs

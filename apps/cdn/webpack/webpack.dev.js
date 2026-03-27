@@ -2,6 +2,17 @@
 const fs = require('fs')
 const path = require('path')
 
+function loadReleaseConfig() {
+  try {
+    return require('@toolkit-tw-bot/release')
+  } catch {
+    return require('../../../packages/release/src')
+  }
+}
+
+const { assetBasePath } = loadReleaseConfig()
+const assetBaseDir = assetBasePath.replace(/^\/+/, '')
+
 class SyncApiPublicCdnPlugin {
   apply(compiler) {
     compiler.hooks.afterEmit.tap('SyncApiPublicCdnPlugin', () => {
@@ -14,7 +25,8 @@ class SyncApiPublicCdnPlugin {
       const outputDirName = path.basename(outputPath)
       const targetDir = path.resolve(
         __dirname,
-        '../../api/src/public/cdn',
+        '../../api/src/public',
+        assetBaseDir,
         outputDirName,
       )
 

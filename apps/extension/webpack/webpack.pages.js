@@ -1,15 +1,17 @@
 const path = require('path')
-const Dotenv = require('dotenv-webpack')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const { getEntryConfigs } = require('./webpack.get-entry-config')
 const { resolveEntries } = require('./webpack.resolve-entry-map')
+const { makeDotenvPlugin } = require('./webpack.make-dotenv-plugin')
+const babelConfigFile = path.resolve(__dirname, '../../../babel.config.json')
 
 function makePageHtmlPlugins() {
   return Object.entries(getEntryConfigs('pg')).map(([name, config]) => (
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, '../src/extension/index.html'),
+      template: path.resolve(__dirname, '../src/pages/index.html'),
       filename: config.htmlFilename || `${name}.html`,
       chunks: [name],
+      title: config.title || "Let's GO! - Player Assistant",
     })
   ))
 }
@@ -38,6 +40,9 @@ module.exports = () => {
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
+            options: {
+              configFile: babelConfigFile,
+            },
           },
         },
         {
@@ -62,22 +67,19 @@ module.exports = () => {
     output: {
       clean: false,
       path: path.resolve(__dirname, '../dist'),
-      filename: 'pages/[name].[contenthash].js',
-      chunkFilename: 'pages/[name].[contenthash].js',
-      assetModuleFilename: 'pages/assets/[name].[contenthash][ext][query]',
+      filename: 'pages/[name].js',
+      chunkFilename: 'pages/[name].js',
+      assetModuleFilename: 'pages/assets/[name][ext][query]',
     },
 
     plugins: [
-      new Dotenv(),
+      makeDotenvPlugin(),
       ...makePageHtmlPlugins(),
     ],
 
     optimization: {
-      moduleIds: 'deterministic',
-      runtimeChunk: 'single',
-      splitChunks: {
-        chunks: 'all',
-      },
+      splitChunks: false,
+      runtimeChunk: false,
     },
   }
 

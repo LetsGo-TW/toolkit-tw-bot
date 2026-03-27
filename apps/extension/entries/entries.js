@@ -45,12 +45,13 @@ module.exports = {
       type: 'popup',
       target: 'web',
       htmlFilename: 'popup.html',
+      title: "Let's GO! - Player Assistant",
     },
   },
 
   csVanilla: {
-    'content-scripts/vanilla/main.top.start': {
-      entry: 'content-script/main/top/start/index.js',
+    'main.top.start': {
+      entry: 'content-scripts/vanilla/main/top/start/index.ts',
       matches: TRIBAL_WARS_MATCHES,
       excludeMatches: DEFAULT_EXCLUDE_MATCHES,
       world: 'MAIN',
@@ -58,6 +59,17 @@ module.exports = {
       scope: 'top',
       runAt: 'document_start',
       allFrames: false,
+      target: 'web',
+    },
+    'isolated.all-frames.idle': {
+      entry: 'content-scripts/vanilla/isolated/all-frames/idle/index.ts',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'ISOLATED',
+      injection: 'vanilla',
+      scope: 'all-frames',
+      runAt: 'document_idle',
+      allFrames: true,
       target: 'web',
     },
   },

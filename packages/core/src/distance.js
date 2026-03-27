@@ -9,7 +9,7 @@ class Distance {
   }
 
   static create(base) {
-    const { x, y } = typeof base === "string"
+    const { x, y } = typeof base === 'string'
       ? Distance.#transformCoordStringToObject(base)
       : base
 
@@ -17,13 +17,13 @@ class Distance {
   }
 
   static #transformCoordStringToObject(coordString) {
-    const [x, y] = String(coordString || "").split("|")
+    const [x, y] = String(coordString || '').split('|')
 
     return { x, y }
   }
 
   calc = (coord) => {
-    const { x, y } = typeof coord === "string"
+    const { x, y } = typeof coord === 'string'
       ? Distance.#transformCoordStringToObject(coord)
       : coord
 
@@ -47,4 +47,4 @@ class Distance {
   }
 }
 
-export default Distance
+module.exports = Distance

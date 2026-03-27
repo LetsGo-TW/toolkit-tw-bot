@@ -1,6 +1,7 @@
 const path = require('path')
-const Dotenv = require('dotenv-webpack')
 const { resolveEntries } = require('./webpack.resolve-entry-map')
+const { makeDotenvPlugin } = require('./webpack.make-dotenv-plugin')
+const babelConfigFile = path.resolve(__dirname, '../../../babel.config.json')
 
 module.exports = () => {
   const contentScriptVanilla = {
@@ -26,6 +27,9 @@ module.exports = () => {
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
+            options: {
+              configFile: babelConfigFile,
+            },
           },
         },
         {
@@ -41,10 +45,11 @@ module.exports = () => {
 
     output: {
       clean: false,
-      path: path.resolve(__dirname, '../dist'),
+      path: path.resolve(__dirname, '../dist/content-scripts'),
+      publicPath: '',
       filename: '[name].js',
       chunkFilename: '[name].js',
-      assetModuleFilename: 'content-scripts/assets/[name].[contenthash][ext][query]',
+      assetModuleFilename: 'assets/[name].[contenthash][ext][query]',
     },
 
     optimization: {
@@ -52,7 +57,7 @@ module.exports = () => {
       runtimeChunk: false,
     },
 
-    plugins: [new Dotenv()],
+    plugins: [makeDotenvPlugin()],
   }
 
   return contentScriptVanilla

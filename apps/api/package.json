@@ -23,6 +23,7 @@
     "nodemon": "^3.0.1"
   },
   "dependencies": {
+    "@toolkit-tw-bot/core": "workspace:*",
     "@toolkit-tw-bot/db": "workspace:*",
     "@toolkit-tw-bot/utils": "workspace:*",
     "axios": "^1.7.1",

@@ -30,7 +30,7 @@ ${methods}
 function main() {
   const outputPath = path.resolve(
     __dirname,
-    '../src/dynamic-import/index.js',
+    '../src/dynamic-import.js',
   )
 
   const content = generateFileContent()

@@ -10,7 +10,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "yarn workspace @toolkit-tw-bot/api dev",
+    "dev": "concurrently -k --names api,cdn,extension --prefix-colors blue,magenta,green \"yarn dev:api\" \"yarn dev:cdn\" \"yarn dev:extension\"",
+    "dev:api": "yarn workspace @toolkit-tw-bot/api dev",
+    "dev:cdn": "yarn workspace @toolkit-tw-bot/cdn dev",
+    "dev:extension": "yarn workspace @toolkit-tw-bot/extension dev",
     "start": "yarn workspace @toolkit-tw-bot/api start",
     "build": "node -e \"console.log('No build step required for current workspaces.')\"",
     "build:assets": "bash ./scripts/build-assets.sh",
@@ -30,5 +33,9 @@
     "db:data:scan:month": "yarn workspace @toolkit-tw-bot/ops db:data:scan:month",
     "db:data:search:id": "yarn workspace @toolkit-tw-bot/ops db:data:search:id",
     "db:restore:data-file": "yarn workspace @toolkit-tw-bot/ops db:restore:data-file"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.38",
+    "concurrently": "^9.2.1"
   }
 }

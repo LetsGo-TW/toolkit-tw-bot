@@ -72,7 +72,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [ "/img/*", "/sounds/*" ],
+      "resources": [ "/img/*", "/sounds/*", "/content-scripts/*" ],
       "matches": [
         "https://*.tribalwars.com.br/*",
         "https://*.die-staemme.de/*",

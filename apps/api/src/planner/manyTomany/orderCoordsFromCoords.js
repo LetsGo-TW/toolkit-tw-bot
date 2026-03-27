@@ -1,4 +1,4 @@
-import { Distance } from '@toolkit-tw-bot/utils'
+import { Distance } from '@toolkit-tw-bot/core'
 
 function normalizeCoord(input) {
   if (!input) return null

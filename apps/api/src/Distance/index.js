@@ -1,1 +1,1 @@
-export { Distance as default } from "@toolkit-tw-bot/utils"
+export { Distance as default } from '@toolkit-tw-bot/core'

@@ -1,1 +1,1 @@
-export { default as Distance } from "./distance.js"
+module.exports = {}

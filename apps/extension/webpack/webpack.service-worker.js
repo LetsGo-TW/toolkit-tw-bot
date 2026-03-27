@@ -1,9 +1,10 @@
 // apps/extension/webpack/webpack.service-worker.js
 const path = require('path')
-const Dotenv = require('dotenv-webpack')
 const CopyPlugin = require('copy-webpack-plugin')
 const { resolveEntries } = require('./webpack.resolve-entry-map')
 const { GenerateExtensionManifestPlugin } = require('./webpack.make-manifest')
+const { makeDotenvPlugin } = require('./webpack.make-dotenv-plugin')
+const babelConfigFile = path.resolve(__dirname, '../../../babel.config.json')
 
 module.exports = () => {
   const serviceWorker = {
@@ -27,6 +28,9 @@ module.exports = () => {
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
+            options: {
+              configFile: babelConfigFile,
+            },
           },
         },
       ],
@@ -44,7 +48,7 @@ module.exports = () => {
     },
 
     plugins: [
-      new Dotenv(),
+      makeDotenvPlugin(),
       new GenerateExtensionManifestPlugin(),
       new CopyPlugin({
         patterns: [

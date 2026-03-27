@@ -33,7 +33,7 @@ function getPopupPage() {
 function buildContentScriptEntry(entryName, entryConfig) {
   const contentScript = {
     matches: entryConfig.matches || [],
-    js: [`./${entryName}.js`],
+    js: [`./content-scripts/${entryName}.js`],
   }
 
   if (entryConfig.excludeMatches) {
