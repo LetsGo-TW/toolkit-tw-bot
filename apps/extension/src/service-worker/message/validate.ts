@@ -10,13 +10,20 @@ export async function validateEnvelope(received: any, sender: chrome.runtime.Mes
   }
 
   // valida origin
-  const origin = getSenderOrigin(sender);
-  if (!isAllowedOrigin(origin)) {
-    throw new Error(`Origin not allowed: ${origin || "unknown"}`);
+  const myId = chrome.runtime.id;
+  const isInternalSender = (
+    sender.id === myId
+    || sender.url?.startsWith(`chrome-extension://${myId}/`)
+  );
+
+  if (!isInternalSender) {
+    const origin = getSenderOrigin(sender);
+    if (!isAllowedOrigin(origin)) {
+      throw new Error(`Origin not allowed: ${origin || "unknown"}`);
+    }
   }
 
   // valida extensionId
-  const myId = chrome.runtime.id;
   if (received.extensionId !== myId) {
     throw new Error("Invalid extensionId");
   }

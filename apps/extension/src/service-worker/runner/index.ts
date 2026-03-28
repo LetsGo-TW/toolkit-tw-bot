@@ -1,6 +1,8 @@
 /// <reference types="chrome" />
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
+import { isAllowedOrigin } from '../message/origins'
+import { syncTabAction } from '../action'
 import { setActiveTitle } from './setActiveTitle'
 
 const RUNNER_STORAGE_KEY = 'runnerByScope'
@@ -10,6 +12,7 @@ const CONNECT_MESSAGE_TYPE = 'CONNECT'
 const PREPARED_MESSAGE_TYPE = 'PREPARED'
 const START_MESSAGE_TYPE = 'BOT_RUNNER_START'
 const STOP_MESSAGE_TYPE = 'BOT_RUNNER_STOP'
+const GET_POPUP_STATE_MESSAGE_TYPE = 'GET_POPUP_STATE'
 
 type PreparedContextType = 'GAME' | 'LOGIN'
 
@@ -55,6 +58,11 @@ type PreparedMessageData = {
   playerName?: unknown
 }
 
+type PopupStateRequest = {
+  targetTabId?: unknown
+  targetWindowId?: unknown
+}
+
 type TabUpdatedChangeInfo = {
   url?: string
   status?: string
@@ -98,6 +106,22 @@ function getWorldFromUrl(urlString?: string | null) {
     return world === 'www' ? null : world
   } catch {
     return null
+  }
+}
+
+function getTabUrl(tab?: chrome.tabs.Tab | null) {
+  return tab?.pendingUrl || tab?.url || null
+}
+
+function isTribalWarsUrl(urlString?: string | null) {
+  if (!urlString) {
+    return false
+  }
+
+  try {
+    return isAllowedOrigin(new URL(urlString).origin)
+  } catch {
+    return false
   }
 }
 
@@ -236,6 +260,71 @@ async function sendRunnerMessage(tabId: number, message: Record<string, unknown>
   } catch (error) {
     console.warn('[SW][Runner] tabs.sendMessage failed', { tabId, message, error })
   }
+}
+
+async function syncTabActionByTabId(tabId?: number | null) {
+  if (typeof tabId !== 'number') {
+    return
+  }
+
+  let tab: chrome.tabs.Tab | null = null
+
+  try {
+    tab = await chrome.tabs.get(tabId)
+  } catch {
+    return
+  }
+
+  const tabUrl = getTabUrl(tab)
+  const context = tabContextByTabIdCache[getTabContextKey(tabId)] || null
+  const currentRunner = getCurrentRunner()
+  const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
+  const enabled = isTribalWarsUrl(tabUrl)
+  const isActiveRunner = Boolean(
+    enabled
+    && currentRunner
+    && currentRunner.tabId === tabId
+    && currentRunner.windowId === tab?.windowId
+  )
+
+  await syncTabAction({
+    tabId,
+    enabled,
+    active: isActiveRunner,
+    context: context?.context ?? null,
+    world: context?.world ?? (isActiveRunner ? currentRunner?.world ?? null : getWorldFromUrl(tabUrl)),
+    t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
+    playerName: context?.playerName ?? null,
+    isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
+    licenseStatus: null,
+  })
+}
+
+async function syncRunnerActions(
+  previousRunner: RunnerRecord | null,
+  nextRunner: RunnerRecord | null,
+) {
+  const tabIds = new Set<number>()
+
+  if (typeof previousRunner?.tabId === 'number') {
+    tabIds.add(previousRunner.tabId)
+  }
+
+  if (typeof nextRunner?.tabId === 'number') {
+    tabIds.add(nextRunner.tabId)
+  }
+
+  await Promise.all(
+    Array.from(tabIds).map((tabId) => syncTabActionByTabId(tabId)),
+  )
+}
+
+async function syncKnownTabActions() {
+  const tabIds = Object.keys(tabContextByTabIdCache)
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+
+  await Promise.all(tabIds.map((tabId) => syncTabActionByTabId(tabId)))
 }
 
 async function updateActiveTitle(
@@ -652,6 +741,8 @@ export async function reconcileActiveRunner(reason = 'unknown') {
       await dispatchRunnerState(START_MESSAGE_TYPE, nextRunner)
     }
 
+    await syncRunnerActions(previousRunner, nextRunner)
+
     return nextRunner
   }
 
@@ -674,6 +765,8 @@ export async function reconcileActiveRunner(reason = 'unknown') {
   if (nextRunner) {
     await dispatchRunnerState(START_MESSAGE_TYPE, nextRunner)
   }
+
+  await syncRunnerActions(previousRunner, nextRunner)
 
   console.log('[SW][Runner] reconciled', {
     reason,
@@ -808,6 +901,7 @@ async function onTabUpdated(
   }
 
   await reconcileActiveRunner('tabs.onUpdated')
+  await syncTabActionByTabId(tabId)
 }
 
 export function getConnectState(sender: chrome.runtime.MessageSender) {
@@ -817,6 +911,83 @@ export function getConnectState(sender: chrome.runtime.MessageSender) {
     type: CONNECT_MESSAGE_TYPE,
     tabId: sender.tab?.id ?? null,
     windowId: sender.tab?.windowId ?? null,
+  }
+}
+
+async function getActivePopupTab() {
+  const tabs = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+    windowType: 'normal',
+  })
+
+  return tabs.find((tab) => typeof tab.id === 'number') || null
+}
+
+async function getRequestedPopupTab({ targetTabId, targetWindowId }: PopupStateRequest = {}) {
+  const requestedTabId = normalizeNumber(targetTabId)
+  const requestedWindowId = normalizeNumber(targetWindowId)
+
+  if (typeof requestedTabId === 'number') {
+    try {
+      const tab = await chrome.tabs.get(requestedTabId)
+
+      if (
+        typeof tab.id === 'number'
+        && typeof tab.windowId === 'number'
+        && (requestedWindowId === null || tab.windowId === requestedWindowId)
+      ) {
+        return tab
+      }
+    } catch {
+      // Fall back to the global active tab lookup when the popup target is unavailable.
+    }
+  }
+
+  return getActivePopupTab()
+}
+
+export async function getPopupState(request: PopupStateRequest = {}) {
+  await ensureCacheLoaded()
+
+  const tab = await getRequestedPopupTab(request)
+
+  if (!tab || typeof tab.id !== 'number' || typeof tab.windowId !== 'number') {
+    return {
+      ok: true,
+      type: GET_POPUP_STATE_MESSAGE_TYPE,
+      supported: false,
+      reason: 'NO_ACTIVE_TAB',
+    }
+  }
+
+  const tabUrl = getTabUrl(tab)
+  const isSupported = isTribalWarsUrl(tabUrl)
+  const tabContext = tabContextByTabIdCache[getTabContextKey(tab.id)] || null
+  const currentRunner = getCurrentRunner()
+  const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
+
+  return {
+    ok: true,
+    type: GET_POPUP_STATE_MESSAGE_TYPE,
+    supported: isSupported,
+    tabId: tab.id,
+    windowId: tab.windowId,
+    title: tab.title || null,
+    url: tabUrl,
+    context: tabContext?.context ?? null,
+    world: tabContext?.world ?? getWorldFromUrl(tabUrl) ?? null,
+    t: tabContext?.t ?? urlParams.t ?? null,
+    playerId: tabContext?.playerId ?? null,
+    playerName: tabContext?.playerName ?? null,
+    isTryConfirm: tabContext?.isTryConfirm === true || urlParams.isTryConfirm === true,
+    active: Boolean(
+      currentRunner
+      && currentRunner.tabId === tab.id
+      && currentRunner.windowId === tab.windowId
+    ),
+    ready: Boolean(tabContext),
+    licenseStatus: null,
   }
 }
 
@@ -834,12 +1005,15 @@ export async function registerPreparedContext(
     }
   }
 
+  const previousRunner = getCurrentRunner()
   const nextRunner = await reconcileActiveRunner('PREPARED')
   const isActive = isRunnerForSender(nextRunner, sender)
 
-  if (isActive) {
+  if (isActive && isSameRunner(previousRunner, nextRunner)) {
     await dispatchRunnerState(START_MESSAGE_TYPE, nextRunner as RunnerRecord)
   }
+
+  await syncTabActionByTabId(tabContext.tabId)
 
   return {
     ok: true,
@@ -894,4 +1068,5 @@ export async function registerRunnerLifecycleListeners() {
   }
 
   await reconcileActiveRunner('startup')
+  await syncKnownTabActions()
 }

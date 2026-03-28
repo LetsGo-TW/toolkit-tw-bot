@@ -1,12 +1,14 @@
 /// <reference types="chrome" />
 
 import { MessageEnvelope } from "../../types";
-import { getConnectState, registerPreparedContext } from "../runner";
+import { getConnectState, getPopupState, registerPreparedContext } from "../runner";
 
 export async function handleMessage({ received, sender }: MessageEnvelope): Promise<any> {
   switch (received?.type) {
     case "CONNECT":
       return getConnectState(sender as chrome.runtime.MessageSender);
+    case "GET_POPUP_STATE":
+      return getPopupState(received);
     case "PREPARED":
       return registerPreparedContext(
         received,
