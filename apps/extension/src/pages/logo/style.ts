@@ -1,13 +1,8 @@
 import { css, styled } from 'styled-components'
 
 export const Container = styled.div<{ $isVisible: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  align-content: center;
   transition: 0.6s;
   transform: scale(1);
-  gap: 0.55rem;
 
   ${({ $isVisible }) =>
     $isVisible &&
@@ -18,6 +13,8 @@ export const Container = styled.div<{ $isVisible: boolean }>`
   button {
     all: unset;
     display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
     cursor: pointer;
   }
 
@@ -34,7 +31,7 @@ export const Container = styled.div<{ $isVisible: boolean }>`
     display: inline-flex;
     align-items: center;
     color: ${({ theme }) => theme.textSecondary};
-    font-size: 1rem;
+    font-size: 0.96rem;
     font-family: cursive;
     font-weight: 600;
     opacity: 90%;

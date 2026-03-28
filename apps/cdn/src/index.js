@@ -17,6 +17,13 @@ const runnerState = {
   stopHandlers: new Map(),
 }
 
+const sharedModules = {
+  loadTooltip: () => import(
+    /* webpackChunkName: "shared.tooltip" */
+    '@toolkit-tw-bot/browser/tooltip'
+  ),
+}
+
 function isValidPageMessage({ data, origin, source }) {
   if (source !== window) {
     return false
@@ -146,7 +153,7 @@ async function startRunner() {
         return
       }
 
-      const result = await login(runnerState.extensionId)
+      const result = await login(runnerState.extensionId, sharedModules)
       registerStopHandler('login', result)
       runnerState.running = true
       return
@@ -156,12 +163,12 @@ async function startRunner() {
     const screenModule = screen ? await loadModule(screen) : null
 
     if (screenModule) {
-      const result = await screenModule(runnerState.extensionId)
+      const result = await screenModule(runnerState.extensionId, sharedModules)
       registerStopHandler(screen, result)
     }
 
     if (game) {
-      const result = await game(runnerState.extensionId)
+      const result = await game(runnerState.extensionId, sharedModules)
       registerStopHandler('game', result)
     }
 

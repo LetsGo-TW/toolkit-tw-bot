@@ -4,6 +4,27 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "require": "./src/index.js",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./tooltip": {
+      "types": "./src/tooltip/index.d.ts",
+      "require": "./src/tooltip/index.js",
+      "import": "./src/tooltip/index.js",
+      "default": "./src/tooltip/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "tooltip": [
+        "src/tooltip/index.d.ts"
+      ]
+    }
+  },
   "engines": {
     "node": ">=20 <23"
   },

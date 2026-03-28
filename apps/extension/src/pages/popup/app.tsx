@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { extensionVersion } from '@toolkit-tw-bot/release'
 import userUrl from '../../icons/user.png'
 import LogoLink from '../logo'
 
@@ -55,20 +54,6 @@ const Brand = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-`
-
-const Version = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid ${({ theme }) => theme.surfaceBorderStrong};
-  background: ${({ theme }) => theme.surfaceOverlay};
-  color: ${({ theme }) => theme.textSecondary};
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 `
 
 const Panel = styled.section`
@@ -329,9 +314,8 @@ export default function App() {
       <Shell>
         <Header>
           <Brand>
-            <LogoLink subtitle="Player Assistant" />
+            <LogoLink showLabel={false} />
           </Brand>
-          <Version>v{extensionVersion}</Version>
         </Header>
 
         {loading ? (
