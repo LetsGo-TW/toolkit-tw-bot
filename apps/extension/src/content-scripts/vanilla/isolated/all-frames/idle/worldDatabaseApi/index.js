@@ -53,7 +53,7 @@ const receivedMessage = async ({ data, origin, source }) => {
 
 window.addEventListener('message', receivedMessage, false);
 
-console.log('DB CONNECT RUNNING')
+console.log('[World][Database API] running')
 
 if (!inFlight) {
   inFlight = true;
