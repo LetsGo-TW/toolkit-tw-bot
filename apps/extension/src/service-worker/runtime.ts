@@ -1,12 +1,8 @@
 /// <reference types="chrome" />
 
-import { createLicenseState } from '../types'
-import { getPlayerEnabledByUser, ensureEnabledByUserLoaded } from './enabled-by-user'
+import { ensureEnabledByUserLoaded } from './enabled-by-user'
 import { syncKnownTabActions, syncRunnerActions } from './action-state'
-import {
-  ensurePreparedContextLoaded,
-  getTabContext,
-} from './prepared-context'
+import { ensurePreparedContextLoaded } from './prepared-context'
 import {
   getCurrentRunner,
   getDesiredRunner,
@@ -18,39 +14,53 @@ import {
   toWindowLock,
   ensureRunnerTabsLoaded,
 } from './runner-tabs'
-import {
-  SET_ENABLED_BY_USER_MESSAGE_TYPE,
-  START_MESSAGE_TYPE,
-  STOP_MESSAGE_TYPE,
-} from './message/types'
+import { PREPARED_MESSAGE_TYPE } from './message/types'
 import { setActiveTitle } from './runner-tabs/setActiveTitle'
 
-function canExecuteRunner(runner?: RunnerRecord | null) {
-  if (!runner) {
-    return false
-  }
-
-  const tabContext = getTabContext(runner.tabId)
-
-  return (
-    getPlayerEnabledByUser(tabContext?.playerId)
-    && createLicenseState().allowedByLicense
-  )
+type ReconcileActiveRunnerOptions = {
+  preferredWindowId?: number | null
+  reason?: string
 }
 
-async function sendRunnerMessage(
-  tabId: number,
-  type: typeof START_MESSAGE_TYPE | typeof STOP_MESSAGE_TYPE,
-  scopeKey: string,
+function normalizeReconcileActiveRunnerOptions(
+  optionsOrReason: string | ReconcileActiveRunnerOptions = 'unknown',
 ) {
-  try {
-    await chrome.tabs.sendMessage(tabId, {
-      extensionId: chrome.runtime.id,
-      type,
-      scopeKey,
-    })
-  } catch (error) {
-    console.warn('[SW][Runner] tabs.sendMessage failed', { tabId, type, scopeKey, error })
+  if (typeof optionsOrReason === 'string') {
+    return {
+      preferredWindowId: null,
+      reason: optionsOrReason,
+    }
+  }
+
+  return {
+    preferredWindowId: optionsOrReason.preferredWindowId ?? null,
+    reason: optionsOrReason.reason ?? 'unknown',
+  }
+}
+
+function getTrackedWindowLock(preferredWindowId?: number | null) {
+  const currentRunner = getCurrentRunner()
+
+  if (currentRunner) {
+    return {
+      ...toWindowLock(currentRunner),
+      windowId: typeof preferredWindowId === 'number'
+        ? preferredWindowId
+        : currentRunner.windowId,
+    }
+  }
+
+  const currentWindowLock = getWindowLock()
+
+  if (!currentWindowLock) {
+    return null
+  }
+
+  return {
+    ...currentWindowLock,
+    windowId: typeof preferredWindowId === 'number'
+      ? preferredWindowId
+      : currentWindowLock.windowId,
   }
 }
 
@@ -58,18 +68,8 @@ async function updateActiveTitle(
   tabId: number,
   {
     isRunningTab,
-    enabledByUser,
-    isTryConfirm,
-    isMdfScope,
-    isAllowedByLicense,
-    isLicenseExpiring,
   }: {
     isRunningTab: boolean
-    enabledByUser: boolean
-    isTryConfirm: boolean
-    isMdfScope: boolean
-    isAllowedByLicense: boolean
-    isLicenseExpiring: boolean
   },
 ) {
   try {
@@ -80,103 +80,44 @@ async function updateActiveTitle(
       func: setActiveTitle,
       args: [{
         isRunningTab,
-        enabledByUser,
-        isBotProtected: false,
-        isTryConfirm,
-        isMdfScope,
-        isAllowedByLicense,
-        isLicenseExpiring,
       }],
     })
   } catch (error) {
     console.warn('[SW][Runner] scripting.executeScript failed', {
       tabId,
       isRunningTab,
-      enabledByUser,
-      isTryConfirm,
-      isMdfScope,
-      isAllowedByLicense,
-      isLicenseExpiring,
       error,
     })
   }
 }
 
-function getRunnerTitleState(
-  runner: RunnerRecord,
-  {
-    isRunningTab,
-  }: {
-    isRunningTab: boolean
-  },
-) {
-  const tabContext = getTabContext(runner.tabId)
-  const license = createLicenseState()
-
-  return {
-    isRunningTab,
-    enabledByUser: getPlayerEnabledByUser(tabContext?.playerId),
-    isTryConfirm: tabContext?.isTryConfirm === true,
-    isMdfScope: runner.t !== null,
-    isAllowedByLicense: license.allowedByLicense,
-    isLicenseExpiring: license.status === 'warning',
-  }
-}
-
-async function dispatchRunnerState(
-  type: typeof START_MESSAGE_TYPE | typeof STOP_MESSAGE_TYPE,
-  runner: RunnerRecord,
-  {
-    isRunningTab,
-  }: {
-    isRunningTab: boolean
-  },
-) {
-  const titleState = getRunnerTitleState(runner, {
-    isRunningTab,
-  })
-
-  await updateActiveTitle(runner.tabId, titleState)
-
-  await sendRunnerMessage(
-    runner.tabId,
-    type,
-    runner.scopeKey,
-  )
-}
-
 export async function syncSelectedRunnerState(runner: RunnerRecord) {
-  await dispatchRunnerState(
-    canExecuteRunner(runner) ? START_MESSAGE_TYPE : STOP_MESSAGE_TYPE,
-    runner,
-    {
-      isRunningTab: true,
-    },
-  )
+  await updateActiveTitle(runner.tabId, {
+    isRunningTab: true,
+  })
 }
 
-export async function reconcileActiveRunner(reason = 'unknown') {
+export async function reconcileActiveRunner(
+  optionsOrReason: string | ReconcileActiveRunnerOptions = 'unknown',
+) {
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
   await ensureEnabledByUserLoaded()
 
+  const {
+    preferredWindowId,
+    reason,
+  } = normalizeReconcileActiveRunnerOptions(optionsOrReason)
   const previousRunner = getCurrentRunner()
-  const allowFallbackToOtherWindow = (
-    reason === 'startup'
-    || reason === 'tabs.onRemoved'
-    || reason === 'windows.onRemoved'
-  )
+
   const nextRunner = await getDesiredRunner({
-    allowFallbackToOtherWindow,
+    preferredWindowId,
   })
 
   if (isSameRunner(previousRunner, nextRunner)) {
     if (
       nextRunner
-      && (
-        reason === SET_ENABLED_BY_USER_MESSAGE_TYPE
-        || reason === 'startup'
-      )
+      && (reason === 'startup' || reason === PREPARED_MESSAGE_TYPE)
     ) {
       await syncSelectedRunnerState(nextRunner)
     }
@@ -188,20 +129,14 @@ export async function reconcileActiveRunner(reason = 'unknown') {
 
   await syncRunnerByScope(nextRunner)
 
-  const windowLock = getWindowLock()
-
-  if (!nextRunner && previousRunner && windowLock?.windowId === previousRunner.windowId) {
-    await syncWindowLock(toWindowLock(previousRunner))
-  }
-
-  if (nextRunner) {
-    await syncWindowLock(toWindowLock(nextRunner))
-  } else if (allowFallbackToOtherWindow) {
-    await syncWindowLock(null)
-  }
+  await syncWindowLock(
+    nextRunner
+      ? toWindowLock(nextRunner)
+      : getTrackedWindowLock(preferredWindowId),
+  )
 
   if (previousRunner && previousRunner.tabId !== nextRunner?.tabId) {
-    await dispatchRunnerState(STOP_MESSAGE_TYPE, previousRunner, {
+    await updateActiveTitle(previousRunner.tabId, {
       isRunningTab: false,
     })
   }
@@ -228,6 +163,21 @@ export async function initializeRuntime() {
     }
   }
 
-  await reconcileActiveRunner('startup')
+  let preferredWindowId: number | null = null
+
+  try {
+    const focusedWindow = await chrome.windows.getLastFocused()
+
+    preferredWindowId = typeof focusedWindow.id === 'number'
+      ? focusedWindow.id
+      : null
+  } catch {
+    preferredWindowId = null
+  }
+
+  await reconcileActiveRunner({
+    preferredWindowId,
+    reason: 'startup',
+  })
   await syncKnownTabActions()
 }

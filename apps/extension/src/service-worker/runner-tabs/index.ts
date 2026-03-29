@@ -3,9 +3,6 @@
 import {
   ensurePreparedContextLoaded,
   getScopeForTab,
-  removePreparedContext,
-  syncPreparedContextWindowId,
-  updatePreparedContextFromUrl,
 } from '../prepared-context'
 
 const RUNNER_STORAGE_KEY = 'runnerByScope'
@@ -28,35 +25,9 @@ export type WindowLockRecord = {
   windowId: number
 }
 
-type TabUpdatedChangeInfo = {
-  url?: string
-  status?: string
-}
-
-type TabActivatedActiveInfo = {
-  tabId: number
-  windowId: number
-}
-
-type TabAttachedAttachInfo = {
-  newPosition: number
-  newWindowId: number
-}
-
-type TabDetachedDetachInfo = {
-  oldPosition: number
-  oldWindowId: number
-}
-
-type TabRemovedRemoveInfo = {
-  isWindowClosing: boolean
-  windowId: number
-}
-
 let cacheLoaded = false
 let runnerByScopeCache: RunnerByScope = {}
 let windowLockCache: WindowLockRecord | null = null
-let pendingDetachedRunner: RunnerRecord | null = null
 
 function normalizeRunnerByScope(value: unknown): RunnerByScope {
   if (!value || typeof value !== 'object') {
@@ -99,6 +70,82 @@ async function persistWindowLock(
   await persistStateIfChanged(WINDOW_LOCK_STORAGE_KEY, previous, next)
 }
 
+async function sanitizeRunnerRecord(record: RunnerRecord | null) {
+  if (!record) {
+    return null
+  }
+
+  try {
+    const tab = await chrome.tabs.get(record.tabId)
+    const scope = getScopeForTab(tab)
+
+    if (!scope) {
+      return null
+    }
+
+    if (typeof tab.windowId !== 'number' || tab.windowId !== record.windowId) {
+      return null
+    }
+
+    if (
+      scope.scopeKey !== record.scopeKey
+      || scope.world !== record.world
+      || (scope.t ?? null) !== (record.t ?? null)
+    ) {
+      return null
+    }
+
+    return {
+      ...record,
+      windowId: tab.windowId,
+      tabId: tab.id!,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function sanitizeRunnerByScope(value: RunnerByScope) {
+  const nextEntries = await Promise.all(
+    Object.entries(value).map(async ([scopeKey, runner]) => {
+      const sanitizedRunner = await sanitizeRunnerRecord(runner)
+
+      if (!sanitizedRunner) {
+        return null
+      }
+
+      return [scopeKey, sanitizedRunner] as const
+    }),
+  )
+
+  return Object.fromEntries(nextEntries.filter(Boolean)) as RunnerByScope
+}
+
+async function sanitizeWindowLock(value: WindowLockRecord | null) {
+  if (!value) {
+    return null
+  }
+
+  const activeTab = await getActiveTabInWindow(value.windowId)
+  const scope = getScopeForTab(activeTab)
+
+  if (
+    !scope
+    || scope.scopeKey !== value.scopeKey
+    || scope.world !== value.world
+    || (scope.t ?? null) !== (value.t ?? null)
+  ) {
+    return null
+  }
+
+  return {
+    scopeKey: scope.scopeKey,
+    world: scope.world,
+    t: scope.t,
+    windowId: value.windowId,
+  }
+}
+
 export async function ensureRunnerTabsLoaded() {
   if (cacheLoaded) {
     return
@@ -109,9 +156,16 @@ export async function ensureRunnerTabsLoaded() {
     WINDOW_LOCK_STORAGE_KEY,
   ])
 
-  runnerByScopeCache = normalizeRunnerByScope(stored[RUNNER_STORAGE_KEY])
-  windowLockCache = normalizeWindowLock(stored[WINDOW_LOCK_STORAGE_KEY])
+  const normalizedRunnerByScope = normalizeRunnerByScope(stored[RUNNER_STORAGE_KEY])
+  const sanitizedRunnerByScope = await sanitizeRunnerByScope(normalizedRunnerByScope)
+  const normalizedWindowLock = normalizeWindowLock(stored[WINDOW_LOCK_STORAGE_KEY])
+
+  runnerByScopeCache = sanitizedRunnerByScope
+  windowLockCache = await sanitizeWindowLock(normalizedWindowLock)
   cacheLoaded = true
+
+  await persistRunnerByScope(normalizedRunnerByScope, runnerByScopeCache)
+  await persistWindowLock(normalizedWindowLock, windowLockCache)
 }
 
 export function isSameRunner(a: RunnerRecord | null, b: RunnerRecord | null) {
@@ -159,14 +213,6 @@ export async function syncWindowLock(nextLock: WindowLockRecord | null) {
   return previousWindowLock
 }
 
-export function getPendingDetachedRunner() {
-  return pendingDetachedRunner
-}
-
-export function setPendingDetachedRunner(nextRunner: RunnerRecord | null) {
-  pendingDetachedRunner = nextRunner
-}
-
 export function toWindowLock(runner: RunnerRecord): WindowLockRecord {
   return {
     scopeKey: runner.scopeKey,
@@ -176,25 +222,42 @@ export function toWindowLock(runner: RunnerRecord): WindowLockRecord {
   }
 }
 
-async function hasWindow(windowId: number) {
-  try {
-    await chrome.windows.get(windowId)
-    return true
-  } catch {
+function matchesScopeKey(
+  runner: RunnerRecord | null,
+  scopeKey?: string | null,
+) {
+  if (!runner) {
     return false
   }
+
+  if (!scopeKey) {
+    return true
+  }
+
+  return runner.scopeKey === scopeKey
 }
 
 async function getActiveTabInWindow(windowId: number) {
-  const activeTabs = await chrome.tabs.query({
-    active: true,
-    windowId,
-  })
+  try {
+    const activeTabs = await chrome.tabs.query({
+      active: true,
+      windowId,
+    })
 
-  return activeTabs.find((tab) => typeof tab.id === 'number') || null
+    return activeTabs.find((tab) => typeof tab.id === 'number') || null
+  } catch {
+    return null
+  }
 }
 
-async function getEligibleRunnerFromWindow(windowId: number) {
+async function getEligibleRunnerFromWindow(
+  windowId: number,
+  {
+    scopeKey,
+  }: {
+    scopeKey?: string | null
+  } = {},
+) {
   const activeTab = await getActiveTabInWindow(windowId)
 
   if (!activeTab || activeTab.id === undefined) {
@@ -207,17 +270,23 @@ async function getEligibleRunnerFromWindow(windowId: number) {
     return null
   }
 
-  return {
+  const runner = {
     ...scope,
     windowId,
     tabId: activeTab.id,
   }
+
+  return matchesScopeKey(runner, scopeKey)
+    ? runner
+    : null
 }
 
 async function getFallbackRunnerFromAnyWindow({
   excludeWindowId,
+  scopeKey,
 }: {
   excludeWindowId?: number
+  scopeKey?: string | null
 } = {}) {
   const activeTabs = await chrome.tabs.query({
     active: true,
@@ -238,188 +307,49 @@ async function getFallbackRunnerFromAnyWindow({
       continue
     }
 
-    return {
+    const runner = {
       ...scope,
       windowId: tab.windowId,
       tabId: tab.id,
     }
+
+    if (!matchesScopeKey(runner, scopeKey)) {
+      continue
+    }
+
+    return runner
   }
 
   return null
 }
 
 export async function getDesiredRunner({
-  allowFallbackToOtherWindow = false,
+  preferredWindowId,
 }: {
-  allowFallbackToOtherWindow?: boolean
+  preferredWindowId?: number | null
 } = {}) {
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
 
-  if (windowLockCache?.windowId !== undefined) {
-    const lockedWindowExists = await hasWindow(windowLockCache.windowId)
+  const currentScopeKey = getCurrentRunner()?.scopeKey || windowLockCache?.scopeKey || null
+  const nextPreferredWindowId = typeof preferredWindowId === 'number'
+    ? preferredWindowId
+    : windowLockCache?.windowId ?? getCurrentRunner()?.windowId ?? null
 
-    if (lockedWindowExists) {
-      const runnerInLockedWindow = await getEligibleRunnerFromWindow(windowLockCache.windowId)
-
-      if (runnerInLockedWindow) {
-        return runnerInLockedWindow
-      }
-
-      const runnerInAnotherWindow = await getFallbackRunnerFromAnyWindow({
-        excludeWindowId: windowLockCache.windowId,
-      })
-
-      if (runnerInAnotherWindow) {
-        return runnerInAnotherWindow
-      }
-
-      if (allowFallbackToOtherWindow) {
-        return getFallbackRunnerFromAnyWindow()
-      }
-
-      return null
-    }
-
-    if (!allowFallbackToOtherWindow) {
-      return null
-    }
+  if (typeof nextPreferredWindowId !== 'number') {
+    return null
   }
 
-  return getFallbackRunnerFromAnyWindow()
-}
+  const runnerInPreferredWindow = await getEligibleRunnerFromWindow(nextPreferredWindowId, {
+    scopeKey: currentScopeKey,
+  })
 
-type RunnerTabsListenerDeps = {
-  reconcileActiveRunner: (reason?: string) => Promise<RunnerRecord | null>
-  syncSelectedRunnerState: (runner: RunnerRecord) => Promise<void>
-  syncTabActionByTabId: (tabId?: number | null) => Promise<void>
-}
-
-export function createRunnerTabsListeners({
-  reconcileActiveRunner,
-  syncSelectedRunnerState,
-  syncTabActionByTabId,
-}: RunnerTabsListenerDeps) {
-  const onWindowFocusChanged = async () => {
-    return
+  if (runnerInPreferredWindow) {
+    return runnerInPreferredWindow
   }
 
-  const onTabActivated = async (activeInfo: TabActivatedActiveInfo) => {
-    await ensureRunnerTabsLoaded()
-
-    if (pendingDetachedRunner && activeInfo.windowId === pendingDetachedRunner.windowId) {
-      return
-    }
-
-    await reconcileActiveRunner('tabs.onActivated')
-  }
-
-  const onTabRemoved = async (
-    tabId: number,
-    removeInfo: TabRemovedRemoveInfo,
-  ) => {
-    await ensureRunnerTabsLoaded()
-
-    const previousRunner = getCurrentRunner()
-    const wasRunnerTab = previousRunner?.tabId === tabId
-    const wasRunnerWindow = windowLockCache?.windowId === removeInfo.windowId
-
-    if (pendingDetachedRunner?.tabId === tabId) {
-      pendingDetachedRunner = null
-    }
-
-    await removePreparedContext(tabId)
-
-    if (!wasRunnerTab && !wasRunnerWindow) {
-      return
-    }
-
-    await reconcileActiveRunner('tabs.onRemoved')
-  }
-
-  const onTabAttached = async (
-    tabId: number,
-    attachInfo: TabAttachedAttachInfo,
-  ) => {
-    await ensureRunnerTabsLoaded()
-
-    const previousRunner = pendingDetachedRunner || getCurrentRunner()
-
-    if (!previousRunner || previousRunner.tabId !== tabId) {
-      return
-    }
-
-    await syncPreparedContextWindowId(tabId, attachInfo.newWindowId)
-
-    const movedRunner = {
-      ...previousRunner,
-      windowId: attachInfo.newWindowId,
-    }
-
-    pendingDetachedRunner = null
-    await syncRunnerByScope(movedRunner)
-    await syncWindowLock(toWindowLock(movedRunner))
-    await syncSelectedRunnerState(movedRunner)
-  }
-
-  const onTabDetached = async (
-    tabId: number,
-    _detachInfo: TabDetachedDetachInfo,
-  ) => {
-    await ensureRunnerTabsLoaded()
-
-    const previousRunner = getCurrentRunner()
-
-    if (!previousRunner || previousRunner.tabId !== tabId) {
-      return
-    }
-
-    pendingDetachedRunner = previousRunner
-  }
-
-  const onWindowRemoved = async (windowId: number) => {
-    await ensureRunnerTabsLoaded()
-
-    if (pendingDetachedRunner?.windowId === windowId) {
-      return
-    }
-
-    if (windowLockCache?.windowId !== windowId) {
-      return
-    }
-
-    await reconcileActiveRunner('windows.onRemoved')
-  }
-
-  const onTabUpdated = async (
-    tabId: number,
-    changeInfo: TabUpdatedChangeInfo,
-  ) => {
-    await ensureRunnerTabsLoaded()
-
-    if (pendingDetachedRunner) {
-      return
-    }
-
-    if (!changeInfo.url && !changeInfo.status) {
-      return
-    }
-
-    if (changeInfo.url) {
-      await updatePreparedContextFromUrl(tabId, changeInfo.url)
-    }
-
-    await reconcileActiveRunner('tabs.onUpdated')
-    await syncTabActionByTabId(tabId)
-  }
-
-  return {
-    onWindowFocusChanged,
-    onTabActivated,
-    onTabRemoved,
-    onTabAttached,
-    onTabDetached,
-    onWindowRemoved,
-    onTabUpdated,
-  }
+  return getFallbackRunnerFromAnyWindow({
+    excludeWindowId: nextPreferredWindowId,
+    scopeKey: currentScopeKey,
+  })
 }

@@ -28,22 +28,24 @@ export const setActiveTitle = ({
       title = title.replace(`${value} `, '')
     }
   })
+
   if (!isRunningTab) {
-    document.title = title;
-    return;
-  }
-  if (isIntro) {
-    emoji = '⌛';
-    if (isMdfScope) emoji = `[${emoji}]`;
-    document.title = `${emoji} ${title}`;
+    document.title = title
     return
   }
-  emoji = isLicenseExpiring ? '🟡' : '🟢';
-  if (isTryConfirm) emoji = '☢️';
-  if (isBotProtected) emoji = '🚫';
-  if (!enabledByUser) emoji = '🛑';
-  if (!isAllowedByLicense) emoji = '⛔';
-  if (isMdfScope) emoji = `[${emoji}]`;
+  if (isIntro) {
+    emoji = '⌛'
+    if (isMdfScope) emoji = `[${emoji}]`
+    document.title = `${emoji} ${title}`
+    return
+  }
 
-  document.title = `${emoji} ${title}`;
+  emoji = isLicenseExpiring ? '🟡' : '🟢'
+  if (isTryConfirm) emoji = '☢️'
+  if (isBotProtected) emoji = '🚫'
+  if (!enabledByUser) emoji = '🛑'
+  if (!isAllowedByLicense) emoji = '⛔'
+  if (isMdfScope) emoji = `[${emoji}]`
+
+  document.title = `${emoji} ${title}`
 }
