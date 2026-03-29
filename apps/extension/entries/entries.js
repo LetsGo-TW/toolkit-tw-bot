@@ -50,8 +50,8 @@ module.exports = {
   },
 
   csVanilla: {
-    'main.top.start': {
-      entry: 'content-scripts/vanilla/main/top/start/index.ts',
+    'starter': {
+      entry: 'content-scripts/vanilla/main/top/start/starter/index.ts',
       matches: TRIBAL_WARS_MATCHES,
       excludeMatches: DEFAULT_EXCLUDE_MATCHES,
       world: 'MAIN',
@@ -61,8 +61,19 @@ module.exports = {
       allFrames: false,
       target: 'web',
     },
-    'isolated.all-frames.idle': {
-      entry: 'content-scripts/vanilla/isolated/all-frames/idle/index.ts',
+    'connect': {
+      entry: 'content-scripts/vanilla/isolated/all-frames/idle/connect/index.ts',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'ISOLATED',
+      injection: 'vanilla',
+      scope: 'all-frames',
+      runAt: 'document_idle',
+      allFrames: true,
+      target: 'web',
+    },
+    'worldDatabaseApi': {
+      entry: 'content-scripts/vanilla/isolated/all-frames/idle/worldDatabaseApi/index.js',
       matches: TRIBAL_WARS_MATCHES,
       excludeMatches: DEFAULT_EXCLUDE_MATCHES,
       world: 'ISOLATED',

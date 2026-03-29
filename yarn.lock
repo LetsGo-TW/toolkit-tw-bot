@@ -1517,6 +1517,7 @@ __metadata:
     html-webpack-plugin: "npm:^5.6.4"
     javascript-obfuscator: "npm:^4.1.1"
     jquery: "npm:^3.7.1"
+    pouchdb-browser: "npm:^9.0.0"
     react: "npm:^19.2.4"
     react-dom: "npm:^19.2.4"
     react-icons: "npm:^5.6.0"
@@ -5257,6 +5258,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pouchdb-browser@npm:^9.0.0":
+  version: 9.0.0
+  resolution: "pouchdb-browser@npm:9.0.0"
+  dependencies:
+    spark-md5: "npm:3.0.2"
+    uuid: "npm:8.3.2"
+    vuvuzela: "npm:1.0.3"
+  checksum: 10c0/559b70d08cfa8c8d0f166b27d21f8b745ec32f3db177e5c3e825782157ab02eafd1777702c56e72c020875f2a1ffe370287550db6636f4687bb3a856afab9e82
+  languageName: node
+  linkType: hard
+
 "prelude-ls@npm:~1.1.2":
   version: 1.1.2
   resolution: "prelude-ls@npm:1.1.2"
@@ -5923,6 +5935,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"spark-md5@npm:3.0.2":
+  version: 3.0.2
+  resolution: "spark-md5@npm:3.0.2"
+  checksum: 10c0/3fd11735eac5e7d60d6006d99ac0a055f148a89e9baf5f0b51ac103022dec30556b44190b37f6737ca50f81e8e50dc13e724f9edf6290c412ff5ab2101ce7780
+  languageName: node
+  linkType: hard
+
 "sparse-bitfield@npm:^3.0.3":
   version: 3.0.3
   resolution: "sparse-bitfield@npm:3.0.3"
@@ -6369,6 +6388,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"uuid@npm:8.3.2":
+  version: 8.3.2
+  resolution: "uuid@npm:8.3.2"
+  bin:
+    uuid: dist/bin/uuid
+  checksum: 10c0/bcbb807a917d374a49f475fae2e87fdca7da5e5530820ef53f65ba1d12131bd81a92ecf259cc7ce317cbe0f289e7d79fdfebcef9bfa3087c8c8a2fa304c9be54
+  languageName: node
+  linkType: hard
+
 "validator@npm:^13.15.20":
   version: 13.15.26
   resolution: "validator@npm:13.15.26"
@@ -6380,6 +6408,13 @@ __metadata:
   version: 1.1.2
   resolution: "vary@npm:1.1.2"
   checksum: 10c0/f15d588d79f3675135ba783c91a4083dcd290a2a5be9fcb6514220a1634e23df116847b1cc51f66bfb0644cf9353b2abb7815ae499bab06e46dd33c1a6bf1f4f
+  languageName: node
+  linkType: hard
+
+"vuvuzela@npm:1.0.3":
+  version: 1.0.3
+  resolution: "vuvuzela@npm:1.0.3"
+  checksum: 10c0/34151d3b69c0295730a6fa930f2f85301aafe9a90115f2a60dbe8d376c77660b6f2fae3c88f559d18591a8a969eda2497862ce05998eb7e843ea675a04e7c6e6
   languageName: node
   linkType: hard
 

@@ -1,24 +1,23 @@
 import $_ from 'jquery';
 
-const insertScript = async (url: string) => {
+const insertScript = async (url: string): Promise<void> => {
   $_.ajaxSetup({
     cache: true,
   })
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     insert()
 
     function insert() {
       $_.getScript(url)
-        // eslint-disable-next-line no-unused-vars
         .done(() => {
-          resolve({ ok: true })
+          resolve()
         })
-        // eslint-disable-next-line no-unused-vars
         .fail(() => {
           reject(new Error(`Failed to load script: ${url}`, { cause: 404 }))
         })
     }
-
   })
 }
+
+export default insertScript

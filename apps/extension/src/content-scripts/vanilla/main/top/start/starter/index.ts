@@ -1,16 +1,25 @@
-import { assetBasePath } from '@toolkit-tw-bot/release'
-import insertScript from './insertTagScript'
+import { starter } from './running'
 
-const getPreparedScriptUrl = () => {
-  const assetOrigin = process.env.EXTENSION_ASSET_ORIGIN
+const START_PROMISE_KEY = '__toolkitTwBotMainTopStartPromise__'
 
-  if (!assetOrigin) {
-    throw new Error('Missing EXTENSION_ASSET_ORIGIN')
+type ToolkitWindow = Window & {
+  [START_PROMISE_KEY]?: Promise<void>
+}
+
+async function runOnce() {
+  const scope = window as ToolkitWindow
+
+  if (!scope[START_PROMISE_KEY]) {
+    scope[START_PROMISE_KEY] = starter()
+      .catch((error) => {
+        delete scope[START_PROMISE_KEY]
+        throw error
+      })
   }
 
-  return new URL(`${assetBasePath}/web/game.prepared.js`, assetOrigin).toString()
+  return scope[START_PROMISE_KEY]
 }
 
-export async function starter() {
-  await insertScript(getPreparedScriptUrl())
-}
+void runOnce()
+
+export {}
