@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
-import userUrl from '../../icons/user.png'
-import LogoLink from '../logo'
+import { MdOutlineEmail, MdWhatsapp } from 'react-icons/md'
+import Tooltip from '@toolkit-tw-bot/browser/tooltip'
+import type { ExtensionLicenseState, LicenseStatus } from '../../types'
+import userUrl from '../../img/user.png'
+import LogoLink from '../components/logo'
+import Loading from '../components/loading'
+import { PlayerEnabledByUserSwitch } from '../components/player-enabled-by-user-switch'
 
 const POPUP_STATE_MESSAGE_TYPE = 'GET_POPUP_STATE'
+const SET_ENABLED_BY_USER_MESSAGE_TYPE = 'SET_ENABLED_BY_USER'
 const RUNNER_STORAGE_KEY = 'runnerByScope'
 const TAB_CONTEXT_STORAGE_KEY = 'tabContextByTabId'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
+const ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY = 'enabledByUserByPlayerId'
+const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
 
 type PopupState = {
   ok: boolean
@@ -21,10 +30,11 @@ type PopupState = {
   t?: number | null
   playerId?: number | null
   playerName?: string | null
+  enabledByUser?: boolean | null
   isTryConfirm?: boolean
   active?: boolean
   ready?: boolean
-  licenseStatus?: 'unknown' | 'active' | 'warning' | 'inactive' | 'error' | null
+  license?: ExtensionLicenseState | null
 }
 
 const Root = styled.main`
@@ -40,20 +50,21 @@ const Root = styled.main`
 const Shell = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.65rem;
 `
 
 const Header = styled.header`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
 `
 
 const Brand = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  line-height: 0;
 `
 
 const Panel = styled.section`
@@ -69,7 +80,7 @@ const Panel = styled.section`
 
 const UserCard = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
 `
 
@@ -87,6 +98,14 @@ const UserMeta = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+`
+
+const UserSwitchSlot = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
 `
 
 const UserLine = styled.strong`
@@ -176,13 +195,57 @@ const Value = styled.strong`
 const Footer = styled.footer`
   display: flex;
   align-items: center;
+  gap: 0.15rem;
+  flex-direction: column;
+`
+
+const FooterLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: ${({ theme }) => theme.success};
+  text-decoration: none;
+  line-height: 0;
+  transition: transform 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: scale(1.08);
+    outline: none;
+  }
+`
+
+const FooterMailLink = styled(FooterLink)`
+  color: ${({ theme }) => theme.textPrimary};
+`
+
+const FooterLinkItens = styled.span`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+`
+
+const FooterIcon = styled(MdWhatsapp)`
+  width: 1.25rem;
+  height: 1.25rem;
+`
+
+const FooterMailIcon = styled(MdOutlineEmail)`
+  width: 1.25rem;
+  height: 1.25rem;
 `
 
 const Hint = styled.p`
   margin: 0;
+  width: 100%;
   color: ${({ theme }) => theme.textSecondary};
   font-size: 0.73rem;
   line-height: 1.35;
+  text-align: center;
 `
 
 const EmptyPanel = styled(Panel)`
@@ -201,7 +264,7 @@ const EmptyText = styled.p`
   line-height: 1.45;
 `
 
-function getLicenseText(licenseStatus: PopupState['licenseStatus']) {
+function getLicenseText(licenseStatus: LicenseStatus | undefined) {
   switch (licenseStatus) {
     case 'active':
       return 'Active'
@@ -216,7 +279,7 @@ function getLicenseText(licenseStatus: PopupState['licenseStatus']) {
   }
 }
 
-function getLicenseTone(licenseStatus: PopupState['licenseStatus']) {
+function getLicenseTone(licenseStatus: LicenseStatus | undefined) {
   switch (licenseStatus) {
     case 'active':
       return 'success' as const
@@ -238,13 +301,58 @@ function getScopeLabel(world?: string | null, t?: number | null) {
   return `${world}:${t ?? 'main'}`
 }
 
+function getRuntimeLabel({
+  active,
+  enabledByUser,
+  hasPlayerIdentity,
+}: {
+  active?: boolean
+  enabledByUser?: boolean | null
+  hasPlayerIdentity: boolean
+}) {
+  if (hasPlayerIdentity && enabledByUser === false) {
+    return 'Off'
+  }
+
+  if (active) {
+    return 'Running'
+  }
+
+  return 'Ready'
+}
+
+function getRuntimeTone({
+  active,
+  enabledByUser,
+  hasPlayerIdentity,
+}: {
+  active?: boolean
+  enabledByUser?: boolean | null
+  hasPlayerIdentity: boolean
+}) {
+  if (hasPlayerIdentity && enabledByUser === false) {
+    return 'danger' as const
+  }
+
+  if (active) {
+    return 'success' as const
+  }
+
+  return 'neutral' as const
+}
+
 export default function App() {
+  const rootRef = useRef<HTMLElement | null>(null)
   const [state, setState] = useState<PopupState | null>(null)
   const [loading, setLoading] = useState(true)
+  const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadPopupState = useCallback(async () => {
-    setLoading(true)
+  const loadPopupState = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setLoading(true)
+    }
+
     setError(null)
 
     try {
@@ -272,7 +380,9 @@ export default function App() {
       setError(cause instanceof Error ? cause.message : String(cause))
       setState(null)
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -293,11 +403,12 @@ export default function App() {
         !changes[RUNNER_STORAGE_KEY]
         && !changes[TAB_CONTEXT_STORAGE_KEY]
         && !changes[WINDOW_LOCK_STORAGE_KEY]
+        && !changes[ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY]
       ) {
         return
       }
 
-      void loadPopupState()
+      void loadPopupState({ silent: true })
     }
 
     chrome.storage.onChanged.addListener(onStorageChanged)
@@ -307,22 +418,81 @@ export default function App() {
     }
   }, [loadPopupState])
 
+  useEffect(() => {
+    const rootEl = rootRef.current
+
+    if (!rootEl) {
+      return undefined
+    }
+
+    const tooltip = new Tooltip({
+      tooltipId: 'go-extension-popup-tooltip',
+    })
+
+    return tooltip.bind(rootEl, '[data-popup-title]', (el) => el.getAttribute('data-popup-title'))
+  }, [])
+
+  const handleEnabledByUserChange = useCallback(async () => {
+    if (savingEnabledByUser || typeof state?.playerId !== 'number') {
+      return
+    }
+
+    setSavingEnabledByUser(true)
+    setError(null)
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        extensionId: chrome.runtime.id,
+        type: SET_ENABLED_BY_USER_MESSAGE_TYPE,
+        playerId: state.playerId,
+        enabledByUser: !(state.enabledByUser === true),
+        targetTabId: state.tabId ?? null,
+        targetWindowId: state.windowId ?? null,
+      }) as PopupState
+
+      if (!response?.ok) {
+        throw new Error(response?.reason || 'Unable to update player state')
+      }
+
+      setState(response)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setSavingEnabledByUser(false)
+    }
+  }, [savingEnabledByUser, state])
+
   const isReady = state?.supported && state?.ready
+  const hasPlayerIdentity = typeof state?.playerId === 'number'
+  const isPlayerEnabledByUser = state?.enabledByUser === true
+  const runtimeLabel = getRuntimeLabel({
+    active: state?.active,
+    enabledByUser: state?.enabledByUser,
+    hasPlayerIdentity,
+  })
+  const runtimeTone = getRuntimeTone({
+    active: state?.active,
+    enabledByUser: state?.enabledByUser,
+    hasPlayerIdentity,
+  })
+  const canToggleEnabledByUser = hasPlayerIdentity && !savingEnabledByUser
+  const enabledByUserTooltip = !hasPlayerIdentity
+    ? 'Waiting for player identification'
+    : isPlayerEnabledByUser
+      ? 'Turn off for this player'
+      : 'Turn on for this player'
 
   return (
-    <Root>
+    <Root ref={rootRef}>
       <Shell>
         <Header>
           <Brand>
-            <LogoLink showLabel={false} />
+            <LogoLink showLabel={false} compact />
           </Brand>
         </Header>
 
         {loading ? (
-          <EmptyPanel>
-            <EmptyTitle>Loading...</EmptyTitle>
-            <EmptyText>Consulting the active tab state in the service worker.</EmptyText>
-          </EmptyPanel>
+          <Loading label="Consulting active tab state" />
         ) : error ? (
           <EmptyPanel>
             <EmptyTitle>Popup unavailable</EmptyTitle>
@@ -352,17 +522,32 @@ export default function App() {
                       : 'Waiting for prepared context'}
                 </SubLine>
                 <Pills>
-                  <Pill $tone={state?.active ? 'success' : 'neutral'}>
-                    {state?.active ? 'Running' : 'Ready'}
+                  <Pill $tone={runtimeTone}>
+                    {runtimeLabel}
                   </Pill>
-                  <Pill $tone={getLicenseTone(state?.licenseStatus)}>
-                    License {getLicenseText(state?.licenseStatus)}
+                  <Pill $tone={getLicenseTone(state?.license?.status)}>
+                    License {getLicenseText(state?.license?.status)}
                   </Pill>
                   {state?.isTryConfirm ? (
                     <Pill $tone="danger">Try Confirm</Pill>
                   ) : null}
                 </Pills>
               </UserMeta>
+              <UserSwitchSlot>
+                <PlayerEnabledByUserSwitch
+                  $enabledByUser={isPlayerEnabledByUser}
+                  $disabled={!canToggleEnabledByUser}
+                  data-popup-title={enabledByUserTooltip}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPlayerEnabledByUser}
+                    disabled={!canToggleEnabledByUser}
+                    aria-label="Toggle current player execution"
+                    onChange={() => { void handleEnabledByUserChange() }}
+                  />
+                </PlayerEnabledByUserSwitch>
+              </UserSwitchSlot>
             </UserCard>
 
             <Grid>
@@ -394,8 +579,28 @@ export default function App() {
         )}
 
         <Footer>
+          <FooterLinkItens>
+            <FooterLink
+              href="https://wa.me/5511916302834"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open WhatsApp contact in a new tab"
+              data-popup-title="Fale conosco"
+            >
+              <FooterIcon aria-hidden="true" />
+            </FooterLink>
+            <FooterMailLink
+              href={SUPPORT_EMAIL_HREF}
+              aria-label="Open email client"
+              data-popup-title={`Envie um e-mail para ${SUPPORT_EMAIL}`}
+            >
+              <FooterMailIcon aria-hidden="true" />
+            </FooterMailLink>
+          </FooterLinkItens>
           <Hint>
-            {state?.active
+            {hasPlayerIdentity && state?.enabledByUser === false
+              ? 'The bot is turned off for this player.'
+              : state?.active
               ? 'The bot is marked to run on this tab.'
               : 'The popup follows the active Tribal Wars tab, even when it is not executing there.'}
           </Hint>

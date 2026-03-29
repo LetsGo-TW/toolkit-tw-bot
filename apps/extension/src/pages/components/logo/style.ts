@@ -1,6 +1,6 @@
 import { css, styled } from 'styled-components'
 
-export const Container = styled.div<{ $isVisible: boolean }>`
+export const Container = styled.div<{ $isVisible: boolean, $compact?: boolean }>`
   transition: 0.6s;
   transform: scale(1);
 
@@ -23,7 +23,7 @@ export const Container = styled.div<{ $isVisible: boolean }>`
     border: 0.15rem solid;
     border-color: ${({ theme }) => theme.neutral};
     border-radius: 100%;
-    width: 3.5rem;
+    width: ${({ $compact }) => ($compact ? '2.9rem' : '3.5rem')};
     height: auto;
   }
 
@@ -45,13 +45,13 @@ export const Container = styled.div<{ $isVisible: boolean }>`
 
   @media (max-width: 426px) {
     img {
-      width: 3.2rem;
+      width: ${({ $compact }) => ($compact ? '2.7rem' : '3.2rem')};
     }
   }
 
   @media (max-width: 376px) {
     img {
-      width: 3rem;
+      width: ${({ $compact }) => ($compact ? '2.55rem' : '3rem')};
     }
   }
 `

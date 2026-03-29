@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react'
 import Tooltip from '@toolkit-tw-bot/browser/tooltip'
 import { extensionVersion } from '@toolkit-tw-bot/release'
 import { Container } from './style'
-import imgLogo from '../../icons/128.png'
+import imgLogo from '../../../icons/ico.green.128.png'
 
 interface ILogo {
   isVisible?: boolean
   link?: string
   showLabel?: boolean
+  compact?: boolean
 }
 
 const DEFAULT_LINK = 'https://api-controller-lets-go.herokuapp.com/'
@@ -25,7 +26,7 @@ function buildTooltipHtml(url: string) {
   `
 }
 
-export default function Logo({ isVisible, link, showLabel = true }: ILogo) {
+export default function Logo({ isVisible, link, showLabel = true, compact = false }: ILogo) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const targetUrl = link || DEFAULT_LINK
 
@@ -50,7 +51,7 @@ export default function Logo({ isVisible, link, showLabel = true }: ILogo) {
   }
 
   return (
-    <Container ref={rootRef} $isVisible={isVisible || false}>
+    <Container ref={rootRef} $isVisible={isVisible || false} $compact={compact}>
       <button
         type="button"
         data-title={buildTooltipHtml(targetUrl)}
