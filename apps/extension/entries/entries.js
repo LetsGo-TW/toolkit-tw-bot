@@ -83,6 +83,17 @@ module.exports = {
       allFrames: true,
       target: 'web',
     },
+    'groupIntentSync': {
+      entry: 'content-scripts/vanilla/isolated/all-frames/idle/groupIntentSync/index.js',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'ISOLATED',
+      injection: 'vanilla',
+      scope: 'all-frames',
+      runAt: 'document_idle',
+      allFrames: true,
+      target: 'web',
+    }
   },
 
   csShadowDom: {
