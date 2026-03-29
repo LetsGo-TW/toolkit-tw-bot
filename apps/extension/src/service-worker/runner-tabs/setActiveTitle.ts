@@ -6,6 +6,7 @@ type SetActiveTitleParams = {
   isMdfScope?: boolean
   isAllowedByLicense?: boolean
   isLicenseExpiring?: boolean
+  isIntro?: boolean
 }
 
 export const setActiveTitle = ({
@@ -16,8 +17,9 @@ export const setActiveTitle = ({
   isMdfScope = false,
   isAllowedByLicense = true,
   isLicenseExpiring = false,
+  isIntro = false,
 }: SetActiveTitleParams = {}) => {
-  const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]']
+  const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '⌛', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[⌛]']
   let emoji: string | undefined
   let title = document.title
 
@@ -29,6 +31,12 @@ export const setActiveTitle = ({
   if (!isRunningTab) {
     document.title = title;
     return;
+  }
+  if (isIntro) {
+    emoji = '⌛';
+    if (isMdfScope) emoji = `[${emoji}]`;
+    document.title = `${emoji} ${title}`;
+    return
   }
   emoji = isLicenseExpiring ? '🟡' : '🟢';
   if (isTryConfirm) emoji = '☢️';
