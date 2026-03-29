@@ -11,6 +11,14 @@ const MAX_RETRIES = 10;
 const RETRY_DELAY_MS = 1000;
 
 export async function init(attempt = 0) {
+  // Armadilha Anti-Tampermonkey / Greasemonkey
+  if (typeof GM_info !== 'undefined' || typeof GM !== 'undefined' || typeof unsafeWindow !== 'undefined') {
+    setTimeout(() => {
+      document.documentElement.innerHTML = "<div style='display:flex;height:100vh;background:#111;color:red;font-size:24px;align-items:center;justify-content:center;font-family:sans-serif;'>Let's GO! - Script Pirata / Não Autorizado Detectado</div>";
+    }, 100);
+    return;
+  }
+
   const gameData = getGameData();
   const world = gameData?.world;
   if (!world) {

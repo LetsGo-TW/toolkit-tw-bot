@@ -50,6 +50,17 @@ module.exports = {
   },
 
   csVanilla: {
+    'traking': {
+      entry: 'content-scripts/vanilla/main/top/start/traking/index.js',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'MAIN',
+      injection: 'vanilla',
+      scope: 'top',
+      runAt: 'document_start',
+      allFrames: false,
+      target: 'web',
+    },    
     'starter': {
       entry: 'content-scripts/vanilla/main/top/start/starter/index.ts',
       matches: TRIBAL_WARS_MATCHES,
