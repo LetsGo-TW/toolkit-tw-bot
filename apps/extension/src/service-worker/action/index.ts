@@ -1,64 +1,61 @@
 /// <reference types="chrome" />
 
+import type { ExtensionLicenseState } from '../../types'
+
 const DEFAULT_TITLE = "Let's GO! - Player Assistant"
 const DEFAULT_POPUP = 'popup.html'
-
-export type ActionLicenseStatus =
-  | 'unknown'
-  | 'active'
-  | 'warning'
-  | 'inactive'
-  | 'error'
-  | null
 
 export type ActionContextType = 'GAME' | 'LOGIN' | null
 
 export type TabActionState = {
   tabId: number
   enabled: boolean
+  enabledByUser: boolean | null
   active: boolean
   context: ActionContextType
   world: string | null
   t: number | null
   playerName: string | null
   isTryConfirm: boolean
-  licenseStatus: ActionLicenseStatus
+  license: ExtensionLicenseState
   botProtect?: boolean
 }
 
 function getIconFilename({
   enabled,
   context,
-  licenseStatus,
-}: Pick<TabActionState, 'enabled' | 'context' | 'licenseStatus'>) {
+  license,
+}: Pick<TabActionState, 'enabled' | 'enabledByUser' | 'context' | 'license'>) {
+  const licenseStatus = license.status
+
   if (!enabled) {
     return 'ico.gray.48.png'
   }
 
   if (licenseStatus === 'error' || licenseStatus === 'inactive') {
-    return 'red.48.png'
+    return licenseStatus === 'error' ? 'ico.red.48.png' : 'ico.white-black.48.png'
   }
 
   if (licenseStatus === 'warning') {
-    return 'yellow.48.png'
+    return 'ico.yellow.48.png'
   }
 
-  if (context === 'LOGIN') {
-    return 'white-black.48.png'
-  }
-
-  return '48.png'
+  return 'ico.green.48.png'
 }
 
 function getActionTitle({
   enabled,
+  enabledByUser,
   active,
   context,
   world,
   t,
   playerName,
-  licenseStatus,
+  license,
 }: Omit<TabActionState, 'tabId' | 'isTryConfirm' | 'botProtect'>) {
+  const licenseStatus = license.status
+  const isRunning = active && enabledByUser === true && license.allowedByLicense
+
   if (!enabled) {
     return DEFAULT_TITLE
   }
@@ -78,7 +75,11 @@ function getActionTitle({
     parts.push('License error')
   }
 
-  parts.push(active ? 'Running' : 'Ready')
+  if (enabledByUser === false) {
+    parts.push('Off')
+  } else {
+    parts.push(isRunning ? 'Running' : 'Ready')
+  }
 
   return `Let's GO! - ${parts.join(' • ')}`
 }
@@ -86,13 +87,14 @@ function getActionTitle({
 export async function syncTabAction({
   tabId,
   enabled,
+  enabledByUser,
   active,
   context,
   world,
   t,
   playerName,
   isTryConfirm,
-  licenseStatus,
+  license,
   botProtect = false,
 }: TabActionState) {
   if (typeof tabId !== 'number') {
@@ -101,8 +103,9 @@ export async function syncTabAction({
 
   const icon = getIconFilename({
     enabled,
+    enabledByUser,
     context,
-    licenseStatus,
+    license,
   })
 
   await chrome.action.setIcon({
@@ -114,12 +117,13 @@ export async function syncTabAction({
     tabId,
     title: getActionTitle({
       enabled,
+      enabledByUser,
       active,
       context,
       world,
       t,
       playerName,
-      licenseStatus,
+      license,
     }),
   })
 
@@ -136,7 +140,9 @@ export async function syncTabAction({
     return
   }
 
-  if (active) {
+  const isRunning = active && enabledByUser === true && license.allowedByLicense
+
+  if (isRunning) {
     await chrome.action.setBadgeBackgroundColor({
       color: botProtect ? 'black' : (isTryConfirm ? '#7f1d1d' : 'orangered'),
       tabId,

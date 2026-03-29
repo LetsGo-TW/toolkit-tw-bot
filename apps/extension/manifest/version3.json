@@ -5,21 +5,16 @@
   "description": "Player Assistant",
   "minimum_chrome_version": "120",
   "icons": {
-    "16": "./icons/16.png",
-    "32": "./icons/32.png",
-    "42": "./icons/ico.gray.48.png",
-    "43": "./icons/ico.png",
-    "45": "./icons/white-black.48.png",
-    "46": "./icons/red.48.png",
-    "47": "./icons/yellow.48.png",
-    "48": "./icons/48.png",
-    "128": "./icons/128.png"
+    "16": "./icons/ico.green.16.png",
+    "32": "./icons/ico.green.32.png",
+    "48": "./icons/ico.green.48.png",
+    "128": "./icons/ico.green.128.png"
   },
   "action": {
     "default_title": "Let's GO! - Player Assistant",
     "enabled": false,
     "default_icon": {
-      "42": "./icons/ico.gray.48.png"
+      "48": "./icons/ico.gray.48.png"
     }
   },
   "permissions": [
@@ -72,7 +67,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [ "/img/*", "/sounds/*", "/content-scripts/*" ],
+      "resources": [ "/img/*", "/icons/*", "/sounds/*" ],
       "matches": [
         "https://*.tribalwars.com.br/*",
         "https://*.die-staemme.de/*",

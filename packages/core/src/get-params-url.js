@@ -37,7 +37,12 @@ function getParamsUrl(base, origin) {
   const pathname = url.pathname || '/'
   const hostname = url.hostname || null
   const isInGame = pathname === '/game.php'
-  const isInLogin = hostname?.startsWith('www.') === true && pathname === '/'
+  const isPortalPage = /^\/page\/play(?:\/|$)/.test(pathname)
+  const isInLogin = !isInGame && (
+    pathname === '/'
+    || isPortalPage
+    || hostname?.startsWith('www.') === true
+  )
 
   return {
     href: url.href,
@@ -56,6 +61,7 @@ function getParamsUrl(base, origin) {
     page,
     isMdf,
     isInGame,
+    isPortalPage,
     isInLogin,
   }
 }
