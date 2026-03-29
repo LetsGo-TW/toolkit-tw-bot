@@ -23,9 +23,8 @@ export type TabActionState = {
 
 function getIconFilename({
   enabled,
-  context,
   license,
-}: Pick<TabActionState, 'enabled' | 'enabledByUser' | 'context' | 'license'>) {
+}: Pick<TabActionState, 'enabled' | 'license'>) {
   const licenseStatus = license.status
 
   if (!enabled) {
@@ -103,8 +102,6 @@ export async function syncTabAction({
 
   const icon = getIconFilename({
     enabled,
-    enabledByUser,
-    context,
     license,
   })
 

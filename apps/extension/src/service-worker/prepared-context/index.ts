@@ -162,7 +162,7 @@ export function getScopeFromTabContext(tabId?: number | null) {
 
   const tabContext = tabContextByTabIdCache[getTabContextKey(tabId)]
 
-  if (!tabContext?.world || tabContext.context !== 'GAME') {
+  if (!tabContext?.world) {
     return null
   }
 

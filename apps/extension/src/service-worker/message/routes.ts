@@ -25,10 +25,6 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
         received,
         sender as chrome.runtime.MessageSender,
       );
-    case "GAME":
-      return { ok: true, message: "Not implements GAME!"};
-    case "LOGIN":
-      return { ok: true, message: "Not implements LOGIN!"};
     default:
       return { ok: false, error: `Unknown type "${String(received?.type)}"` };
   }

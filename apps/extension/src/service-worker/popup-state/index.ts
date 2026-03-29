@@ -1,7 +1,7 @@
 /// <reference types="chrome" />
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
-import { createLicenseState } from '../../types'
+import { createLicenseState, type SWMessage } from '../../types'
 import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by-user'
 import { GET_POPUP_STATE_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber } from '../normalize'
@@ -14,7 +14,7 @@ import {
 } from '../prepared-context'
 import { ensureRunnerTabsLoaded, getCurrentRunner } from '../runner-tabs'
 
-export type PopupStateRequest = {
+export type PopupStateRequest = SWMessage & {
   targetTabId?: unknown
   targetWindowId?: unknown
 }

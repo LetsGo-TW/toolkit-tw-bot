@@ -25,10 +25,6 @@ import {
 } from './message/types'
 import { setActiveTitle } from './runner-tabs/setActiveTitle'
 
-function getLicenseState() {
-  return createLicenseState()
-}
-
 function canExecuteRunner(runner?: RunnerRecord | null) {
   if (!runner) {
     return false
@@ -38,7 +34,7 @@ function canExecuteRunner(runner?: RunnerRecord | null) {
 
   return (
     getPlayerEnabledByUser(tabContext?.playerId)
-    && getLicenseState().allowedByLicense
+    && createLicenseState().allowedByLicense
   )
 }
 
@@ -115,7 +111,7 @@ function getRunnerTitleState(
   },
 ) {
   const tabContext = getTabContext(runner.tabId)
-  const license = getLicenseState()
+  const license = createLicenseState()
 
   return {
     isRunningTab,

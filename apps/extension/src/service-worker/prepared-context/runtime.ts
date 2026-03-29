@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import type { SWMessage } from '../../types'
 import { syncTabActionByTabId } from '../action-state'
 import {
   ensureEnabledByUserLoaded,
@@ -10,6 +11,10 @@ import { PREPARED_MESSAGE_TYPE } from '../message/types'
 import { getCurrentRunner, isSameRunner, type RunnerRecord } from '../runner-tabs'
 import { reconcileActiveRunner, syncSelectedRunnerState } from '../runtime'
 import { type PreparedMessageData, upsertPreparedContext } from './index'
+
+type PreparedContextRequest = SWMessage & {
+  data?: PreparedMessageData
+}
 
 function isRunnerForSender(
   runner: RunnerRecord | null,
@@ -25,7 +30,7 @@ function isRunnerForSender(
 }
 
 export async function registerPreparedContext(
-  received: { data?: PreparedMessageData },
+  received: PreparedContextRequest,
   sender: chrome.runtime.MessageSender,
 ) {
   await ensureEnabledByUserLoaded()

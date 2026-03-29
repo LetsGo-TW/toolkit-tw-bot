@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import type { SWMessage } from '../../types'
 import { syncTabActionByTabId } from '../action-state'
 import { SET_ENABLED_BY_USER_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber, normalizeStrictBoolean } from '../normalize'
@@ -8,7 +9,7 @@ import { ensurePreparedContextLoaded, getTabIdsByPlayerId } from '../prepared-co
 import { reconcileActiveRunner } from '../runtime'
 import { ensureEnabledByUserLoaded, setPlayerEnabledByUserByPlayerId } from './index'
 
-type SetEnabledByUserRequest = PopupStateRequest & {
+type SetEnabledByUserRequest = SWMessage & PopupStateRequest & {
   playerId?: unknown
   enabledByUser?: unknown
 }

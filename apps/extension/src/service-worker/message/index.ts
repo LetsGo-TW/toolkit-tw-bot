@@ -20,7 +20,6 @@ export const onReceived = (received: any, sender: chrome.runtime.MessageSender, 
   (async () => {
     try {
       await validateEnvelope(received, sender);
-      console.log(received)        // pode ser async
       const result = await handleMessage({ received, sender });
       safeRespond(result);
     } catch (error) {

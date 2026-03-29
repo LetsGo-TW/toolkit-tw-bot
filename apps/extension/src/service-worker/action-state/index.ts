@@ -13,10 +13,6 @@ import {
 } from '../prepared-context'
 import { getCurrentRunner, type RunnerRecord } from '../runner-tabs'
 
-function getLicenseState() {
-  return createLicenseState()
-}
-
 export async function syncTabActionByTabId(tabId?: number | null) {
   if (typeof tabId !== 'number') {
     return
@@ -55,7 +51,7 @@ export async function syncTabActionByTabId(tabId?: number | null) {
     t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
     playerName: context?.playerName ?? null,
     isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
-    license: getLicenseState(),
+    license: createLicenseState(),
   })
 }
 
