@@ -17,6 +17,8 @@ async function runOnce() {
       })
   }
 
+  console.log("[Starter] running")
+
   return scope[START_PROMISE_KEY]
 }
 

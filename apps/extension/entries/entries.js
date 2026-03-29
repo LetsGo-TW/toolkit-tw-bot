@@ -60,6 +60,17 @@ module.exports = {
       runAt: 'document_start',
       allFrames: false,
       target: 'web',
+    },    
+    'clock': {
+      entry: 'content-scripts/vanilla/main/top/start/clock/index.js',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'MAIN',
+      injection: 'vanilla',
+      scope: 'top',
+      runAt: 'document_start',
+      allFrames: false,
+      target: 'web',
     },
     'connect': {
       entry: 'content-scripts/vanilla/isolated/all-frames/idle/connect/index.ts',
@@ -93,7 +104,17 @@ module.exports = {
       runAt: 'document_idle',
       allFrames: true,
       target: 'web',
-    }
+    },
+    'solver': {
+      entry: 'content-scripts/vanilla/isolated/all-frames/idle/solver/index.js',
+      matches: ["https://*.hcaptcha.com/*"],
+      world: 'ISOLATED',
+      injection: 'vanilla',
+      scope: 'all-frames',
+      runAt: 'document_idle',
+      allFrames: true,
+      target: 'web',
+    },
   },
 
   csShadowDom: {
