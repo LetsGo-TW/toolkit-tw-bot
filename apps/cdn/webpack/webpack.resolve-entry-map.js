@@ -1,12 +1,22 @@
 // apps/cdn/webpack/webpack.resolve-entry-map.js
 const path = require('path')
-const entries = require('../entries/entries')
+const { getEntryConfigs } = require('./webpack.get-entry-config')
 
-function resolveEntries(group) {
+function getEntryPath(config) {
+  return typeof config === 'string'
+    ? config
+    : config.entry
+}
+
+function resolveEntries(groupOrEntries) {
+  const entryConfigs = typeof groupOrEntries === 'string'
+    ? getEntryConfigs(groupOrEntries)
+    : groupOrEntries
+
   return Object.fromEntries(
-    Object.entries(entries[group]).map(([name, relativePath]) => [
+    Object.entries(entryConfigs).map(([name, config]) => [
       name,
-      path.resolve(__dirname, '../src', relativePath),
+      path.resolve(__dirname, '../src', getEntryPath(config)),
     ]),
   )
 }

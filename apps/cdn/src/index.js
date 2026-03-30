@@ -2,26 +2,39 @@ __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM='
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { getGameData } from '@toolkit-tw-bot/browser'
-import { DynamicImports } from './dynamic-import'
 
 const CONNECT = 'CONNECT'
 const CTX = 'CTX'
 const START = 'BOT_RUNNER_START'
 const STOP = 'BOT_RUNNER_STOP'
+const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 
 const runnerState = {
   extensionId: null,
   scopeKey: null,
   running: false,
   startPromise: null,
-  stopHandlers: new Map(),
+  stagedScriptUrl: null,
+  stagedScriptEl: null,
+  preparedBaseUrl: resolvePreparedBaseUrl(),
 }
 
-const sharedModules = {
-  loadTooltip: () => import(
-    /* webpackChunkName: "shared.tooltip" */
-    '@toolkit-tw-bot/browser/tooltip'
-  ),
+function resolvePreparedBaseUrl() {
+  const currentScript = document.currentScript
+
+  if (currentScript instanceof HTMLScriptElement && currentScript.src) {
+    return new URL('./', currentScript.src).toString()
+  }
+
+  const preparedScript = Array.from(document.scripts)
+    .reverse()
+    .find((script) => typeof script.src === 'string' && PREPARED_ENTRY_PATTERN.test(script.src))
+
+  if (!preparedScript?.src) {
+    return null
+  }
+
+  return new URL('./', preparedScript.src).toString()
 }
 
 function isValidPageMessage({ data, origin, source }) {
@@ -68,19 +81,14 @@ function setConnectionState(data) {
   }
 }
 
-function clearStopHandlers() {
-  runnerState.stopHandlers.clear()
+function setPreparedState() {
+  window.dataStart = {
+    extensionId: runnerState.extensionId,
+  }
 }
 
-function registerStopHandler(key, result) {
-  if (typeof result === 'function') {
-    runnerState.stopHandlers.set(key, result)
-    return
-  }
-
-  if (result && typeof result.stop === 'function') {
-    runnerState.stopHandlers.set(key, () => result.stop())
-  }
+function clearPreparedState() {
+  delete window.dataStart
 }
 
 function getRuntimeModules() {
@@ -88,7 +96,7 @@ function getRuntimeModules() {
     window.location.href,
     window.location.origin,
   )
-  const { isInGame, isInLogin, screen, isIntro } = runtimeParams
+  const { isInGame, isInLogin, isIntro } = runtimeParams
 
   if (!isInGame && !isInLogin) {
     throw new Error('Scripts only work in Tribal Wars.')
@@ -101,8 +109,95 @@ function getRuntimeModules() {
   return {
     ...runtimeParams,
     isInLogin,
-    screen,
   }
+}
+
+function getStageEntry() {
+  const runtimeParams = getRuntimeModules()
+
+  if (runtimeParams.isInLogin) {
+    return {
+      kind: 'login',
+      filename: 'login.staged.js',
+    }
+  }
+
+  return {
+    kind: 'game',
+    filename: 'game.staged.js',
+  }
+}
+
+function getStageScriptUrl(filename) {
+  if (!runnerState.preparedBaseUrl) {
+    throw new Error('Missing prepared base URL.')
+  }
+
+  return new URL(filename, runnerState.preparedBaseUrl).toString()
+}
+
+function removeStageScript() {
+  runnerState.stagedScriptEl?.remove()
+  runnerState.stagedScriptEl = null
+  runnerState.stagedScriptUrl = null
+}
+
+async function injectStageScript(filename) {
+  const scriptUrl = getStageScriptUrl(filename)
+
+  if (
+    runnerState.stagedScriptUrl === scriptUrl
+    && runnerState.stagedScriptEl?.isConnected
+  ) {
+    return
+  }
+
+  removeStageScript()
+
+  const script = document.createElement('script')
+  const target = document.head || document.documentElement
+
+  if (!target) {
+    throw new Error('Missing document root to inject staged script.')
+  }
+
+  script.src = scriptUrl
+  script.async = false
+  script.dataset.toolkitTwBotStaged = filename
+
+  await new Promise((resolve, reject) => {
+    script.addEventListener('load', () => {
+      script.remove()
+
+      if (runnerState.stagedScriptEl === script) {
+        runnerState.stagedScriptEl = null
+      }
+
+      if (runnerState.stagedScriptUrl === scriptUrl) {
+        runnerState.stagedScriptUrl = null
+      }
+
+      resolve()
+    }, { once: true })
+    script.addEventListener('error', () => {
+      script.remove()
+
+      if (runnerState.stagedScriptEl === script) {
+        runnerState.stagedScriptEl = null
+      }
+
+      if (runnerState.stagedScriptUrl === scriptUrl) {
+        runnerState.stagedScriptUrl = null
+      }
+
+      reject(new Error(`Failed to load staged script: ${scriptUrl}`))
+    }, { once: true })
+
+    target.appendChild(script)
+  })
+
+  runnerState.stagedScriptUrl = scriptUrl
+  runnerState.stagedScriptEl = script
 }
 
 function getPreparedContext() {
@@ -137,14 +232,6 @@ async function postCtxToExtension() {
   })
 }
 
-async function loadModule(key) {
-  if (!DynamicImports[key]) {
-    return null
-  }
-
-  return DynamicImports[key]()
-}
-
 async function startRunner() {
   if (runnerState.running) {
     return
@@ -159,41 +246,16 @@ async function startRunner() {
       throw new Error('Extension Id is required.')
     }
 
-    const { isInLogin, screen } = getRuntimeModules()
+    const stageEntry = getStageEntry()
 
-    clearStopHandlers()
-
-    if (isInLogin) {
-      const login = await loadModule('login')
-
-      if (!login) {
-        runnerState.running = true
-        return
-      }
-
-      const result = await login(runnerState.extensionId, sharedModules)
-      registerStopHandler('login', result)
-      runnerState.running = true
-      return
-    }
-
-    const game = await loadModule('game')
-    const screenModule = screen ? await loadModule(screen) : null
-
-    if (screenModule) {
-      const result = await screenModule(runnerState.extensionId, sharedModules)
-      registerStopHandler(screen, result)
-    }
-
-    if (game) {
-      const result = await game(runnerState.extensionId, sharedModules)
-      registerStopHandler('game', result)
-    }
+    setPreparedState()
+    await injectStageScript(stageEntry.filename)
 
     runnerState.running = true
   })()
     .catch((error) => {
-      clearStopHandlers()
+      removeStageScript()
+      clearPreparedState()
       throw error
     })
     .finally(() => {
@@ -212,21 +274,12 @@ async function stopRunner() {
     }
   }
 
-  if (!runnerState.running && runnerState.stopHandlers.size === 0) {
+  if (!runnerState.running) {
     return
   }
 
-  const stopEntries = Array.from(runnerState.stopHandlers.entries()).reverse()
-  clearStopHandlers()
-
-  for (const [key, stop] of stopEntries) {
-    try {
-      await stop()
-    } catch (error) {
-      console.warn(`[GAME.PREPARED][STOP:${key}]`, error)
-    }
-  }
-
+  removeStageScript()
+  clearPreparedState()
   runnerState.running = false
 }
 

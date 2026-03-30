@@ -9,4 +9,14 @@ const login = async (extensionId) => {
   console.log(`[${CDN}]: `, response)
 }
 
+const preparedExtensionId = window.dataStart?.extensionId
+
+if (preparedExtensionId) {
+  delete window.dataStart
+
+  void login(preparedExtensionId).catch((error) => {
+    console.error(`[${CDN}]`, error)
+  })
+}
+
 export default login

@@ -3,9 +3,7 @@
 const path = require('path')
 const Dotenv = require('dotenv-webpack')
 const CopyPlugin = require('copy-webpack-plugin')
-const WebpackObfuscator = require('webpack-obfuscator')
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin')
-const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
 const { makeDynamicI18nPatterns } = require('./webpack.make-dynamic-i18n-patterns')
 const { resolveEntries } = require('./webpack.resolve-entry-map')
 
@@ -77,14 +75,6 @@ module.exports = () => {
       new CopyPlugin({
         patterns: dynamicI18nPatterns,
       }),
-    )
-  }
-
-  if (process.env.OBFUSCATE === 'true') {
-    web.plugins.push(
-      new WebpackObfuscator(
-        getObfuscatorOptions(process.env.OBFUSCATE_LEVEL || 'default'),
-      ),
     )
   }
 

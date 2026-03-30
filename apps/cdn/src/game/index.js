@@ -1,5 +1,3 @@
-import { DynamicImports } from '../dynamic-import'
-
 const CDN = 'GAME'
 
 const game = async (extensionId) => {
@@ -9,6 +7,16 @@ const game = async (extensionId) => {
   })
 
   console.log(`[${CDN}]: `, response)
+}
+
+const preparedExtensionId = window.dataStart?.extensionId
+
+if (preparedExtensionId) {
+  delete window.dataStart
+
+  void game(preparedExtensionId).catch((error) => {
+    console.error(`[${CDN}]`, error)
+  })
 }
 
 export default game

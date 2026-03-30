@@ -1,9 +1,24 @@
 // apps/cdn/entries/entries.js
 module.exports = {
   web: {
-    'game.prepared': '../src/index.js',
-    'game.staged': '../src/game/index.js',
-    'login.staged': '../src/login/index.js'
+    'game.prepared': {
+      entry: '../src/index.js',
+      build: {
+        obfuscationLevel: 'low',
+      },
+    },
+    'game.staged': {
+      entry: '../src/game/index.js',
+      build: {
+        obfuscationLevel: 'high',
+      },
+    },
+    'login.staged': {
+      entry: '../src/login/index.js',
+      build: {
+        obfuscationLevel: 'high',
+      },
+    },
   },
 
   workers: {},
