@@ -10,11 +10,12 @@ BUILD_EXTENSION=true
 usage() {
   cat <<'EOF'
 Uso:
-  scripts/build-assets.sh [--env=dev|prod] [--only=cdn|extension|all]
+  scripts/build-assets.sh [--env=dev|prod-local|prod] [--only=cdn|extension|all]
 
 Exemplos:
   scripts/build-assets.sh
   scripts/build-assets.sh --env=dev
+  scripts/build-assets.sh --env=prod-local
   scripts/build-assets.sh --only=extension
 EOF
 }
@@ -23,6 +24,9 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --env=dev)
       BUILD_ENV="dev"
+      ;;
+    --env=prod-local)
+      BUILD_ENV="prod-local"
       ;;
     --env=prod)
       BUILD_ENV="prod"
@@ -79,7 +83,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$BUILD_ENV" in
-  dev|prod)
+  dev|prod-local|prod)
     ;;
   *)
     echo "[BUILD-ASSETS] Ambiente inválido: $BUILD_ENV" >&2

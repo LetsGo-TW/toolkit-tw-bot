@@ -54,7 +54,13 @@ export function getPlayerEnabledByUser(playerId?: number | null) {
     return false
   }
 
-  return enabledByUserByPlayerIdCache[String(playerId)] === true
+  const playerKey = String(playerId)
+
+  if (!Object.hasOwn(enabledByUserByPlayerIdCache, playerKey)) {
+    return true
+  }
+
+  return enabledByUserByPlayerIdCache[playerKey] === true
 }
 
 export async function ensurePlayerEnabledByUserRecord(playerId?: number | null) {
@@ -71,13 +77,13 @@ export async function ensurePlayerEnabledByUserRecord(playerId?: number | null) 
   const previousCache = enabledByUserByPlayerIdCache
   const nextCache = {
     ...previousCache,
-    [playerKey]: false,
+    [playerKey]: true,
   }
 
   enabledByUserByPlayerIdCache = nextCache
   await persistEnabledByUserByPlayerId(previousCache, nextCache)
 
-  return false
+  return true
 }
 
 export async function setPlayerEnabledByUserByPlayerId(

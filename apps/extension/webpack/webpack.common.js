@@ -7,7 +7,7 @@ const { hasEntryConfigs } = require('./webpack.get-entry-config')
 function makeCommonConfigs() {
   const configs = [
     webpackServiceWorker(),
-    webpackContentScriptVanilla(),
+    ...webpackContentScriptVanilla(),
     webpackPages(),
   ]
 

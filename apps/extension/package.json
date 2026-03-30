@@ -10,6 +10,7 @@
     "clean": "rimraf dist",
     "dev": "webpack --config webpack/webpack.config.js --env env=dev --watch",
     "build:dev": "webpack --config webpack/webpack.config.js --env env=dev",
+    "build:prod-local": "webpack --config webpack/webpack.config.js --env env=prod-local",
     "build:prod": "webpack --config webpack/webpack.config.js --env env=prod",
     "build": "yarn build:prod",
     "build:analyze": "ANALYZE=true webpack --config webpack/webpack.config.js --env env=prod",

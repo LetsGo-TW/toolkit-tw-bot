@@ -1,5 +1,6 @@
 const manifestTemplate = require('../manifest/version3.json')
 const entries = require('../entries/entries')
+const { getEntryBuildConfig } = require('./webpack.get-entry-config')
 
 function loadReleaseConfig() {
   try {
@@ -98,6 +99,32 @@ function buildContentScripts(manifest) {
   )
 }
 
+function buildAsyncChunkWebAccessibleResources() {
+  const rawEntries = [...Object.entries(entries.csVanilla || {}), ...Object.entries(entries.csShadowDom || {})]
+  const asyncEntries = rawEntries.filter(([, entryConfig]) => getEntryBuildConfig(entryConfig).asyncChunks)
+
+  if (asyncEntries.length === 0) {
+    return []
+  }
+
+  const matches = Array.from(
+    new Set(
+      asyncEntries.flatMap(([, entryConfig]) => entryConfig.matches || []),
+    ),
+  )
+
+  if (matches.length === 0) {
+    return []
+  }
+
+  return [
+    {
+      resources: ['/content-scripts/chunks/*'],
+      matches,
+    },
+  ]
+}
+
 function buildBackground(manifest) {
   const serviceWorkerEntry = getFirstEntry('sw')
 
@@ -146,6 +173,17 @@ function buildExtensionManifest() {
     manifest.content_scripts = contentScripts
   } else {
     delete manifest.content_scripts
+  }
+
+  const webAccessibleResources = [
+    ...(manifest.web_accessible_resources || []),
+    ...buildAsyncChunkWebAccessibleResources(),
+  ]
+
+  if (webAccessibleResources.length > 0) {
+    manifest.web_accessible_resources = webAccessibleResources
+  } else {
+    delete manifest.web_accessible_resources
   }
 
   manifest.action = buildAction(manifest)

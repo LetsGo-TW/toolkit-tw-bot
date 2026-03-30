@@ -40,7 +40,7 @@ const update = async (world) => {
     await worldConfigDatalocal.bulkUpsert(configDocs);
     await worldConfigDatalocal.update(meta);
     if (rawDoc && rawDoc._rev) {
-      await worldConfigDatalocal.db.remove(rawDoc);
+      await worldConfigDatalocal.remove(rawDoc);
     }
 
     return meta;

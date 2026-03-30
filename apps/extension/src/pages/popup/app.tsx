@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import styled from 'styled-components'
-import { MdOutlineEmail, MdWhatsapp } from 'react-icons/md'
 import Tooltip from '@toolkit-tw-bot/browser/tooltip'
 import type { ExtensionLicenseState, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
@@ -36,6 +35,8 @@ type PopupState = {
   ready?: boolean
   license?: ExtensionLicenseState | null
 }
+
+type IconProps = ComponentProps<'svg'>
 
 const Root = styled.main`
   width: 30rem;
@@ -229,12 +230,29 @@ const FooterLinkItens = styled.span`
   gap: 0.6rem;
 `
 
-const FooterIcon = styled(MdWhatsapp)`
+function WhatsappIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M19.05 4.91A9.82 9.82 0 0 0 12.03 2C6.6 2 2.18 6.42 2.18 11.85c0 1.74.45 3.44 1.31 4.95L2 22l5.35-1.4a9.8 9.8 0 0 0 4.68 1.19h.01c5.42 0 9.84-4.42 9.84-9.85a9.77 9.77 0 0 0-2.83-7.03Zm-7.02 15.22h-.01a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.18.83.85-3.1-.2-.32a8.12 8.12 0 0 1-1.25-4.38c0-4.47 3.64-8.11 8.12-8.11a8.1 8.1 0 0 1 5.74 2.38 8.07 8.07 0 0 1 2.37 5.75c0 4.47-3.64 8.11-8.11 8.11Zm4.45-6.08c-.24-.12-1.4-.69-1.62-.77-.21-.08-.37-.12-.52.12-.15.23-.6.76-.73.92-.13.15-.26.18-.5.06-.24-.12-1-.37-1.9-1.18-.71-.63-1.18-1.4-1.31-1.64-.14-.24-.01-.37.1-.49.1-.1.24-.26.36-.39.12-.13.15-.23.23-.39.08-.15.04-.29-.02-.41-.06-.12-.52-1.25-.71-1.71-.19-.46-.38-.4-.52-.41h-.44c-.15 0-.39.06-.59.29-.2.23-.77.75-.77 1.83s.79 2.11.9 2.26c.12.15 1.55 2.36 3.75 3.31.52.22.93.36 1.25.46.52.16.99.14 1.37.08.42-.06 1.3-.53 1.48-1.04.19-.5.19-.93.13-1.04-.05-.1-.2-.16-.44-.28Z" />
+    </svg>
+  )
+}
+
+function MailIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 6h16v12H4z" />
+      <path d="m4 8 8 5 8-5" />
+    </svg>
+  )
+}
+
+const FooterIcon = styled(WhatsappIcon)`
   width: 1.25rem;
   height: 1.25rem;
 `
 
-const FooterMailIcon = styled(MdOutlineEmail)`
+const FooterMailIcon = styled(MailIcon)`
   width: 1.25rem;
   height: 1.25rem;
 `

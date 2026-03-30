@@ -29,11 +29,6 @@ function originRegexFromMatch(match: string) {
 
 const ORIGIN_WHITELIST = matchPatterns.map(originRegexFromMatch).filter(Boolean);
 
-// fallback seguro
-if (ORIGIN_WHITELIST.length === 0) {
-  ORIGIN_WHITELIST.push(/^https?:\/\/(?:[a-z0-9-]+\.)*tribalwars\.com\.br(?::\d+)?$/i);
-}
-
 export function getSenderOrigin(sender: chrome.runtime.MessageSender) {
   if (sender.origin) return sender.origin;
   if (sender.url) {

@@ -5,7 +5,7 @@ import { getGameData } from '@toolkit-tw-bot/browser'
 import { DynamicImports } from './dynamic-import'
 
 const CONNECT = 'CONNECT'
-const PREPARED = 'PREPARED'
+const CTX = 'CTX'
 const START = 'BOT_RUNNER_START'
 const STOP = 'BOT_RUNNER_STOP'
 
@@ -38,6 +38,24 @@ function isValidPageMessage({ data, origin, source }) {
   }
 
   return true
+}
+
+function isValidConnectMessage(event) {
+  return isValidPageMessage(event) && event.data?.type === CONNECT
+}
+
+function isValidRunnerMessage(event) {
+  if (!isValidPageMessage(event)) {
+    return false
+  }
+
+  const { data } = event
+
+  if (data?.extensionId !== runnerState.extensionId) {
+    return false
+  }
+
+  return data?.type === START || data?.type === STOP
 }
 
 function setConnectionState(data) {
@@ -105,18 +123,18 @@ function getPreparedContext() {
   }
 }
 
-async function postPreparedToExtension() {
+async function postCtxToExtension() {
   if (!runnerState.extensionId) {
     throw new Error('Extension Id is required.')
   }
 
-  const response = await chrome.runtime.sendMessage(runnerState.extensionId, {
+  console.log('[PREPARED] sending CTX', getPreparedContext())
+
+  await chrome.runtime.sendMessage(runnerState.extensionId, {
     extensionId: runnerState.extensionId,
-    type: PREPARED,
+    type: CTX,
     data: getPreparedContext(),
   })
-
-  setConnectionState(response || {})
 }
 
 async function loadModule(key) {
@@ -214,11 +232,13 @@ async function stopRunner() {
 
 async function onConnectMessage(data) {
   setConnectionState(data)
-  await postPreparedToExtension()
+  console.log('[PREPARED] CONNECT received', data)
+  void postCtxToExtension()
 }
 
 async function onStartMessage(data) {
   setConnectionState(data)
+  console.log('[PREPARED] START received', data)
   await startRunner()
 }
 
@@ -231,23 +251,36 @@ async function onStopMessage(data) {
     return
   }
 
+  console.log('[PREPARED] STOP received', data)
   await stopRunner()
 }
 
 async function onPageMessage(event) {
-  if (!isValidPageMessage(event)) {
+  if (!isValidConnectMessage(event)) {
     return
   }
 
-  const { data, origin, source } = event
+  const { data } = event
 
-  console.log('GAME.PREPARED', { data, origin, source })
+  window.removeEventListener('message', onPageMessage, true)
+  window.addEventListener('message', onRunnerMessage, true)
+
+  try {
+    await onConnectMessage(data)
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+async function onRunnerMessage(event) {
+  if (!isValidRunnerMessage(event)) {
+    return
+  }
+
+  const { data } = event
 
   try {
     switch (data.type) {
-      case CONNECT:
-        await onConnectMessage(data)
-        return
       case START:
         await onStartMessage(data)
         return
@@ -263,5 +296,7 @@ async function onPageMessage(event) {
 }
 
 window.addEventListener('message', onPageMessage, true)
+
+console.log('[PREPARED] running')
 
 export {}

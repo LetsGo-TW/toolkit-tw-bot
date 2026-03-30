@@ -23,8 +23,9 @@ const PRESETS = {
     controlFlowFlatteningThreshold: 1,
     deadCodeInjection: true,
     deadCodeInjectionThreshold: 1,
-    debugProtection: true,
-    debugProtectionInterval: 4000,
+    // Opening DevTools must not force the browser into the debugger.
+    debugProtection: false,
+    debugProtectionInterval: 0,
     numbersToExpressions: true,
     renameGlobals: false,
     splitStrings: true,
@@ -73,6 +74,27 @@ const PRESETS = {
     stringArrayThreshold: 0.75,
   }),
 
+  lowCompact: () => ({
+    ...COMMON_OPTIONS,
+    controlFlowFlattening: false,
+    deadCodeInjection: false,
+    numbersToExpressions: false,
+    renameGlobals: false,
+    selfDefending: false,
+    splitStrings: false,
+    stringArrayCallsTransform: false,
+    stringArrayEncoding: [],
+    stringArrayIndexShift: false,
+    stringArrayRotate: false,
+    stringArrayShuffle: false,
+    stringArrayThreshold: 0.3,
+    stringArrayWrappersChainedCalls: false,
+    stringArrayWrappersCount: 1,
+    stringArrayWrappersParametersMaxCount: 2,
+    stringArrayWrappersType: 'variable',
+    transformObjectKeys: false,
+  }),
+
   default: () => ({
     ...COMMON_OPTIONS,
     controlFlowFlattening: false,
@@ -106,6 +128,10 @@ const PRESETS = {
 const OVERRIDES = {
   extension: () => ({
     rotateStringArray: true,
+  }),
+  worker: () => ({
+    disableConsoleOutput: false,
+    selfDefending: false,
   }),
 }
 

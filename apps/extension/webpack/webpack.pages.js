@@ -10,7 +10,8 @@ function makePageHtmlPlugins() {
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, '../src/pages/index.html'),
       filename: config.htmlFilename || `${name}.html`,
-      chunks: [name],
+      chunks: ['runtime', 'react-vendor', 'styled-vendor', name],
+      chunksSortMode: 'manual',
       title: config.title || "Let's GO! - Player Assistant",
     })
   ))
@@ -68,7 +69,7 @@ module.exports = () => {
       clean: false,
       path: path.resolve(__dirname, '../dist'),
       filename: 'pages/[name].js',
-      chunkFilename: 'pages/[name].js',
+      chunkFilename: 'pages/chunks/[name].js',
       assetModuleFilename: 'pages/assets/[name][ext][query]',
     },
 
@@ -78,8 +79,26 @@ module.exports = () => {
     ],
 
     optimization: {
-      splitChunks: false,
-      runtimeChunk: false,
+      moduleIds: 'deterministic',
+      chunkIds: 'deterministic',
+      runtimeChunk: 'single',
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          defaultVendors: false,
+          reactVendor: {
+            test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            name: 'react-vendor',
+            enforce: true,
+          },
+          styledVendor: {
+            test: /[\\/]node_modules[\\/](styled-components|stylis|@emotion|tslib)[\\/]/,
+            name: 'styled-vendor',
+            enforce: true,
+          },
+        },
+      },
     },
   }
 

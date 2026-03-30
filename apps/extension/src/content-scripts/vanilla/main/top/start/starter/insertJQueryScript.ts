@@ -6,7 +6,11 @@ const insertScript = async (url: string): Promise<void> => {
   })
 
   return new Promise<void>((resolve, reject) => {
-    insert()
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', insert, { once: true })
+    } else {
+      insert()
+    }
 
     function insert() {
       $_.getScript(url)

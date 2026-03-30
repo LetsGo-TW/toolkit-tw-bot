@@ -5,11 +5,45 @@ function getEntryConfigs(group) {
   return entries[group] || {}
 }
 
+function getEntryBuildConfig(config = {}) {
+  const buildConfig = config.build || {}
+
+  return {
+    asyncChunks: Boolean(buildConfig.asyncChunks),
+    obfuscate: buildConfig.obfuscate !== false,
+    obfuscateAsyncChunks: buildConfig.obfuscateAsyncChunks !== false,
+    profile: buildConfig.profile || 'default',
+    obfuscationLevel: buildConfig.obfuscationLevel || null,
+  }
+}
+
+function getGroupedEntryConfigs(group) {
+  const grouped = new Map()
+
+  for (const [entryName, entryConfig] of Object.entries(getEntryConfigs(group))) {
+    const buildConfig = getEntryBuildConfig(entryConfig)
+    const groupKey = JSON.stringify(buildConfig)
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        ...buildConfig,
+        entries: {},
+      })
+    }
+
+    grouped.get(groupKey).entries[entryName] = entryConfig
+  }
+
+  return Array.from(grouped.values())
+}
+
 function hasEntryConfigs(group) {
   return Object.keys(getEntryConfigs(group)).length > 0
 }
 
 module.exports = {
+  getEntryBuildConfig,
   getEntryConfigs,
+  getGroupedEntryConfigs,
   hasEntryConfigs,
 }

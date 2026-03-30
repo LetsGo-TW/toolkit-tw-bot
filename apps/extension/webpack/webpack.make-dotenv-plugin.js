@@ -2,7 +2,15 @@ const path = require('path')
 const Dotenv = require('dotenv-webpack')
 
 function getEnvFilename(buildEnv) {
-  return buildEnv === 'prod' ? '.env.production' : '.env.development'
+  if (buildEnv === 'prod') {
+    return '.env.production'
+  }
+
+  if (buildEnv === 'prod-local') {
+    return '.env.local'
+  }
+
+  return '.env.development'
 }
 
 function makeDotenvPlugin() {

@@ -22,7 +22,7 @@ class Distance {
     return { x, y }
   }
 
-  calc = (coord) => {
+  calc(coord) {
     const { x, y } = typeof coord === 'string'
       ? Distance.#transformCoordStringToObject(coord)
       : coord
@@ -30,13 +30,15 @@ class Distance {
     return this.#calculate({ x, y })
   }
 
-  round = (coord) => Math.round(this.calc(coord) * 100) / 100
+  round(coord) {
+    return Math.round(this.calc(coord) * 100) / 100
+  }
 
   get() {
     return this.#base
   }
 
-  #calculate = ({ x, y }) => {
+  #calculate({ x, y }) {
     const targetX = Number(x)
     const targetY = Number(y)
 

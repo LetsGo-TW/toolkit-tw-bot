@@ -1,8 +1,8 @@
 /// <reference types="chrome" />
 
-import { ensureEnabledByUserLoaded } from './enabled-by-user'
+import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from './enabled-by-user'
 import { syncKnownTabActions, syncRunnerActions } from './action-state'
-import { ensurePreparedContextLoaded } from './prepared-context'
+import { ensurePreparedContextLoaded, getTabContext } from './prepared-context'
 import {
   getCurrentRunner,
   getDesiredRunner,
@@ -14,12 +14,24 @@ import {
   toWindowLock,
   ensureRunnerTabsLoaded,
 } from './runner-tabs'
-import { PREPARED_MESSAGE_TYPE } from './message/types'
-import { setActiveTitle } from './runner-tabs/setActiveTitle'
+import {
+  PREPARED_MESSAGE_TYPE,
+  START_MESSAGE_TYPE,
+  STOP_MESSAGE_TYPE,
+} from './message/types'
 
 type ReconcileActiveRunnerOptions = {
   preferredWindowId?: number | null
   reason?: string
+}
+
+type RunnerCommandData = {
+  isRunningTab: boolean
+  enabledByUser: boolean
+  isAllowedByLicense: boolean
+  isLicenseExpiring: boolean
+  isTryConfirm: boolean
+  isMdfScope: boolean
 }
 
 function normalizeReconcileActiveRunnerOptions(
@@ -64,37 +76,58 @@ function getTrackedWindowLock(preferredWindowId?: number | null) {
   }
 }
 
-async function updateActiveTitle(
-  tabId: number,
+function createRunnerCommandData(
+  runner: RunnerRecord | null,
   {
     isRunningTab,
   }: {
     isRunningTab: boolean
   },
-) {
-  try {
-    await chrome.scripting.executeScript({
-      target: {
-        tabId,
-      },
-      func: setActiveTitle,
-      args: [{
-        isRunningTab,
-      }],
-    })
-  } catch (error) {
-    console.warn('[SW][Runner] scripting.executeScript failed', {
-      tabId,
-      isRunningTab,
-      error,
-    })
+): RunnerCommandData {
+  const tabContext = runner ? getTabContext(runner.tabId) : null
+
+  return {
+    isRunningTab,
+    enabledByUser: typeof tabContext?.playerId === 'number'
+      ? getPlayerEnabledByUser(tabContext.playerId)
+      : true,
+    isAllowedByLicense: true,
+    isLicenseExpiring: false,
+    isTryConfirm: tabContext?.isTryConfirm === true,
+    isMdfScope: tabContext?.t !== null,
   }
 }
 
-export async function syncSelectedRunnerState(runner: RunnerRecord) {
-  await updateActiveTitle(runner.tabId, {
-    isRunningTab: true,
-  })
+async function postRunnerCommand(
+  runner: RunnerRecord | null,
+  {
+    type,
+    data,
+  }: {
+    type: string
+    data: RunnerCommandData
+  },
+) {
+  if (!runner) {
+    return
+  }
+
+  try {
+    await chrome.tabs.sendMessage(runner.tabId, {
+      extensionId: chrome.runtime.id,
+      type,
+      scopeKey: runner.scopeKey,
+      data,
+    })
+  } catch (error) {
+    console.warn('[SW][Runner] tabs.sendMessage failed', {
+      tabId: runner.tabId,
+      windowId: runner.windowId,
+      scopeKey: runner.scopeKey,
+      type,
+      error,
+    })
+  }
 }
 
 export async function reconcileActiveRunner(
@@ -119,7 +152,16 @@ export async function reconcileActiveRunner(
       nextRunner
       && (reason === 'startup' || reason === PREPARED_MESSAGE_TYPE)
     ) {
-      await syncSelectedRunnerState(nextRunner)
+      const nextData = createRunnerCommandData(nextRunner, {
+        isRunningTab: true,
+      })
+
+      await postRunnerCommand(nextRunner, {
+        type: nextData.enabledByUser
+          ? START_MESSAGE_TYPE
+          : STOP_MESSAGE_TYPE,
+        data: nextData,
+      })
     }
 
     await syncRunnerActions(previousRunner, nextRunner)
@@ -135,14 +177,26 @@ export async function reconcileActiveRunner(
       : getTrackedWindowLock(preferredWindowId),
   )
 
-  if (previousRunner && previousRunner.tabId !== nextRunner?.tabId) {
-    await updateActiveTitle(previousRunner.tabId, {
-      isRunningTab: false,
+  if (previousRunner) {
+    await postRunnerCommand(previousRunner, {
+      type: STOP_MESSAGE_TYPE,
+      data: createRunnerCommandData(previousRunner, {
+        isRunningTab: false,
+      }),
     })
   }
 
   if (nextRunner) {
-    await syncSelectedRunnerState(nextRunner)
+    const nextData = createRunnerCommandData(nextRunner, {
+      isRunningTab: true,
+    })
+
+    await postRunnerCommand(nextRunner, {
+      type: nextData.enabledByUser && nextData.isAllowedByLicense
+        ? START_MESSAGE_TYPE
+        : STOP_MESSAGE_TYPE,
+      data: nextData,
+    })
   }
 
   await syncRunnerActions(previousRunner, nextRunner)

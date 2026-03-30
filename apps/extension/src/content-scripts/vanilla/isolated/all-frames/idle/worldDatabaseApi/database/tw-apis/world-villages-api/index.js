@@ -71,7 +71,7 @@ const request = async (world) => {
     );
     await worldVillagesDatalocal.update(meta);
     if (cleanupRawDoc && rawDoc && rawDoc._rev) {
-      await worldVillagesDatalocal.db.remove(rawDoc);
+      await worldVillagesDatalocal.remove(rawDoc);
     }
 
     return meta;

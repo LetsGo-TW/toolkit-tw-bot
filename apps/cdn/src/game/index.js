@@ -1,3 +1,5 @@
+import { DynamicImports } from '../dynamic-import'
+
 const CDN = 'GAME'
 
 const game = async (extensionId) => {

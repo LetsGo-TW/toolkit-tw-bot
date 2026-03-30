@@ -6,7 +6,7 @@ const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
 function getConfigObfuscatorOptions(configName) {
   const perConfig = {
     WEB: { level: 'high', overrides: [] },
-    WORKERS: { level: 'high', overrides: [] },
+    WORKERS: { level: 'low', overrides: ['worker'] },
   }
 
   const config = perConfig[String(configName).toUpperCase()] || {
@@ -19,12 +19,13 @@ function getConfigObfuscatorOptions(configName) {
 
 module.exports = (envVars = {}) => {
   const { env = 'dev' } = envVars
+  const isProductionLikeBuild = env === 'prod' || env === 'prod-local'
   const envConfig = require(`./webpack.${env}.js`)
 
   return commonConfig.map((config) => {
     const merged = merge(config, envConfig)
 
-    if (env === 'prod') {
+    if (isProductionLikeBuild) {
       merged.plugins = merged.plugins || []
       merged.plugins.push(
         new WebpackObfuscator(getConfigObfuscatorOptions(merged.name)),

@@ -48,6 +48,29 @@ function normalizeTabContextByTabId(value: unknown): TabContextByTabId {
   return value as TabContextByTabId
 }
 
+function sanitizeTabContextRecord(record: TabContextRecord) {
+  if (isTribalWarsUrl(record.url)) {
+    return record
+  }
+
+  return {
+    ...record,
+    context: null,
+    world: null,
+    t: null,
+    isTryConfirm: false,
+    scopeKey: null,
+    playerId: null,
+    playerName: null,
+  }
+}
+
+function sanitizeTabContextByTabId(value: TabContextByTabId) {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, record]) => [key, sanitizeTabContextRecord(record)]),
+  )
+}
+
 async function persistStateIfChanged(
   key: string,
   previousValue: unknown,
@@ -130,9 +153,13 @@ export async function ensurePreparedContextLoaded() {
   }
 
   const stored = await chrome.storage.local.get([TAB_CONTEXT_STORAGE_KEY])
+  const normalizedCache = normalizeTabContextByTabId(stored[TAB_CONTEXT_STORAGE_KEY])
+  const sanitizedCache = sanitizeTabContextByTabId(normalizedCache)
 
-  tabContextByTabIdCache = normalizeTabContextByTabId(stored[TAB_CONTEXT_STORAGE_KEY])
+  tabContextByTabIdCache = sanitizedCache
   cacheLoaded = true
+
+  await persistTabContextByTabId(normalizedCache, sanitizedCache)
 }
 
 export function getTabContext(tabId?: number | null) {
@@ -162,7 +189,7 @@ export function getScopeFromTabContext(tabId?: number | null) {
 
   const tabContext = tabContextByTabIdCache[getTabContextKey(tabId)]
 
-  if (!tabContext?.world) {
+  if (!tabContext?.world || !isTribalWarsUrl(tabContext.url)) {
     return null
   }
 
@@ -178,7 +205,8 @@ export function getScopeForTab(tab?: chrome.tabs.Tab | null) {
     return null
   }
 
-  const urlScope = getScopeFromUrl(tab.url)
+  const tabUrl = getTabUrl(tab)
+  const urlScope = getScopeFromUrl(tabUrl)
 
   if (urlScope) {
     return urlScope
@@ -257,12 +285,13 @@ export async function updatePreparedContextFromUrl(
   await ensurePreparedContextLoaded()
 
   const previousRecord = tabContextByTabIdCache[getTabContextKey(tabId)] || null
+  const isTwUrl = isTribalWarsUrl(nextUrl)
   const urlParams = getParamsUrl(nextUrl)
-  const nextWorld = getWorldFromUrl(nextUrl)
+  const nextWorld = isTwUrl ? getWorldFromUrl(nextUrl) : null
   const nextContext = (
-    urlParams.isInLogin
+    isTwUrl && urlParams.isInLogin
       ? 'LOGIN'
-      : urlParams.isInGame
+      : isTwUrl && urlParams.isInGame
         ? previousRecord?.context ?? null
         : null
   )
@@ -271,14 +300,16 @@ export async function updatePreparedContextFromUrl(
       ...previousRecord,
       url: nextUrl,
       context: nextContext,
-      world: urlParams.isInGame ? previousRecord.world : nextWorld,
-      t: urlParams.isInGame ? previousRecord.t : null,
-      scopeKey: urlParams.isInGame
+      world: isTwUrl
+        ? (urlParams.isInGame ? previousRecord.world : nextWorld)
+        : null,
+      t: isTwUrl && urlParams.isInGame ? previousRecord.t : null,
+      scopeKey: isTwUrl && urlParams.isInGame
         ? previousRecord.scopeKey
         : null,
-      playerId: urlParams.isInGame ? previousRecord.playerId : null,
-      playerName: urlParams.isInGame ? previousRecord.playerName : null,
-      isTryConfirm: urlParams.isTryConfirm === true,
+      playerId: isTwUrl && urlParams.isInGame ? previousRecord.playerId : null,
+      playerName: isTwUrl && urlParams.isInGame ? previousRecord.playerName : null,
+      isTryConfirm: isTwUrl && urlParams.isTryConfirm === true,
       updatedAt: new Date().toISOString(),
     }
     : {
@@ -288,7 +319,7 @@ export async function updatePreparedContextFromUrl(
       context: nextContext,
       world: nextWorld,
       t: null,
-      isTryConfirm: urlParams.isTryConfirm === true,
+      isTryConfirm: isTwUrl && urlParams.isTryConfirm === true,
       scopeKey: null,
       playerId: null,
       playerName: null,

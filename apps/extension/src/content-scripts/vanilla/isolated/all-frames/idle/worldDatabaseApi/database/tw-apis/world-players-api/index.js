@@ -60,7 +60,7 @@ const request = async (world) => {
     await worldAllPlayersDatalocal.bulkUpsert(playerDocs);
     await worldAllPlayersDatalocal.update(meta);
     if (cleanupRawDoc && rawDoc && rawDoc._rev) {
-      await worldAllPlayersDatalocal.db.remove(rawDoc);
+      await worldAllPlayersDatalocal.remove(rawDoc);
     }
 
     return meta;

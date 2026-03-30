@@ -71,6 +71,10 @@ module.exports = {
       runAt: 'document_start',
       allFrames: false,
       target: 'web',
+      build: {
+        profile: 'starter',
+        obfuscationLevel: 'medium',
+      },
     },    
     'clock': {
       entry: 'content-scripts/vanilla/main/top/start/clock/index.js',
@@ -84,13 +88,13 @@ module.exports = {
       target: 'web',
     },
     'connect': {
-      entry: 'content-scripts/vanilla/isolated/all-frames/idle/connect/index.ts',
+      entry: 'content-scripts/vanilla/isolated/all-frames/start/connect/index.ts',
       matches: TRIBAL_WARS_MATCHES,
       excludeMatches: DEFAULT_EXCLUDE_MATCHES,
       world: 'ISOLATED',
       injection: 'vanilla',
       scope: 'all-frames',
-      runAt: 'document_idle',
+      runAt: 'document_start',
       allFrames: true,
       target: 'web',
     },
@@ -104,6 +108,10 @@ module.exports = {
       runAt: 'document_idle',
       allFrames: true,
       target: 'web',
+      build: {
+        profile: 'world-database-api',
+        obfuscationLevel: 'low',
+      },
     },
     'groupIntentSync': {
       entry: 'content-scripts/vanilla/isolated/all-frames/idle/groupIntentSync/index.js',
@@ -115,6 +123,10 @@ module.exports = {
       runAt: 'document_idle',
       allFrames: true,
       target: 'web',
+      build: {
+        profile: 'group-intent-sync',
+        obfuscationLevel: 'lowCompact',
+      },
     },
     'solver': {
       entry: 'content-scripts/vanilla/isolated/all-frames/idle/solver/index.js',

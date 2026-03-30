@@ -71,7 +71,6 @@ Nível mais agressivo.
 Usa:
 - `controlFlowFlattening`
 - `deadCodeInjection`
-- `debugProtection`
 - `numbersToExpressions`
 - `rc4` para strings
 - wrappers mais pesados
@@ -83,6 +82,7 @@ Contras:
 - bundle maior
 - execução pode ficar mais lenta
 - maior chance de quebrar código
+- `debugProtection` foi mantido desligado porque pausava a execução ao abrir o DevTools
 
 ---
 

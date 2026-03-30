@@ -1,4 +1,4 @@
-type SetActiveTitleParams = {
+export type SetActiveTitleParams = {
   isRunningTab?: boolean
   enabledByUser?: boolean
   isBotProtected?: boolean
@@ -9,7 +9,7 @@ type SetActiveTitleParams = {
   isIntro?: boolean
 }
 
-export const setActiveTitle = ({
+export function setActiveTitle({
   isRunningTab = false,
   enabledByUser = true,
   isBotProtected = false,
@@ -18,7 +18,7 @@ export const setActiveTitle = ({
   isAllowedByLicense = true,
   isLicenseExpiring = false,
   isIntro = false,
-}: SetActiveTitleParams = {}) => {
+}: SetActiveTitleParams = {}) {
   const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '⌛', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[⌛]']
   let emoji: string | undefined
   let title = document.title
@@ -33,6 +33,7 @@ export const setActiveTitle = ({
     document.title = title
     return
   }
+
   if (isIntro) {
     emoji = '⌛'
     if (isMdfScope) emoji = `[${emoji}]`

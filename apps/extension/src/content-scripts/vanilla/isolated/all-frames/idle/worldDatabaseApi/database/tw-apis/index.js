@@ -5,7 +5,7 @@ class LocalDb extends PouchDbBase {
     if (!Array.isArray(docs) || !docs.length) return [];
 
     const keys = docs.map((doc) => doc._id).filter(Boolean);
-    const existing = await this.db.allDocs({ keys });
+    const existing = await this.allDocs({ keys });
     const revById = new Map(
       existing.rows
         .filter((row) => row && row.value && row.value.rev)
@@ -17,7 +17,7 @@ class LocalDb extends PouchDbBase {
       return rev ? { ...doc, _rev: rev } : doc;
     });
 
-    return await this.db.bulkDocs(next);
+    return await this.bulkDocs(next);
   }
 
   async findById(id) {
