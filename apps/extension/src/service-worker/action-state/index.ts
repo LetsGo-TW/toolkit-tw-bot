@@ -11,7 +11,10 @@ import {
   getWorldFromUrl,
   isTribalWarsUrl,
 } from '../prepared-context'
-import { getCurrentRunner, type RunnerRecord } from '../runner-tabs'
+import {
+  getRunnerForTab,
+  type RunnerByScope,
+} from '../runner-tabs'
 
 export async function syncTabActionByTabId(tabId?: number | null) {
   if (typeof tabId !== 'number') {
@@ -28,7 +31,7 @@ export async function syncTabActionByTabId(tabId?: number | null) {
 
   const tabUrl = getTabUrl(tab)
   const context = getTabContext(tabId)
-  const currentRunner = getCurrentRunner()
+  const currentRunner = getRunnerForTab(tabId, tab?.windowId)
   const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
   const enabled = isTribalWarsUrl(tabUrl)
   const enabledByUser = typeof context?.playerId === 'number'
@@ -56,18 +59,22 @@ export async function syncTabActionByTabId(tabId?: number | null) {
 }
 
 export async function syncRunnerActions(
-  previousRunner: RunnerRecord | null,
-  nextRunner: RunnerRecord | null,
+  previousRunnerByScope: RunnerByScope,
+  nextRunnerByScope: RunnerByScope,
 ) {
   const tabIds = new Set<number>()
 
-  if (typeof previousRunner?.tabId === 'number') {
-    tabIds.add(previousRunner.tabId)
-  }
+  Object.values(previousRunnerByScope).forEach((runner) => {
+    if (typeof runner?.tabId === 'number') {
+      tabIds.add(runner.tabId)
+    }
+  })
 
-  if (typeof nextRunner?.tabId === 'number') {
-    tabIds.add(nextRunner.tabId)
-  }
+  Object.values(nextRunnerByScope).forEach((runner) => {
+    if (typeof runner?.tabId === 'number') {
+      tabIds.add(runner.tabId)
+    }
+  })
 
   await Promise.all(
     Array.from(tabIds).map((tabId) => syncTabActionByTabId(tabId)),

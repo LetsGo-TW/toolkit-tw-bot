@@ -16,7 +16,7 @@ export type RunnerRecord = {
   tabId: number
 }
 
-type RunnerByScope = Record<string, RunnerRecord>
+export type RunnerByScope = Record<string, RunnerRecord>
 
 export type WindowLockRecord = {
   scopeKey: string
@@ -25,9 +25,11 @@ export type WindowLockRecord = {
   windowId: number
 }
 
+export type WindowLockByScope = Record<string, WindowLockRecord>
+
 let cacheLoaded = false
 let runnerByScopeCache: RunnerByScope = {}
-let windowLockCache: WindowLockRecord | null = null
+let windowLockByScopeCache: WindowLockByScope = {}
 
 function normalizeRunnerByScope(value: unknown): RunnerByScope {
   if (!value || typeof value !== 'object') {
@@ -37,12 +39,29 @@ function normalizeRunnerByScope(value: unknown): RunnerByScope {
   return value as RunnerByScope
 }
 
-function normalizeWindowLock(value: unknown): WindowLockRecord | null {
+function normalizeWindowLockByScope(value: unknown): WindowLockByScope {
   if (!value || typeof value !== 'object') {
-    return null
+    return {}
   }
 
-  return value as WindowLockRecord
+  const candidate = value as Partial<WindowLockRecord>
+
+  if (
+    typeof candidate.scopeKey === 'string'
+    && typeof candidate.world === 'string'
+    && typeof candidate.windowId === 'number'
+  ) {
+    return {
+      [candidate.scopeKey]: {
+        scopeKey: candidate.scopeKey,
+        world: candidate.world,
+        t: candidate.t ?? null,
+        windowId: candidate.windowId,
+      },
+    }
+  }
+
+  return value as WindowLockByScope
 }
 
 async function persistStateIfChanged(
@@ -64,8 +83,8 @@ async function persistRunnerByScope(previous: RunnerByScope, next: RunnerByScope
 }
 
 async function persistWindowLock(
-  previous: WindowLockRecord | null,
-  next: WindowLockRecord | null,
+  previous: WindowLockByScope,
+  next: WindowLockByScope,
 ) {
   await persistStateIfChanged(WINDOW_LOCK_STORAGE_KEY, previous, next)
 }
@@ -121,7 +140,7 @@ async function sanitizeRunnerByScope(value: RunnerByScope) {
   return Object.fromEntries(nextEntries.filter(Boolean)) as RunnerByScope
 }
 
-async function sanitizeWindowLock(value: WindowLockRecord | null) {
+async function sanitizeWindowLockRecord(value: WindowLockRecord | null) {
   if (!value) {
     return null
   }
@@ -146,6 +165,22 @@ async function sanitizeWindowLock(value: WindowLockRecord | null) {
   }
 }
 
+async function sanitizeWindowLockByScope(value: WindowLockByScope) {
+  const nextEntries = await Promise.all(
+    Object.entries(value).map(async ([scopeKey, windowLock]) => {
+      const sanitizedWindowLock = await sanitizeWindowLockRecord(windowLock)
+
+      if (!sanitizedWindowLock) {
+        return null
+      }
+
+      return [scopeKey, sanitizedWindowLock] as const
+    }),
+  )
+
+  return Object.fromEntries(nextEntries.filter(Boolean)) as WindowLockByScope
+}
+
 export async function ensureRunnerTabsLoaded() {
   if (cacheLoaded) {
     return
@@ -158,14 +193,15 @@ export async function ensureRunnerTabsLoaded() {
 
   const normalizedRunnerByScope = normalizeRunnerByScope(stored[RUNNER_STORAGE_KEY])
   const sanitizedRunnerByScope = await sanitizeRunnerByScope(normalizedRunnerByScope)
-  const normalizedWindowLock = normalizeWindowLock(stored[WINDOW_LOCK_STORAGE_KEY])
+  const normalizedWindowLockByScope = normalizeWindowLockByScope(stored[WINDOW_LOCK_STORAGE_KEY])
+  const sanitizedWindowLockByScope = await sanitizeWindowLockByScope(normalizedWindowLockByScope)
 
   runnerByScopeCache = sanitizedRunnerByScope
-  windowLockCache = await sanitizeWindowLock(normalizedWindowLock)
+  windowLockByScopeCache = sanitizedWindowLockByScope
   cacheLoaded = true
 
   await persistRunnerByScope(normalizedRunnerByScope, runnerByScopeCache)
-  await persistWindowLock(normalizedWindowLock, windowLockCache)
+  await persistWindowLock(normalizedWindowLockByScope, windowLockByScopeCache)
 }
 
 export function isSameRunner(a: RunnerRecord | null, b: RunnerRecord | null) {
@@ -188,11 +224,34 @@ export function getCurrentRunner() {
   return Object.values(runnerByScopeCache)[0] || null
 }
 
-export async function syncRunnerByScope(nextRunner: RunnerRecord | null) {
+export function getCurrentRunners() {
+  return { ...runnerByScopeCache }
+}
+
+export function getRunnerByScope(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return null
+  }
+
+  return runnerByScopeCache[scopeKey] || null
+}
+
+export function getRunnerForTab(tabId?: number | null, windowId?: number | null) {
+  if (typeof tabId !== 'number') {
+    return null
+  }
+
+  return Object.values(runnerByScopeCache).find((runner) => (
+    runner.tabId === tabId
+    && (
+      typeof windowId !== 'number'
+      || runner.windowId === windowId
+    )
+  )) || null
+}
+
+export async function syncRunnerByScope(nextRunnerByScope: RunnerByScope) {
   const previousRunnerByScope = runnerByScopeCache
-  const nextRunnerByScope = nextRunner
-    ? { [nextRunner.scopeKey]: nextRunner }
-    : {}
 
   runnerByScopeCache = nextRunnerByScope
   await persistRunnerByScope(previousRunnerByScope, nextRunnerByScope)
@@ -200,17 +259,25 @@ export async function syncRunnerByScope(nextRunner: RunnerRecord | null) {
   return previousRunnerByScope
 }
 
-export function getWindowLock() {
-  return windowLockCache
+export function getWindowLock(scopeKey?: string | null) {
+  if (scopeKey) {
+    return windowLockByScopeCache[scopeKey] || null
+  }
+
+  return Object.values(windowLockByScopeCache)[0] || null
 }
 
-export async function syncWindowLock(nextLock: WindowLockRecord | null) {
-  const previousWindowLock = windowLockCache
+export function getWindowLocks() {
+  return { ...windowLockByScopeCache }
+}
 
-  windowLockCache = nextLock
-  await persistWindowLock(previousWindowLock, nextLock)
+export async function syncWindowLock(nextLockByScope: WindowLockByScope) {
+  const previousWindowLockByScope = windowLockByScopeCache
 
-  return previousWindowLock
+  windowLockByScopeCache = nextLockByScope
+  await persistWindowLock(previousWindowLockByScope, nextLockByScope)
+
+  return previousWindowLockByScope
 }
 
 export function toWindowLock(runner: RunnerRecord): WindowLockRecord {
@@ -324,24 +391,25 @@ async function getFallbackRunnerFromAnyWindow({
 }
 
 export async function getDesiredRunner({
+  scopeKey,
   preferredWindowId,
 }: {
+  scopeKey: string
   preferredWindowId?: number | null
-} = {}) {
+}) {
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
 
-  const currentScopeKey = getCurrentRunner()?.scopeKey || windowLockCache?.scopeKey || null
   const nextPreferredWindowId = typeof preferredWindowId === 'number'
     ? preferredWindowId
-    : windowLockCache?.windowId ?? getCurrentRunner()?.windowId ?? null
+    : getWindowLock(scopeKey)?.windowId ?? getRunnerByScope(scopeKey)?.windowId ?? null
 
   if (typeof nextPreferredWindowId !== 'number') {
     return null
   }
 
   const runnerInPreferredWindow = await getEligibleRunnerFromWindow(nextPreferredWindowId, {
-    scopeKey: currentScopeKey,
+    scopeKey,
   })
 
   if (runnerInPreferredWindow) {
@@ -350,6 +418,6 @@ export async function getDesiredRunner({
 
   return getFallbackRunnerFromAnyWindow({
     excludeWindowId: nextPreferredWindowId,
-    scopeKey: currentScopeKey,
+    scopeKey,
   })
 }

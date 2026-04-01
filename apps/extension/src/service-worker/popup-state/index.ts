@@ -5,6 +5,7 @@ import { createLicenseState, type SWMessage } from '../../types'
 import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by-user'
 import { GET_POPUP_STATE_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber } from '../normalize'
+import { ensurePlayerAvatarLoaded, getPlayerAvatar } from '../player-avatar'
 import {
   ensurePreparedContextLoaded,
   getTabContext,
@@ -12,9 +13,9 @@ import {
   getWorldFromUrl,
   isTribalWarsUrl,
 } from '../prepared-context'
-import { ensureRunnerTabsLoaded, getCurrentRunner } from '../runner-tabs'
+import { ensureRunnerTabsLoaded, getRunnerForTab } from '../runner-tabs'
 
-export type PopupStateRequest = SWMessage & {
+export type PopupStateRequest = Partial<SWMessage> & {
   targetTabId?: unknown
   targetWindowId?: unknown
 }
@@ -56,6 +57,7 @@ export async function getPopupState(request: PopupStateRequest = {}) {
   await ensureEnabledByUserLoaded()
   await ensurePreparedContextLoaded()
   await ensureRunnerTabsLoaded()
+  await ensurePlayerAvatarLoaded()
 
   const tab = await getRequestedPopupTab(request)
 
@@ -71,10 +73,14 @@ export async function getPopupState(request: PopupStateRequest = {}) {
   const tabUrl = getTabUrl(tab)
   const isSupported = isTribalWarsUrl(tabUrl)
   const tabContext = getTabContext(tab.id)
-  const currentRunner = getCurrentRunner()
+  const currentRunner = getRunnerForTab(tab.id, tab.windowId)
   const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
   const fallbackContext = urlParams.isInLogin ? 'LOGIN' : null
   const license = createLicenseState()
+  const playerAvatar = getPlayerAvatar(
+    tabContext?.world ?? null,
+    tabContext?.playerId ?? null,
+  )
 
   return {
     ok: true,
@@ -89,6 +95,8 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     t: tabContext?.t ?? urlParams.t ?? null,
     playerId: tabContext?.playerId ?? null,
     playerName: tabContext?.playerName ?? null,
+    avatarUrl: playerAvatar?.avatarUrl ?? null,
+    avatarUpdatedAt: playerAvatar?.updatedAt ?? null,
     enabledByUser: typeof tabContext?.playerId === 'number'
       ? getPlayerEnabledByUser(tabContext.playerId)
       : null,

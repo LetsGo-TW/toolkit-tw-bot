@@ -8,11 +8,10 @@ import {
 } from '../enabled-by-user'
 import {
   CTX_MESSAGE_TYPE,
-  PREPARED_MESSAGE_TYPE,
   START_MESSAGE_TYPE,
   STOP_MESSAGE_TYPE,
 } from '../message/types'
-import { getCurrentRunner, type RunnerRecord } from '../runner-tabs'
+import { getRunnerByScope, type RunnerRecord } from '../runner-tabs'
 import { reconcileActiveRunner } from '../runtime'
 import { type PreparedMessageData, upsertPreparedContext } from './index'
 
@@ -123,35 +122,6 @@ export async function registerPreparedCtx(
 ) {
   await ensureEnabledByUserLoaded()
 
-  const currentRunner = getCurrentRunner()
-  const isActive = isRunnerForSender(currentRunner, sender)
-
-   console.log('[SW][CTX] received', {
-    tabId: sender.tab?.id ?? null,
-    windowId: sender.tab?.windowId ?? null,
-    url: sender.tab?.url ?? null,
-    currentRunner,
-    isActive,
-    data: received.data ?? null,
-  })
-
-  if (!isActive) {
-    const data = createRunnerCommandData({
-      isRunningTab: false,
-    })
-
-    await postRunnerCommandToSender(sender, {
-      type: STOP_MESSAGE_TYPE,
-      data,
-    })
-
-    return {
-      ok: true,
-      type: CTX_MESSAGE_TYPE,
-      active: false,
-    }
-  }
-
   const tabContext = await upsertPreparedContext(sender, received.data || {})
 
   if (!tabContext) {
@@ -162,13 +132,31 @@ export async function registerPreparedCtx(
     }
   }
 
+  await reconcileActiveRunner({
+    preferredWindowId: sender.tab?.windowId ?? null,
+    reason: CTX_MESSAGE_TYPE,
+    targetScopeKey: tabContext.scopeKey,
+  })
+
+  const currentRunner = getRunnerByScope(tabContext.scopeKey)
+  const isActive = isRunnerForSender(currentRunner, sender)
+
+  console.log('[SW][CTX] received', {
+    tabId: sender.tab?.id ?? null,
+    windowId: sender.tab?.windowId ?? null,
+    url: sender.tab?.url ?? null,
+    currentRunner,
+    isActive,
+    data: received.data ?? null,
+  })
+
   const data = createRunnerCommandData({
-    isRunningTab: true,
+    isRunningTab: isActive,
     playerId: tabContext.playerId,
     isTryConfirm: tabContext.isTryConfirm === true,
     isMdfScope: tabContext.t !== null,
   })
-  const shouldStart = data.enabledByUser && data.isAllowedByLicense
+  const shouldStart = isActive && data.enabledByUser && data.isAllowedByLicense
 
   await postRunnerCommandToSender(sender, {
     type: shouldStart ? START_MESSAGE_TYPE : STOP_MESSAGE_TYPE,
@@ -181,47 +169,12 @@ export async function registerPreparedCtx(
   return {
     ok: true,
     type: CTX_MESSAGE_TYPE,
-    active: true,
-    scopeKey: tabContext.scopeKey,
-    context: tabContext.context,
-    world: tabContext.world,
-    t: tabContext.t,
-    enabledByUser: data.enabledByUser,
-    tabId: tabContext.tabId,
-    windowId: tabContext.windowId,
-  }
-}
-
-export async function registerPreparedContext(
-  received: PreparedContextRequest,
-  sender: chrome.runtime.MessageSender,
-) {
-  await ensureEnabledByUserLoaded()
-
-  const tabContext = await upsertPreparedContext(sender, received.data || {})
-
-  if (!tabContext) {
-    return {
-      ok: false,
-      error: 'Missing sender tab context',
-      type: PREPARED_MESSAGE_TYPE,
-    }
-  }
-
-  const nextRunner = await reconcileActiveRunner(PREPARED_MESSAGE_TYPE)
-  const isActive = isRunnerForSender(nextRunner, sender)
-
-  await syncTabActionByTabId(tabContext.tabId)
-
-  return {
-    ok: true,
-    type: PREPARED_MESSAGE_TYPE,
     active: isActive,
     scopeKey: tabContext.scopeKey,
     context: tabContext.context,
     world: tabContext.world,
     t: tabContext.t,
-    enabledByUser: getPlayerEnabledByUser(tabContext.playerId),
+    enabledByUser: data.enabledByUser,
     tabId: tabContext.tabId,
     windowId: tabContext.windowId,
   }

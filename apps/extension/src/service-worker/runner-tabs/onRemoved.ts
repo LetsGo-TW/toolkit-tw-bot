@@ -1,11 +1,7 @@
 /// <reference types="chrome" />
 
 import { removePreparedContext } from '../prepared-context'
-import {
-  ensureRunnerTabsLoaded,
-  getCurrentRunner,
-  getWindowLock,
-} from '.'
+import { ensureRunnerTabsLoaded } from '.'
 
 type TabRemovedRemoveInfo = {
   isWindowClosing: boolean
@@ -14,7 +10,11 @@ type TabRemovedRemoveInfo = {
 
 type OnRemovedDeps = {
   reconcileActiveRunner: (
-    options?: string | { preferredWindowId?: number | null, reason?: string }
+    options?: string | {
+      preferredWindowId?: number | null
+      reason?: string
+      targetScopeKey?: string | null
+    }
   ) => Promise<unknown>
 }
 
@@ -27,19 +27,10 @@ export function createOnTabRemovedListener({
   ) => {
     await ensureRunnerTabsLoaded()
 
-    const previousRunner = getCurrentRunner()
-    const preferredWindowId = getWindowLock()?.windowId ?? previousRunner?.windowId ?? null
-    const isRelevantTab = previousRunner?.tabId === tabId
-    const isRelevantWindow = preferredWindowId === removeInfo.windowId
-
     await removePreparedContext(tabId)
 
-    if (!isRelevantTab && !isRelevantWindow) {
-      return
-    }
-
     await reconcileActiveRunner({
-      preferredWindowId: isRelevantWindow ? removeInfo.windowId : preferredWindowId,
+      preferredWindowId: removeInfo.windowId,
       reason: 'tabs.onRemoved',
     })
   }

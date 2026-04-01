@@ -2,9 +2,8 @@
 
 import {
   ensureRunnerTabsLoaded,
-  getCurrentRunner,
-  getWindowLock,
 } from '.'
+import { getScopeForTab } from '../prepared-context'
 
 type TabActivatedActiveInfo = {
   tabId: number
@@ -13,7 +12,11 @@ type TabActivatedActiveInfo = {
 
 type OnActivatedDeps = {
   reconcileActiveRunner: (
-    options?: string | { preferredWindowId?: number | null, reason?: string }
+    options?: string | {
+      preferredWindowId?: number | null
+      reason?: string
+      targetScopeKey?: string | null
+    }
   ) => Promise<unknown>
 }
 
@@ -23,10 +26,6 @@ export function createOnTabActivatedListener({
   return async (activeInfo: TabActivatedActiveInfo) => {
     await ensureRunnerTabsLoaded()
 
-    const preferredWindowId = getWindowLock()?.windowId
-      ?? getCurrentRunner()?.windowId
-      ?? activeInfo.windowId
-
     let activatedTab: chrome.tabs.Tab | null = null
 
     try {
@@ -35,37 +34,21 @@ export function createOnTabActivatedListener({
       activatedTab = null
     }
 
-    if (
-      activatedTab
-      && activatedTab.status !== 'complete'
-      && Boolean(activatedTab.pendingUrl || activatedTab.url)
-    ) {
-      const onUpdatedAfterActivated = async (
-        tabId: number,
-        changeInfo: chrome.tabs.TabChangeInfo,
-        tab: chrome.tabs.Tab,
-      ) => {
-        if (
-          tabId === activeInfo.tabId
-          && changeInfo.status === 'complete'
-          && Boolean(tab.pendingUrl || tab.url)
-        ) {
-          chrome.tabs.onUpdated.removeListener(onUpdatedAfterActivated)
+    const activatedScope = getScopeForTab(activatedTab)
 
-          await reconcileActiveRunner({
-            preferredWindowId,
-            reason: 'tabs.onActivated',
-          })
-        }
-      }
-
-      chrome.tabs.onUpdated.addListener(onUpdatedAfterActivated)
-      return
-    }
+    console.log('[SW][tabs.onActivated]', {
+      at: new Date().toISOString(),
+      tabId: activeInfo.tabId,
+      windowId: activeInfo.windowId,
+      url: activatedTab?.pendingUrl || activatedTab?.url || null,
+      scopeKey: activatedScope?.scopeKey ?? null,
+      status: activatedTab?.status ?? null,
+    })
 
     await reconcileActiveRunner({
-      preferredWindowId,
+      preferredWindowId: activeInfo.windowId,
       reason: 'tabs.onActivated',
+      targetScopeKey: activatedScope?.scopeKey ?? null,
     })
   }
 }

@@ -2,6 +2,10 @@
 
 import { onReceived } from "./message/index";
 import { onInstalledExtension } from "./on-installed";
+import {
+  createOnPreparedContextCleanupAlarmListener,
+  ensurePreparedContextCleanupAlarm,
+} from "./prepared-context/alarm";
 import { createOnTabActivatedListener } from "./runner-tabs/onActivated";
 import { createOnTabAttachedListener } from "./runner-tabs/onAttached";
 import { createOnTabDetachedListener } from "./runner-tabs/onDetached";
@@ -15,7 +19,9 @@ import {
 const onTabActivated = createOnTabActivatedListener({
   reconcileActiveRunner,
 })
-const onTabAttached = createOnTabAttachedListener()
+const onTabAttached = createOnTabAttachedListener({
+  reconcileActiveRunner,
+})
 const onTabDetached = createOnTabDetachedListener({
   reconcileActiveRunner,
 })
@@ -23,6 +29,7 @@ const onTabRemoved = createOnTabRemovedListener({
   reconcileActiveRunner,
 })
 const onTabUpdated = createOnTabUpdatedListener()
+const onPreparedContextCleanupAlarm = createOnPreparedContextCleanupAlarmListener()
 
 // listeners com guard (evita duplicados ao recarregar o SW)
 if (!chrome.runtime.onMessage.hasListener(onReceived)) {
@@ -33,6 +40,9 @@ if (!chrome.runtime.onMessageExternal.hasListener(onReceived)) {
 }
 if (!chrome.runtime.onInstalled.hasListener(onInstalledExtension)) {
   chrome.runtime.onInstalled.addListener(onInstalledExtension);
+}
+if (!chrome.alarms.onAlarm.hasListener(onPreparedContextCleanupAlarm)) {
+  chrome.alarms.onAlarm.addListener(onPreparedContextCleanupAlarm);
 }
 
 if (!chrome.tabs.onActivated.hasListener(onTabActivated)) {
@@ -51,4 +61,5 @@ if (!chrome.tabs.onUpdated.hasListener(onTabUpdated)) {
   chrome.tabs.onUpdated.addListener(onTabUpdated);
 }
 
+void ensurePreparedContextCleanupAlarm()
 void initializeRuntime()

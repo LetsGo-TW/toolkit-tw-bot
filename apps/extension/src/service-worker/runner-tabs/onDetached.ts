@@ -1,10 +1,7 @@
 /// <reference types="chrome" />
 
-import {
-  ensureRunnerTabsLoaded,
-  getCurrentRunner,
-  getWindowLock,
-} from '.'
+import { ensureRunnerTabsLoaded } from '.'
+import { getScopeFromTabContext } from '../prepared-context'
 
 type TabDetachedDetachInfo = {
   oldWindowId: number
@@ -12,7 +9,11 @@ type TabDetachedDetachInfo = {
 
 type OnDetachedDeps = {
   reconcileActiveRunner: (
-    options?: string | { preferredWindowId?: number | null, reason?: string }
+    options?: string | {
+      preferredWindowId?: number | null
+      reason?: string
+      targetScopeKey?: string | null
+    }
   ) => Promise<unknown>
 }
 
@@ -21,20 +22,14 @@ export function createOnTabDetachedListener({
 }: OnDetachedDeps) {
   return async (
     tabId: number,
-    detachInfo: TabDetachedDetachInfo,
+    _detachInfo: TabDetachedDetachInfo,
   ) => {
     await ensureRunnerTabsLoaded()
-
-    const previousRunner = getCurrentRunner()
-    const preferredWindowId = getWindowLock()?.windowId ?? previousRunner?.windowId ?? null
-
-    if (preferredWindowId !== detachInfo.oldWindowId) {
-      return
-    }
+    const detachedScope = getScopeFromTabContext(tabId)
 
     await reconcileActiveRunner({
-      preferredWindowId: detachInfo.oldWindowId,
       reason: 'tabs.onDetached',
+      targetScopeKey: detachedScope?.scopeKey ?? null,
     })
   }
 }
