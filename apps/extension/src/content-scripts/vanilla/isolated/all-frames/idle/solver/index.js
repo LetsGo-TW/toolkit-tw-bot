@@ -182,3 +182,5 @@ async function injetarEClicar() {
 
 // Executa a função
 injetarEClicar();
+
+export {};

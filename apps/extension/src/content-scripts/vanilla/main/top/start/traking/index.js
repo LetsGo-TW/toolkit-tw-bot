@@ -1,5 +1,49 @@
 /* eslint-disable no-undef */
+import { reloadCurrentTabOnSessionExpired } from '../../../../shared/reloadCurrentTabOnSessionExpired'
+
 const ANTI_TRACKING_INSTALLED_KEY = "__goAntiTrackingInstalled";
+
+function isPingRequestUrl(url) {
+  try {
+    const parsedUrl = new URL(String(url || ''), window.location.origin)
+
+    return (
+      parsedUrl.pathname.endsWith('/game.php')
+      && parsedUrl.searchParams.get('screen') === 'api'
+      && parsedUrl.searchParams.get('ajax') === 'ping'
+    )
+  } catch {
+    return false
+  }
+}
+
+function hasSessionExpiredResponseBody(bodyText) {
+  if (typeof bodyText !== 'string' || !bodyText.trim()) {
+    return false
+  }
+
+  const normalizedBodyText = bodyText.toLowerCase()
+
+  if (
+    normalizedBodyText.includes('sess\\u00e3o expirou')
+    || normalizedBodyText.includes('sessão expirou')
+    || normalizedBodyText.includes('session expired')
+  ) {
+    return true
+  }
+
+  try {
+    const parsed = JSON.parse(bodyText)
+    const error = String(parsed?.error || '').toLowerCase()
+
+    return (
+      error.includes('sessão expirou')
+      || error.includes('session expired')
+    )
+  } catch {
+    return false
+  }
+}
 
 runAntiTrack();
 
@@ -172,15 +216,34 @@ function runAntiTrack() {
     // Intercepta a abertura para bloquear GETs perigosos passados via Query String
     const originalXhrOpen = window.XMLHttpRequest.prototype.open;
     window.XMLHttpRequest.prototype.open = function(method, url) {
+      this._goRequestUrl = typeof url === 'string' ? url : String(url || '');
+
       if (typeof url === 'string' && isMaliciousString(url)) {
         console.log(`%c[Anti-Track] Fuga bloqueada na raiz da rede (XHR Open URL).`, "color: red; font-weight: bold;");
         this._isMalicious = true;
       }
+
       return originalXhrOpen.apply(this, arguments);
     };
 
     const originalXhrSend = window.XMLHttpRequest.prototype.send;
     window.XMLHttpRequest.prototype.send = function(body) {
+      if (isPingRequestUrl(this._goRequestUrl) && !this._goPingListenerInstalled) {
+        this._goPingListenerInstalled = true;
+
+        this.addEventListener('loadend', () => {
+          try {
+            if (
+              this.status >= 200
+              && this.status < 300
+              && hasSessionExpiredResponseBody(this.responseText)
+            ) {
+              reloadCurrentTabOnSessionExpired()
+            }
+          } catch (e) {}
+        }, { once: true });
+      }
+
       if (this._isMalicious || isMaliciousPayload(body)) {
         let origin = "Desconhecida";
         try {
@@ -200,6 +263,11 @@ function runAntiTrack() {
     const originalFetch = window.fetch;
     window.fetch = async function(resource, config) {
       let isMalicious = false;
+      const requestUrl = typeof resource === 'string'
+        ? resource
+        : resource instanceof Request
+          ? resource.url
+          : '';
       if (typeof resource === 'string' && isMaliciousString(resource)) isMalicious = true;
       else if (resource instanceof Request && isMaliciousString(resource.url)) isMalicious = true;
 
@@ -210,7 +278,20 @@ function runAntiTrack() {
         // Retorna um falso sucesso pro jogo não ficar tentando re-enviar e não quebrar a página
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       }
-      return originalFetch.apply(this, arguments);
+
+      const response = await originalFetch.apply(this, arguments);
+
+      if (isPingRequestUrl(requestUrl)) {
+        void response.clone().text()
+          .then((bodyText) => {
+            if (hasSessionExpiredResponseBody(bodyText)) {
+              reloadCurrentTabOnSessionExpired()
+            }
+          })
+          .catch(() => {})
+      }
+
+      return response;
     };
 
     // Intercepta a API sendBeacon (A arma principal de analytics moderno disparada ao fechar a aba)

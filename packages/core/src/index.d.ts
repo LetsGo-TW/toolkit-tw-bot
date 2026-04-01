@@ -54,3 +54,5 @@ export declare function getParamsUrl(
 export declare function parseGameData(
   htmlText?: string,
 ): ParsedGameData | undefined
+
+export declare function random(min: number, max: number): number

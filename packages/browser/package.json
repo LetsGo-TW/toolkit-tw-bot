@@ -11,6 +11,30 @@
       "import": "./src/index.js",
       "default": "./src/index.js"
     },
+    "./makeAjax": {
+      "types": "./src/index.d.ts",
+      "require": "./src/make-ajax.js",
+      "import": "./src/make-ajax.js",
+      "default": "./src/make-ajax.js"
+    },
+    "./combineAbortControllerSignals": {
+      "types": "./src/index.d.ts",
+      "require": "./src/combine-abort-controller-signals.js",
+      "import": "./src/combine-abort-controller-signals.js",
+      "default": "./src/combine-abort-controller-signals.js"
+    },
+    "./protectingBot": {
+      "types": "./src/protecting-bot/index.d.ts",
+      "require": "./src/protecting-bot/index.js",
+      "import": "./src/protecting-bot/index.js",
+      "default": "./src/protecting-bot/index.js"
+    },
+    "./searchPlayerImageUrl": {
+      "types": "./src/index.d.ts",
+      "require": "./src/search-player-image-url.js",
+      "import": "./src/search-player-image-url.js",
+      "default": "./src/search-player-image-url.js"
+    },
     "./tooltip": {
       "types": "./src/tooltip/index.d.ts",
       "require": "./src/tooltip/index.js",
@@ -20,6 +44,18 @@
   },
   "typesVersions": {
     "*": {
+      "makeAjax": [
+        "src/index.d.ts"
+      ],
+      "combineAbortControllerSignals": [
+        "src/index.d.ts"
+      ],
+      "protectingBot": [
+        "src/protecting-bot/index.d.ts"
+      ],
+      "searchPlayerImageUrl": [
+        "src/index.d.ts"
+      ],
       "tooltip": [
         "src/tooltip/index.d.ts"
       ]

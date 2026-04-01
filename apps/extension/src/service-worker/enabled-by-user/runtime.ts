@@ -9,7 +9,7 @@ import { ensurePreparedContextLoaded, getTabIdsByPlayerId } from '../prepared-co
 import { reconcileActiveRunner } from '../runtime'
 import { ensureEnabledByUserLoaded, setPlayerEnabledByUserByPlayerId } from './index'
 
-type SetEnabledByUserRequest = SWMessage & PopupStateRequest & {
+type SetEnabledByUserRequest = Partial<SWMessage> & PopupStateRequest & {
   playerId?: unknown
   enabledByUser?: unknown
 }

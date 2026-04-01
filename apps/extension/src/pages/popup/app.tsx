@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import styled from 'styled-components'
 import Tooltip from '@toolkit-tw-bot/browser/tooltip'
+import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
 import type { ExtensionLicenseState, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
@@ -13,8 +14,10 @@ const RUNNER_STORAGE_KEY = 'runnerByScope'
 const TAB_CONTEXT_STORAGE_KEY = 'tabContextByTabId'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
 const ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY = 'enabledByUserByPlayerId'
+const PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY = 'playerAvatarByScopeKey'
 const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
 const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
+const PLAYER_AVATAR_TTL_MS = 12 * 60 * 60 * 1000
 
 type PopupState = {
   ok: boolean
@@ -29,6 +32,8 @@ type PopupState = {
   t?: number | null
   playerId?: number | null
   playerName?: string | null
+  avatarUrl?: string | null
+  avatarUpdatedAt?: string | null
   enabledByUser?: boolean | null
   isTryConfirm?: boolean
   active?: boolean
@@ -361,6 +366,7 @@ function getRuntimeTone({
 
 export default function App() {
   const rootRef = useRef<HTMLElement | null>(null)
+  const avatarRefreshKeyRef = useRef<string | null>(null)
   const [state, setState] = useState<PopupState | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
@@ -422,6 +428,7 @@ export default function App() {
         && !changes[TAB_CONTEXT_STORAGE_KEY]
         && !changes[WINDOW_LOCK_STORAGE_KEY]
         && !changes[ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY]
+        && !changes[PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY]
       ) {
         return
       }
@@ -435,6 +442,53 @@ export default function App() {
       chrome.storage.onChanged.removeListener(onStorageChanged)
     }
   }, [loadPopupState])
+
+  useEffect(() => {
+    const tabId = state?.tabId
+    const playerId = state?.playerId
+    const world = state?.world
+    const refreshKey = (
+      typeof tabId === 'number'
+      && typeof playerId === 'number'
+      && typeof world === 'string'
+    )
+      ? `${tabId}:${world}:${playerId}`
+      : null
+
+    if (!refreshKey) {
+      avatarRefreshKeyRef.current = null
+      return
+    }
+
+    const avatarUpdatedAtMs = Date.parse(state?.avatarUpdatedAt || '')
+    const shouldRefresh = (
+      !Number.isFinite(avatarUpdatedAtMs)
+      || (Date.now() - avatarUpdatedAtMs) >= PLAYER_AVATAR_TTL_MS
+    )
+
+    if (!shouldRefresh) {
+      avatarRefreshKeyRef.current = null
+      return
+    }
+
+    if (avatarRefreshKeyRef.current === refreshKey) {
+      return
+    }
+
+    avatarRefreshKeyRef.current = refreshKey
+
+    void chrome.tabs.sendMessage(tabId, {
+      extensionId: chrome.runtime.id,
+      type: SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE,
+    }).catch(() => {
+      avatarRefreshKeyRef.current = null
+    })
+  }, [
+    state?.avatarUpdatedAt,
+    state?.playerId,
+    state?.tabId,
+    state?.world,
+  ])
 
   useEffect(() => {
     const rootEl = rootRef.current
@@ -526,7 +580,7 @@ export default function App() {
         ) : (
           <Panel>
             <UserCard>
-              <Avatar src={userUrl} alt="Player" />
+              <Avatar src={state?.avatarUrl || userUrl} alt={state?.playerName || 'Player'} />
               <UserMeta>
                 <UserLine>
                   {state?.world ? `${state.world} - ` : ''}

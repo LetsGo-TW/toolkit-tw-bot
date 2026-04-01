@@ -1,12 +1,30 @@
 const CDN = 'LOGIN'
 
 const login = async (extensionId) => {
-  const response = await chrome.runtime.sendMessage(extensionId, {
-    extensionId,
-    type: CDN,
-  })
+  const run = async () => {
+    // disparar aviso quando precisar por senha.
+    const isReconnectable = !document.querySelector("#user")
 
-  console.log(`[${CDN}]: `, response)
+    const response = await chrome.runtime.sendMessage(extensionId, {
+      extensionId,
+      type: CDN,
+      isReconnectable
+    })
+
+    console.log(`[${CDN}]: `, response)
+
+    if (!response || response.ok !== true) return;
+
+    if (!isReconnectable) return
+
+    /// reconnect
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true })
+  } else {
+    run()
+  }
 }
 
 const preparedExtensionId = window.dataStart?.extensionId
@@ -14,9 +32,7 @@ const preparedExtensionId = window.dataStart?.extensionId
 if (preparedExtensionId) {
   delete window.dataStart
 
-  void login(preparedExtensionId).catch((error) => {
-    console.error(`[${CDN}]`, error)
-  })
+  void login(preparedExtensionId)
 }
 
 export default login

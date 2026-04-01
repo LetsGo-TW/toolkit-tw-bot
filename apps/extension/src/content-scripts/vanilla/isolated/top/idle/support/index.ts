@@ -1,27 +1,16 @@
 /// <reference types="chrome" />
 
-import { CurrentGameData } from "./current"
+import { installChangeGlobalSupport } from "./changeGlobal"
 import {
   infoPlayer,
   isSupportInfoPlayerMessage,
   syncPlayerAvatar,
 } from "./info-player"
 
-const CS = 'SUPPORT'
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupport__'
 
 type ToolkitWindow = Window & {
   [BOOTSTRAP_KEY]?: boolean
-}
-
-type Received = {
-  isRunningTab: boolean
-}
-
-type Response = {
-  gameData: CurrentGameData
-  isBotProtected: boolean
-  avatarUrl?: string | null
 }
 
 function onExtensionMessage(
@@ -64,6 +53,7 @@ async function bootstrap() {
 
   // se estiver em info_player screen e a imagem for atualizada
   await infoPlayer()
+  installChangeGlobalSupport()
 }
 
 void bootstrap()

@@ -12,14 +12,14 @@ export type SetActiveTitleParams = {
 export function setActiveTitle({
   isRunningTab = false,
   enabledByUser = true,
-  isBotProtected = false,
-  isTryConfirm = false,
-  isMdfScope = false,
   isAllowedByLicense = true,
   isLicenseExpiring = false,
   isIntro = false,
+  isBotProtected = false,
+  isTryConfirm = false,
+  isMdfScope = false,
 }: SetActiveTitleParams = {}) {
-  const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '⌛', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[⌛]']
+  const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '♻️', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[♻️]']
   let emoji: string | undefined
   let title = document.title
 
@@ -35,7 +35,7 @@ export function setActiveTitle({
   }
 
   if (isIntro) {
-    emoji = '⌛'
+    emoji = '♻️'
     if (isMdfScope) emoji = `[${emoji}]`
     document.title = `${emoji} ${title}`
     return

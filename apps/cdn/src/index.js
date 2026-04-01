@@ -9,6 +9,18 @@ const START = 'BOT_RUNNER_START'
 const STOP = 'BOT_RUNNER_STOP'
 const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 
+/**
+ * @typedef {Object} RunnerState
+ * @property {string | null} extensionId
+ * @property {string | null} scopeKey
+ * @property {boolean} running
+ * @property {Promise<void> | null} startPromise
+ * @property {string | null} stagedScriptUrl
+ * @property {HTMLScriptElement | null} stagedScriptEl
+ * @property {string | null} preparedBaseUrl
+ */
+
+/** @type {RunnerState} */
 const runnerState = {
   extensionId: null,
   scopeKey: null,
@@ -103,6 +115,9 @@ function getRuntimeModules() {
   }
 
   if (isIntro) {
+    // printError('Wait starting...', 'green')
+    setTimeout(() => window.location.assign('/game.php?screen=overview'), 5 * 1000);
+    // setTimeout(() => window.location.assign(withGroupFix('/game.php?screen=overview')), 10 * 1000);
     throw new Error('Scripts are not executed on the introductory page.')
   }
 
@@ -232,6 +247,7 @@ async function postCtxToExtension() {
   })
 }
 
+/** @returns {Promise<void>} */
 async function startRunner() {
   if (runnerState.running) {
     return
@@ -265,6 +281,7 @@ async function startRunner() {
   return runnerState.startPromise
 }
 
+/** @returns {Promise<void>} */
 async function stopRunner() {
   if (runnerState.startPromise) {
     try {
@@ -281,11 +298,19 @@ async function stopRunner() {
   removeStageScript()
   clearPreparedState()
   runnerState.running = false
+  // desativa CS listen
+  document.querySelector("html")?.setAttribute('data-activetab', 'false')
 }
 
 async function onConnectMessage(data) {
   setConnectionState(data)
   console.log('[PREPARED] CONNECT received', data)
+  const intGameData = setInterval(() => {
+    if (window.game_data) {
+      clearInterval(intGameData)
+      console.log(`[PREPARED] Identify gameData`, window.game_data)
+    }
+  }, 1)
   void postCtxToExtension()
 }
 
