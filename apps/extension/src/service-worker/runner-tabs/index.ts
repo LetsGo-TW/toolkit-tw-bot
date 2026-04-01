@@ -27,9 +27,15 @@ export type WindowLockRecord = {
 
 export type WindowLockByScope = Record<string, WindowLockRecord>
 
+type RunnerInTransitRecord = {
+  scopeKey: string
+  tabId: number
+}
+
 let cacheLoaded = false
 let runnerByScopeCache: RunnerByScope = {}
 let windowLockByScopeCache: WindowLockByScope = {}
+let runnerInTransitByScope: Record<string, RunnerInTransitRecord> = {}
 
 function normalizeRunnerByScope(value: unknown): RunnerByScope {
   if (!value || typeof value !== 'object') {
@@ -304,6 +310,91 @@ function matchesScopeKey(
   return runner.scopeKey === scopeKey
 }
 
+export function getRunnerInTransit(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return null
+  }
+
+  return runnerInTransitByScope[scopeKey] || null
+}
+
+export function markRunnerTabInTransit(tabId?: number | null) {
+  const runner = getRunnerForTab(tabId)
+
+  if (!runner) {
+    return null
+  }
+
+  runnerInTransitByScope = {
+    ...runnerInTransitByScope,
+    [runner.scopeKey]: {
+      scopeKey: runner.scopeKey,
+      tabId: runner.tabId,
+    },
+  }
+
+  return runner
+}
+
+export function clearRunnerTabInTransit(tabId?: number | null) {
+  if (typeof tabId !== 'number') {
+    return null
+  }
+
+  const transitRecord = Object.values(runnerInTransitByScope)
+    .find((record) => record.tabId === tabId) || null
+
+  if (!transitRecord) {
+    return null
+  }
+
+  const nextTransitByScope = {
+    ...runnerInTransitByScope,
+  }
+
+  delete nextTransitByScope[transitRecord.scopeKey]
+  runnerInTransitByScope = nextTransitByScope
+
+  return transitRecord
+}
+
+export async function syncRunnerWindowIdByTabId(
+  tabId: number,
+  windowId: number,
+) {
+  const runner = getRunnerForTab(tabId)
+
+  if (!runner) {
+    return null
+  }
+
+  const nextRunner: RunnerRecord = {
+    ...runner,
+    windowId,
+  }
+  const nextRunnerByScope = {
+    ...runnerByScopeCache,
+    [runner.scopeKey]: nextRunner,
+  }
+
+  await syncRunnerByScope(nextRunnerByScope)
+
+  const currentWindowLock = getWindowLock(runner.scopeKey)
+  const nextWindowLockByScope = {
+    ...windowLockByScopeCache,
+    [runner.scopeKey]: currentWindowLock
+      ? {
+        ...currentWindowLock,
+        windowId,
+      }
+      : toWindowLock(nextRunner),
+  }
+
+  await syncWindowLock(nextWindowLockByScope)
+
+  return nextRunner
+}
+
 async function getActiveTabInWindow(windowId: number) {
   try {
     const activeTabs = await chrome.tabs.query({
@@ -400,9 +491,20 @@ export async function getDesiredRunner({
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
 
+  const runnerInTransit = getRunnerInTransit(scopeKey)
+  const currentRunner = getRunnerByScope(scopeKey)
+
+  if (
+    runnerInTransit
+    && currentRunner
+    && runnerInTransit.tabId === currentRunner.tabId
+  ) {
+    return currentRunner
+  }
+
   const nextPreferredWindowId = typeof preferredWindowId === 'number'
     ? preferredWindowId
-    : getWindowLock(scopeKey)?.windowId ?? getRunnerByScope(scopeKey)?.windowId ?? null
+    : getWindowLock(scopeKey)?.windowId ?? currentRunner?.windowId ?? null
 
   if (typeof nextPreferredWindowId !== 'number') {
     return null

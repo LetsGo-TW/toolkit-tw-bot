@@ -1,7 +1,10 @@
 /// <reference types="chrome" />
 
 import { removePreparedContext } from '../prepared-context'
-import { ensureRunnerTabsLoaded } from '.'
+import {
+  clearRunnerTabInTransit,
+  ensureRunnerTabsLoaded,
+} from '.'
 
 type TabRemovedRemoveInfo = {
   isWindowClosing: boolean
@@ -26,6 +29,7 @@ export function createOnTabRemovedListener({
     removeInfo: TabRemovedRemoveInfo,
   ) => {
     await ensureRunnerTabsLoaded()
+    clearRunnerTabInTransit(tabId)
 
     await removePreparedContext(tabId)
 

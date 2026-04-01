@@ -22,9 +22,7 @@ const onTabActivated = createOnTabActivatedListener({
 const onTabAttached = createOnTabAttachedListener({
   reconcileActiveRunner,
 })
-const onTabDetached = createOnTabDetachedListener({
-  reconcileActiveRunner,
-})
+const onTabDetached = createOnTabDetachedListener()
 const onTabRemoved = createOnTabRemovedListener({
   reconcileActiveRunner,
 })
