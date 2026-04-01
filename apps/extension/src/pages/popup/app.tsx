@@ -13,7 +13,6 @@ const SET_ENABLED_BY_USER_MESSAGE_TYPE = 'SET_ENABLED_BY_USER'
 const RUNNER_STORAGE_KEY = 'runnerByScope'
 const TAB_CONTEXT_STORAGE_KEY = 'tabContextByTabId'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
-const ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY = 'enabledByUserByPlayerId'
 const PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY = 'playerAvatarByScopeKey'
 const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
 const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
@@ -505,7 +504,7 @@ export default function App() {
   }, [])
 
   const handleEnabledByUserChange = useCallback(async () => {
-    if (savingEnabledByUser || typeof state?.playerId !== 'number') {
+    if (savingEnabledByUser || typeof state?.playerId !== 'number' || !state?.world) {
       return
     }
 
@@ -516,6 +515,7 @@ export default function App() {
       const response = await chrome.runtime.sendMessage({
         extensionId: chrome.runtime.id,
         type: SET_ENABLED_BY_USER_MESSAGE_TYPE,
+        world: state.world,
         playerId: state.playerId,
         enabledByUser: !(state.enabledByUser === true),
         targetTabId: state.tabId ?? null,

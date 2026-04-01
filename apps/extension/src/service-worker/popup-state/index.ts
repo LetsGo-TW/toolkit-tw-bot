@@ -97,8 +97,8 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     playerName: tabContext?.playerName ?? null,
     avatarUrl: playerAvatar?.avatarUrl ?? null,
     avatarUpdatedAt: playerAvatar?.updatedAt ?? null,
-    enabledByUser: typeof tabContext?.playerId === 'number'
-      ? getPlayerEnabledByUser(tabContext.playerId)
+    enabledByUser: tabContext?.world && typeof tabContext?.playerId === 'number'
+      ? getPlayerEnabledByUser(tabContext.world, tabContext.playerId)
       : null,
     isTryConfirm: tabContext?.isTryConfirm === true || urlParams.isTryConfirm === true,
     active: Boolean(

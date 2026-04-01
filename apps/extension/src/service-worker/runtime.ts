@@ -146,9 +146,10 @@ function createRunnerCommandData(
 
   return {
     isRunningTab,
-    enabledByUser: typeof tabContext?.playerId === 'number'
-      ? getPlayerEnabledByUser(tabContext.playerId)
-      : true,
+    enabledByUser: getPlayerEnabledByUser(
+      tabContext?.world ?? null,
+      tabContext?.playerId ?? null,
+    ),
     isAllowedByLicense: true,
     isLicenseExpiring: false,
     isTryConfirm: tabContext?.isTryConfirm === true,

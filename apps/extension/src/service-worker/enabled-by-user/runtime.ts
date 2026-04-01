@@ -3,13 +3,14 @@
 import type { SWMessage } from '../../types'
 import { syncTabActionByTabId } from '../action-state'
 import { SET_ENABLED_BY_USER_MESSAGE_TYPE } from '../message/types'
-import { normalizeNumber, normalizeStrictBoolean } from '../normalize'
+import { normalizeNumber, normalizeStrictBoolean, normalizeString } from '../normalize'
 import { getPopupState, type PopupStateRequest } from '../popup-state'
-import { ensurePreparedContextLoaded, getTabIdsByPlayerId } from '../prepared-context'
+import { ensurePreparedContextLoaded, getTabIdsByWorldPlayer } from '../prepared-context'
 import { reconcileActiveRunner } from '../runtime'
-import { ensureEnabledByUserLoaded, setPlayerEnabledByUserByPlayerId } from './index'
+import { ensureEnabledByUserLoaded, setPlayerEnabledByUser } from './index'
 
 type SetEnabledByUserRequest = Partial<SWMessage> & PopupStateRequest & {
+  world?: unknown
   playerId?: unknown
   enabledByUser?: unknown
 }
@@ -18,8 +19,17 @@ export async function setEnabledByUser(request: SetEnabledByUserRequest = {}) {
   await ensureEnabledByUserLoaded()
   await ensurePreparedContextLoaded()
 
+  const world = normalizeString(request.world)
   const playerId = normalizeNumber(request.playerId)
   const enabledByUser = normalizeStrictBoolean(request.enabledByUser)
+
+  if (!world) {
+    return {
+      ok: false,
+      error: 'Missing world',
+      type: SET_ENABLED_BY_USER_MESSAGE_TYPE,
+    }
+  }
 
   if (playerId === null) {
     return {
@@ -37,10 +47,10 @@ export async function setEnabledByUser(request: SetEnabledByUserRequest = {}) {
     }
   }
 
-  await setPlayerEnabledByUserByPlayerId(playerId, enabledByUser)
+  await setPlayerEnabledByUser(world, playerId, enabledByUser)
   await reconcileActiveRunner(SET_ENABLED_BY_USER_MESSAGE_TYPE)
   await Promise.all(
-    getTabIdsByPlayerId(playerId).map((tabId) => syncTabActionByTabId(tabId)),
+    getTabIdsByWorldPlayer(world, playerId).map((tabId) => syncTabActionByTabId(tabId)),
   )
 
   return getPopupState(request)

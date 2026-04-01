@@ -17,7 +17,6 @@ const game = (extensionId) => {
       window.location.href,
       window.location.origin,
     )
-    const { isIntro, isTryConfirm, isMdfScope } = runtimeParams
     const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active()
     const response = await chrome.runtime.sendMessage(extensionId, {
       extensionId,
@@ -26,10 +25,8 @@ const game = (extensionId) => {
       t: runtimeParams.t ?? null,
       playerId: gameData?.player?.id,
       playerName: gameData?.player?.name,
-      isIntro,
+      avatarUrl: gameData?.player?.avatar || gameData?.player?.image || null,
       isBotProtected,
-      isTryConfirm,
-      isMdfScope,
     })
 
     console.log(`[${CDN}]: `, response);

@@ -34,8 +34,8 @@ export async function syncTabActionByTabId(tabId?: number | null) {
   const currentRunner = getRunnerForTab(tabId, tab?.windowId)
   const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
   const enabled = isTribalWarsUrl(tabUrl)
-  const enabledByUser = typeof context?.playerId === 'number'
-    ? getPlayerEnabledByUser(context.playerId)
+  const enabledByUser = context?.world && typeof context?.playerId === 'number'
+    ? getPlayerEnabledByUser(context.world, context.playerId)
     : null
   const isActiveRunner = Boolean(
     enabled

@@ -6,9 +6,11 @@ import { setEnabledByUser } from "../enabled-by-user/runtime";
 import { getPopupState } from "../popup-state";
 import { registerPreparedCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
+import { stageGame } from '../world-players/runtime'
 import {
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
+  GAME_STAGE_MESSAGE_TYPE,
   GET_POPUP_STATE_MESSAGE_TYPE,
   SET_ENABLED_BY_USER_MESSAGE_TYPE,
   SET_PLAYER_AVATAR_MESSAGE_TYPE,
@@ -25,6 +27,8 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
         received,
         sender as chrome.runtime.MessageSender,
       );
+    case GAME_STAGE_MESSAGE_TYPE:
+      return stageGame(received);
     case WINDOW_FORCE_FOCUS:
       return windowForceFocus(sender?.tab?.windowId, sender?.tab?.id)
     case GET_POPUP_STATE_MESSAGE_TYPE:

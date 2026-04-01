@@ -1,11 +1,13 @@
 /// <reference types="chrome" />
 
+import { getParamsUrl } from '@toolkit-tw-bot/core'
 import type { SWMessage } from '../../types'
 import { syncTabActionByTabId } from '../action-state'
 import {
   ensureEnabledByUserLoaded,
   getPlayerEnabledByUser,
 } from '../enabled-by-user'
+import { cleanupLoginTabsForScope } from './cleanup-login-tabs'
 import {
   CTX_MESSAGE_TYPE,
   START_MESSAGE_TYPE,
@@ -13,6 +15,7 @@ import {
 } from '../message/types'
 import { getRunnerByScope, type RunnerRecord } from '../runner-tabs'
 import { reconcileActiveRunner } from '../runtime'
+import { upsertWorldPlayer } from '../world-players'
 import { type PreparedMessageData, upsertPreparedContext } from './index'
 
 type PreparedContextRequest = SWMessage & {
@@ -43,20 +46,20 @@ function isRunnerForSender(
 
 function createRunnerCommandData({
   isRunningTab,
+  world = null,
   playerId = null,
   isTryConfirm = false,
   isMdfScope = false,
 }: {
   isRunningTab: boolean
+  world?: string | null
   playerId?: number | null
   isTryConfirm?: boolean
   isMdfScope?: boolean
 }): RunnerCommandData {
   return {
     isRunningTab,
-    enabledByUser: typeof playerId === 'number'
-      ? getPlayerEnabledByUser(playerId)
-      : true,
+    enabledByUser: getPlayerEnabledByUser(world, playerId),
     isAllowedByLicense: true,
     isLicenseExpiring: false,
     isTryConfirm,
@@ -132,6 +135,15 @@ export async function registerPreparedCtx(
     }
   }
 
+  if (tabContext.world && typeof tabContext.playerId === 'number') {
+    await upsertWorldPlayer({
+      world: tabContext.world,
+      playerId: tabContext.playerId,
+      playerName: tabContext.playerName,
+      scopeKey: tabContext.scopeKey,
+    })
+  }
+
   await reconcileActiveRunner({
     preferredWindowId: sender.tab?.windowId ?? null,
     reason: CTX_MESSAGE_TYPE,
@@ -152,8 +164,9 @@ export async function registerPreparedCtx(
 
   const data = createRunnerCommandData({
     isRunningTab: isActive,
+    world: tabContext.world,
     playerId: tabContext.playerId,
-    isTryConfirm: tabContext.isTryConfirm === true,
+    isTryConfirm: getParamsUrl(sender.tab?.url || '').isTryConfirm === true,
     isMdfScope: tabContext.t !== null,
   })
   const shouldStart = isActive && data.enabledByUser && data.isAllowedByLicense
@@ -165,6 +178,21 @@ export async function registerPreparedCtx(
   })
 
   await syncTabActionByTabId(tabContext.tabId)
+
+  if (tabContext.context === 'GAME' && shouldStart) {
+    try {
+      await cleanupLoginTabsForScope({
+        scopeKey: tabContext.scopeKey,
+        keepTabId: tabContext.tabId,
+      })
+    } catch (error) {
+      console.warn('[SW][CTX] cleanup login tabs failed', {
+        tabId: tabContext.tabId,
+        scopeKey: tabContext.scopeKey,
+        error,
+      })
+    }
+  }
 
   return {
     ok: true,

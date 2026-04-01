@@ -157,9 +157,9 @@ export function getTabContext(tabId?: number | null) {
   return tabContextByTabIdCache[getTabContextKey(tabId)] || null
 }
 
-export function getTabIdsByPlayerId(playerId: number) {
+export function getTabIdsByWorldPlayer(world: string, playerId: number) {
   return Object.values(tabContextByTabIdCache)
-    .filter((tabContext) => tabContext.playerId === playerId)
+    .filter((tabContext) => tabContext.world === world && tabContext.playerId === playerId)
     .map((tabContext) => tabContext.tabId)
 }
 
@@ -177,6 +177,15 @@ export function getPreparedContextScopeKeys() {
         .filter((scopeKey): scopeKey is string => typeof scopeKey === 'string' && scopeKey.length > 0),
     ),
   )
+}
+
+export function getTabContextsByScopeKey(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return []
+  }
+
+  return Object.values(tabContextByTabIdCache)
+    .filter((tabContext) => tabContext.scopeKey === scopeKey)
 }
 
 export function getScopeFromTabContext(tabId?: number | null) {
@@ -306,6 +315,7 @@ export async function updatePreparedContextFromUrl(
 
   const urlParams = getParamsUrl(nextUrl)
   const nextWorld = getWorldFromUrl(nextUrl)
+  const nextUrlScope = getScopeFromUrl(nextUrl)
   const nextContext = (
     urlParams.isInLogin
       ? 'LOGIN'
@@ -318,14 +328,32 @@ export async function updatePreparedContextFromUrl(
       ...previousRecord,
       url: nextUrl,
       context: nextContext,
-      world: urlParams.isInGame ? previousRecord.world : nextWorld,
-      t: urlParams.isInGame ? previousRecord.t : null,
-      scopeKey: urlParams.isInGame
+      world: urlParams.isInLogin
+        ? previousRecord.world
+        : urlParams.isInGame
+          ? nextUrlScope?.world ?? nextWorld
+          : nextWorld,
+      t: urlParams.isInLogin
+        ? previousRecord.t
+        : urlParams.isInGame
+          ? nextUrlScope?.t ?? null
+          : null,
+      scopeKey: urlParams.isInLogin
         ? previousRecord.scopeKey
-        : null,
-      playerId: urlParams.isInGame ? previousRecord.playerId : null,
-      playerName: urlParams.isInGame ? previousRecord.playerName : null,
-      isTryConfirm: urlParams.isTryConfirm === true,
+        : urlParams.isInGame
+          ? nextUrlScope?.scopeKey ?? null
+          : null,
+      playerId: urlParams.isInLogin
+        ? previousRecord.playerId
+        : urlParams.isInGame
+          ? previousRecord.playerId
+          : null,
+      playerName: urlParams.isInLogin
+        ? previousRecord.playerName
+        : urlParams.isInGame
+          ? previousRecord.playerName
+          : null,
+      isTryConfirm: previousRecord.isTryConfirm,
       updatedAt: new Date().toISOString(),
     }
     : {
@@ -335,7 +363,7 @@ export async function updatePreparedContextFromUrl(
       context: nextContext,
       world: nextWorld,
       t: null,
-      isTryConfirm: urlParams.isTryConfirm === true,
+      isTryConfirm: false,
       scopeKey: null,
       playerId: null,
       playerName: null,

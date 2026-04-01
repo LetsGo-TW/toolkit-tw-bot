@@ -115,6 +115,7 @@ function getRuntimeModules() {
   }
 
   if (isIntro) {
+    document.title = '♻️ ' + document.title
     // printError('Wait starting...', 'green')
     setTimeout(() => window.location.assign('/game.php?screen=overview'), 5 * 1000);
     // setTimeout(() => window.location.assign(withGroupFix('/game.php?screen=overview')), 10 * 1000);
