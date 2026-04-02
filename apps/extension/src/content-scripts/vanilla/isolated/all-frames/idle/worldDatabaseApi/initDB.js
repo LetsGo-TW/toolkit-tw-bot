@@ -1,4 +1,4 @@
-import { getGameData } from '@toolkit-tw-bot/browser';
+import { getGameData } from '@toolkit-tw-bot/document';
 import {
   worldAllysApi,
   worldPlayersApi,

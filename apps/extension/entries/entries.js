@@ -119,6 +119,10 @@ module.exports = {
       runAt: 'document_idle',
       allFrames: false,
       target: 'web',
+      build: {
+        profile: 'support',
+        obfuscationLevel: 'lowCompact',
+      },
     },
     'worldDatabaseApi': {
       entry: 'content-scripts/vanilla/isolated/all-frames/idle/worldDatabaseApi/index.js',

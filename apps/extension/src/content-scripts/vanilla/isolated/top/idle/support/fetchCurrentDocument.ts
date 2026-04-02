@@ -1,4 +1,5 @@
-import { combineAbortControllerSignals, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser"
+import combineAbortControllerSignals from "@toolkit-tw-bot/browser/combineAbortControllerSignals"
+import { makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser/makeAjax"
 
 const FETCH_TIMEOUT_MS = 8000
 

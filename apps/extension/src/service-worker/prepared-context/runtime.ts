@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import type { SWMessage } from '../../types'
 import { syncTabActionByTabId } from '../action-state'
@@ -106,7 +107,7 @@ async function postRunnerCommandToSender(
 
   try {
     await chrome.tabs.sendMessage(tabId, {
-      extensionId: chrome.runtime.id,
+      extensionId: RELEASE_EXTENSION_ID,
       type,
       scopeKey,
       data,

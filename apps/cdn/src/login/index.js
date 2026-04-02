@@ -1,12 +1,14 @@
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+
 const CDN = 'LOGIN'
 
-const login = async (extensionId) => {
+const login = async () => {
   const run = async () => {
     // disparar aviso quando precisar por senha.
     const isReconnectable = !document.querySelector("#user")
 
-    const response = await chrome.runtime.sendMessage(extensionId, {
-      extensionId,
+    const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      extensionId: RELEASE_EXTENSION_ID,
       type: CDN,
       isReconnectable
     })
@@ -27,12 +29,6 @@ const login = async (extensionId) => {
   }
 }
 
-const preparedExtensionId = window.dataStart?.extensionId
-
-if (preparedExtensionId) {
-  delete window.dataStart
-
-  void login(preparedExtensionId)
-}
+void login()
 
 export default login

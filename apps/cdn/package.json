@@ -42,8 +42,8 @@
     "webpack-obfuscator": "^3.5.1"
   },
   "dependencies": {
-    "@toolkit-tw-bot/browser": "workspace:*",
     "@toolkit-tw-bot/core": "workspace:*",
+    "@toolkit-tw-bot/document": "workspace:*",
     "@toolkit-tw-bot/utils": "workspace:*"
   }
 }

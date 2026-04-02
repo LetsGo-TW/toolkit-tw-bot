@@ -11,6 +11,12 @@
       "import": "./src/index.js",
       "default": "./src/index.js"
     },
+    "./indexedDb": {
+      "types": "./src/indexed-db.d.ts",
+      "require": "./src/indexed-db.js",
+      "import": "./src/indexed-db.js",
+      "default": "./src/indexed-db.js"
+    },
     "./makeAjax": {
       "types": "./src/index.d.ts",
       "require": "./src/make-ajax.js",
@@ -22,49 +28,22 @@
       "require": "./src/combine-abort-controller-signals.js",
       "import": "./src/combine-abort-controller-signals.js",
       "default": "./src/combine-abort-controller-signals.js"
-    },
-    "./protectingBot": {
-      "types": "./src/protecting-bot/index.d.ts",
-      "require": "./src/protecting-bot/index.js",
-      "import": "./src/protecting-bot/index.js",
-      "default": "./src/protecting-bot/index.js"
-    },
-    "./searchPlayerImageUrl": {
-      "types": "./src/index.d.ts",
-      "require": "./src/search-player-image-url.js",
-      "import": "./src/search-player-image-url.js",
-      "default": "./src/search-player-image-url.js"
-    },
-    "./tooltip": {
-      "types": "./src/tooltip/index.d.ts",
-      "require": "./src/tooltip/index.js",
-      "import": "./src/tooltip/index.js",
-      "default": "./src/tooltip/index.js"
     }
   },
   "typesVersions": {
     "*": {
+      "indexedDb": [
+        "src/indexed-db.d.ts"
+      ],
       "makeAjax": [
         "src/index.d.ts"
       ],
       "combineAbortControllerSignals": [
         "src/index.d.ts"
-      ],
-      "protectingBot": [
-        "src/protecting-bot/index.d.ts"
-      ],
-      "searchPlayerImageUrl": [
-        "src/index.d.ts"
-      ],
-      "tooltip": [
-        "src/tooltip/index.d.ts"
       ]
     }
   },
   "engines": {
     "node": ">=20 <23"
-  },
-  "dependencies": {
-    "@toolkit-tw-bot/core": "workspace:*"
   }
 }

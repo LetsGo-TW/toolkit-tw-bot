@@ -1,0 +1,61 @@
+{
+  "name": "@toolkit-tw-bot/document",
+  "private": true,
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "require": "./src/index.js",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./getGameData": {
+      "types": "./src/index.d.ts",
+      "require": "./src/get-game-data.js",
+      "import": "./src/get-game-data.js",
+      "default": "./src/get-game-data.js"
+    },
+    "./protectingBot": {
+      "types": "./src/protecting-bot/index.d.ts",
+      "require": "./src/protecting-bot/index.js",
+      "import": "./src/protecting-bot/index.js",
+      "default": "./src/protecting-bot/index.js"
+    },
+    "./searchPlayerImageUrl": {
+      "types": "./src/index.d.ts",
+      "require": "./src/search-player-image-url.js",
+      "import": "./src/search-player-image-url.js",
+      "default": "./src/search-player-image-url.js"
+    },
+    "./tooltip": {
+      "types": "./src/tooltip/index.d.ts",
+      "require": "./src/tooltip/index.js",
+      "import": "./src/tooltip/index.js",
+      "default": "./src/tooltip/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "getGameData": [
+        "src/index.d.ts"
+      ],
+      "protectingBot": [
+        "src/protecting-bot/index.d.ts"
+      ],
+      "searchPlayerImageUrl": [
+        "src/index.d.ts"
+      ],
+      "tooltip": [
+        "src/tooltip/index.d.ts"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "dependencies": {
+    "@toolkit-tw-bot/core": "workspace:*"
+  }
+}

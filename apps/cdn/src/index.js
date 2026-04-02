@@ -1,7 +1,8 @@
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM='
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
-import { getGameData } from '@toolkit-tw-bot/browser'
+import { getGameData } from '@toolkit-tw-bot/document'
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 
 const CONNECT = 'CONNECT'
 const CTX = 'CTX'
@@ -24,7 +25,7 @@ const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 
 /** @type {RunnerState} */
 const runnerState = {
-  extensionId: null,
+  extensionId: RELEASE_EXTENSION_ID,
   scopeKey: null,
   running: false,
   startPromise: null,
@@ -86,23 +87,15 @@ function isValidRunnerMessage(event) {
 }
 
 function setConnectionState(data) {
-  if (data.extensionId) {
-    runnerState.extensionId = data.extensionId
-  }
-
   if (data.scopeKey) {
     runnerState.scopeKey = data.scopeKey
   }
 }
 
-function setPreparedState() {
-  window.dataStart = {
-    extensionId: runnerState.extensionId,
+function ensureExpectedExtensionId(data) {
+  if (data?.extensionId !== runnerState.extensionId) {
+    throw new Error('Prepared handshake extensionId mismatch.')
   }
-}
-
-function clearPreparedState() {
-  delete window.dataStart
 }
 
 function getRuntimeModules() {
@@ -273,14 +266,12 @@ async function startRunner() {
 
     const stageEntry = getStageEntry()
 
-    setPreparedState()
     await injectStageScript(stageEntry.filename)
 
     runnerState.running = true
   })()
     .catch((error) => {
       removeStageScript()
-      clearPreparedState()
       throw error
     })
     .finally(() => {
@@ -305,13 +296,13 @@ async function stopRunner() {
   }
 
   removeStageScript()
-  clearPreparedState()
   runnerState.running = false
   // desativa CS listen
   document.querySelector("html")?.setAttribute('data-activetab', 'false')
 }
 
 async function onConnectMessage(data) {
+  ensureExpectedExtensionId(data)
   setConnectionState(data)
   console.log('[PREPARED] CONNECT received', data)
   void postCtxToExtension()

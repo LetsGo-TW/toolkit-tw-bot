@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import {
   PREPARED_READY_ATTRIBUTE,
   STARTER_PREPARED_READY,
@@ -61,7 +62,7 @@ function onExtensionMessage(
 
 async function postConnectToPage() {
   const response = {
-    extensionId: chrome.runtime.id,
+    extensionId: RELEASE_EXTENSION_ID,
     type: CS,
   }
 

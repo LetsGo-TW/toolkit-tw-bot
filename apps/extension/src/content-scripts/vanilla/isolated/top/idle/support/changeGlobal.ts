@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
-import { ProtectingBot } from "@toolkit-tw-bot/browser"
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
 import { random } from "@toolkit-tw-bot/core"
 import {
   isActiveTabAttributeEnabled,
@@ -183,7 +184,7 @@ async function wait(ms: number) {
 
 async function forceWindowFocus(reason: string) {
   const forceResult = await chrome.runtime.sendMessage({
-    extensionId: chrome.runtime.id,
+    extensionId: RELEASE_EXTENSION_ID,
     type: 'WINDOW_FORCE_FOCUS'
   })
 

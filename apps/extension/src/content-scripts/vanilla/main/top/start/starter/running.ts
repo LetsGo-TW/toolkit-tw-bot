@@ -4,7 +4,7 @@ import {
   STARTER_PREPARED_ERROR,
   STARTER_PREPARED_READY,
 } from '../../../../shared/preparedBootstrap'
-import insertJQueryScript from './insertJQueryScript'
+// import insertJQueryScript from './insertJQueryScript'
 import insertTagScript from './insertTagScript'
 
 const getPreparedScriptUrl = () => {
@@ -37,14 +37,16 @@ export async function starter() {
   const preparedScriptUrl = getPreparedScriptUrl()
 
   try {
-    try {
-      await insertTagScript(preparedScriptUrl)
-      console.log('[Starter] prepared injected via tag')
-    } catch (error) {
-      console.error(error)
-      await insertJQueryScript(preparedScriptUrl)
-      console.log('[Starter] prepared injected via jquery')
-    }
+    // try {
+    //   await insertTagScript(preparedScriptUrl)
+    //   console.log('[Starter] prepared injected via tag')
+    // } catch (error) {
+    //   console.error(error)
+    //   await insertJQueryScript(preparedScriptUrl)
+    //   console.log('[Starter] prepared injected via jquery')
+    // }
+    await insertTagScript(preparedScriptUrl)
+    console.log('[Starter] prepared injected via tag')
 
     notifyPreparedReady()
   } catch (error) {

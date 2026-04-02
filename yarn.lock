@@ -1448,8 +1448,6 @@ __metadata:
 "@toolkit-tw-bot/browser@workspace:*, @toolkit-tw-bot/browser@workspace:packages/browser":
   version: 0.0.0-use.local
   resolution: "@toolkit-tw-bot/browser@workspace:packages/browser"
-  dependencies:
-    "@toolkit-tw-bot/core": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -1460,8 +1458,8 @@ __metadata:
     "@babel/core": "npm:^7.28.4"
     "@babel/preset-env": "npm:^7.28.3"
     "@babel/preset-typescript": "npm:^7.27.1"
-    "@toolkit-tw-bot/browser": "workspace:*"
     "@toolkit-tw-bot/core": "workspace:*"
+    "@toolkit-tw-bot/document": "workspace:*"
     "@toolkit-tw-bot/release": "workspace:*"
     "@toolkit-tw-bot/utils": "workspace:*"
     "@toolkit-tw-bot/webpack": "workspace:*"
@@ -1494,6 +1492,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@toolkit-tw-bot/document@workspace:*, @toolkit-tw-bot/document@workspace:packages/document":
+  version: 0.0.0-use.local
+  resolution: "@toolkit-tw-bot/document@workspace:packages/document"
+  dependencies:
+    "@toolkit-tw-bot/core": "workspace:*"
+  languageName: unknown
+  linkType: soft
+
 "@toolkit-tw-bot/extension@workspace:apps/extension":
   version: 0.0.0-use.local
   resolution: "@toolkit-tw-bot/extension@workspace:apps/extension"
@@ -1504,6 +1510,7 @@ __metadata:
     "@babel/preset-typescript": "npm:^7.27.1"
     "@toolkit-tw-bot/browser": "workspace:*"
     "@toolkit-tw-bot/core": "workspace:*"
+    "@toolkit-tw-bot/document": "workspace:*"
     "@toolkit-tw-bot/release": "workspace:*"
     "@toolkit-tw-bot/utils": "workspace:*"
     "@toolkit-tw-bot/webpack": "workspace:*"

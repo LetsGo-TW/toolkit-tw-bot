@@ -1,9 +1,8 @@
 /// <reference types="chrome" />
 
-import {
-  ProtectingBot,
-  searchPlayerImageUrl,
-} from '@toolkit-tw-bot/browser'
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import ProtectingBot from '@toolkit-tw-bot/document/protectingBot'
+import searchPlayerImageUrl from '@toolkit-tw-bot/document/searchPlayerImageUrl'
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { SET_PLAYER_AVATAR_MESSAGE_TYPE } from '../../../../../../../service-worker/message/types'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../message-types'
@@ -43,7 +42,7 @@ async function persistAvatar({
   )
 
   return chrome.runtime.sendMessage({
-    extensionId: chrome.runtime.id,
+    extensionId: RELEASE_EXTENSION_ID,
     type: SET_PLAYER_AVATAR_MESSAGE_TYPE,
     world: gameData?.world,
     t: runtimeParams.t ?? null,

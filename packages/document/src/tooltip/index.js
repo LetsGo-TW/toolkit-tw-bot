@@ -263,45 +263,39 @@ class Tooltip {
     }
   }
 
+  #ensureTooltip() {
+    let root = this.#options.root
+
+    if (!(root instanceof HTMLElement)) {
+      root = document.body
+    }
+
+    const tooltipId = String(this.#options.tooltipId || DEFAULT_TOOLTIP_ID)
+    let tooltipEl = root.querySelector(`#${CSS.escape(tooltipId)}`)
+
+    if (!tooltipEl) {
+      tooltipEl = document.createElement('div')
+      tooltipEl.id = tooltipId
+      tooltipEl.className = `go-tooltip ${this.#options.className || ''}`.trim()
+      tooltipEl.hidden = true
+      root.appendChild(tooltipEl)
+    }
+
+    return tooltipEl
+  }
+
   #showContent(content) {
+    this.#el.replaceChildren()
+
     if (typeof content === 'string') {
       this.#el.innerHTML = content
     } else if (content instanceof Node) {
-      this.#el.replaceChildren(content)
-    } else {
-      this.#el.textContent = String(content)
+      this.#el.appendChild(content)
+    } else if (content instanceof DocumentFragment) {
+      this.#el.appendChild(content)
     }
 
     this.#el.hidden = false
-  }
-
-  #move(x, y) {
-    const {
-      offsetX,
-      offsetY,
-      viewportPadding,
-    } = this.#options
-
-    let left = Number(x) + Number(offsetX)
-    let top = Number(y) + Number(offsetY)
-
-    this.#el.style.left = `${left}px`
-    this.#el.style.top = `${top}px`
-
-    const rect = this.#el.getBoundingClientRect()
-    const maxLeft = window.innerWidth - rect.width - Number(viewportPadding)
-    const maxTop = window.innerHeight - rect.height - Number(viewportPadding)
-
-    if (left > maxLeft) {
-      left = Math.max(Number(viewportPadding), Number(x) - rect.width - Number(offsetX))
-    }
-
-    if (top > maxTop) {
-      top = Math.max(Number(viewportPadding), Number(y) - rect.height - Number(offsetY))
-    }
-
-    this.#el.style.left = `${left}px`
-    this.#el.style.top = `${top}px`
   }
 
   #hide() {
@@ -309,34 +303,34 @@ class Tooltip {
     this.#el.classList.remove('is-loading')
   }
 
-  #ensureTooltip() {
-    const {
-      tooltipId,
-      className,
-      root,
-    } = this.#options
+  #move(clientX, clientY) {
+    const viewportPadding = Number(this.#options.viewportPadding || DEFAULT_VIEWPORT_PADDING)
+    const offsetX = Number(this.#options.offsetX || DEFAULT_OFFSET_X)
+    const offsetY = Number(this.#options.offsetY || DEFAULT_OFFSET_Y)
 
-    let tip = document.getElementById(tooltipId)
+    this.#el.style.left = '0px'
+    this.#el.style.top = '0px'
+    this.#el.hidden = false
 
-    if (!tip) {
-      tip = document.createElement('div')
-      tip.id = tooltipId
-      tip.hidden = true
-      ;(root || document.body).appendChild(tip)
-    }
+    const rect = this.#el.getBoundingClientRect()
+    const maxLeft = window.innerWidth - rect.width - viewportPadding
+    const maxTop = window.innerHeight - rect.height - viewportPadding
 
-    tip.classList.add('go-tooltip-root')
+    const nextLeft = Math.min(
+      Math.max(viewportPadding, clientX + offsetX),
+      Math.max(viewportPadding, maxLeft),
+    )
+    const nextTop = Math.min(
+      Math.max(viewportPadding, clientY + offsetY),
+      Math.max(viewportPadding, maxTop),
+    )
 
-    if (className) {
-      tip.classList.add(...String(className).split(/\s+/).filter(Boolean))
-    }
-
-    return tip
+    this.#el.style.left = `${nextLeft}px`
+    this.#el.style.top = `${nextTop}px`
   }
 }
 
 module.exports = Tooltip
 module.exports.default = Tooltip
-module.exports.Tooltip = Tooltip
-module.exports.bindAttributeTooltip = bindAttributeTooltip
 module.exports.createAttributeTooltipRenderer = createAttributeTooltipRenderer
+module.exports.bindAttributeTooltip = bindAttributeTooltip

@@ -1,5 +1,6 @@
-import { getGameData, ProtectingBot } from "@toolkit-tw-bot/browser"
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT_EVENT = 'toolkit:runner-bot-protect'
@@ -29,7 +30,7 @@ const installRunnerBotProtectListener = () => {
   })
 }
 
-const game = (extensionId) => {
+const game = () => {
   const run = async () => {
     const gameData = getCurrentGameData();
     const runtimeParams = getParamsUrl(
@@ -37,8 +38,8 @@ const game = (extensionId) => {
       window.location.origin,
     )
     const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active()
-    const response = await chrome.runtime.sendMessage(extensionId, {
-      extensionId,
+    const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      extensionId: RELEASE_EXTENSION_ID,
       type: CDN,
       world: gameData?.world,
       t: runtimeParams.t ?? null,
@@ -78,13 +79,7 @@ const game = (extensionId) => {
   }
 }
 
-const preparedExtensionId = window.dataStart?.extensionId
-
-if (preparedExtensionId) {
-  delete window.dataStart
-  installRunnerBotProtectListener()
-
-  void game(preparedExtensionId)
-}
+installRunnerBotProtectListener()
+void game()
 
 export default game

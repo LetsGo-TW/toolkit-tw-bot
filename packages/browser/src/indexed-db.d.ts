@@ -1,7 +1,3 @@
-export declare function combineAbortControllerSignals(
-  signals?: Array<AbortSignal | null | undefined>,
-): AbortSignal
-
 export type IndexedDbIndexConfig = {
   name: string
   keyPath: string | string[]
@@ -30,10 +26,3 @@ export declare function createIndexedDbDocStore<TDoc extends IndexedDbDoc = Inde
   version?: number
   indexes?: IndexedDbIndexConfig[]
 }): IndexedDbDocStore<TDoc>
-
-export declare function makeAjaxHeadersPost(): Headers
-export declare function makeAjaxHeadersGet(): Headers
-export declare function makeAjaxHeadersGetDoc(): Headers
-export declare function makeAjaxBody(
-  payload?: Array<[string, string | number | null | undefined]> | Record<string, unknown>,
-): URLSearchParams

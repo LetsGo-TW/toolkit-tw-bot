@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import Tooltip from '@toolkit-tw-bot/browser/tooltip'
+import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { extensionVersion } from '@toolkit-tw-bot/release'
 import { Container } from './style'
 import imgLogo from '../../../icons/ico.green.128.png'

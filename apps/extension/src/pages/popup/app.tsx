@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import styled from 'styled-components'
-import Tooltip from '@toolkit-tw-bot/browser/tooltip'
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
 import type { ExtensionLicenseState, FeaturesMap, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
@@ -418,6 +419,12 @@ const FEATURE_LABELS = [
   ['AccountManager', 'Account manager'],
 ] as const
 
+type FeatureItem = {
+  key: typeof FEATURE_LABELS[number][0]
+  label: typeof FEATURE_LABELS[number][1]
+  tone: ReturnType<typeof getFeatureTone>
+}
+
 function getFeatureTone(feature?: { possible?: boolean; active?: boolean } | null) {
   if (!feature || feature.possible !== true) {
     return 'neutral' as const
@@ -474,7 +481,7 @@ export default function App() {
       ) || null
 
       const response = await chrome.runtime.sendMessage({
-        extensionId: chrome.runtime.id,
+        extensionId: RELEASE_EXTENSION_ID,
         type: POPUP_STATE_MESSAGE_TYPE,
         targetTabId: targetTab?.id ?? null,
         targetWindowId: targetTab?.windowId ?? null,
@@ -562,8 +569,8 @@ export default function App() {
 
     avatarRefreshKeyRef.current = refreshKey
 
-    void chrome.tabs.sendMessage(tabId, {
-      extensionId: chrome.runtime.id,
+    void chrome.tabs.sendMessage(tabId as number, {
+      extensionId: RELEASE_EXTENSION_ID,
       type: SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE,
     }).catch(() => {
       avatarRefreshKeyRef.current = null
@@ -599,7 +606,7 @@ export default function App() {
 
     try {
       const response = await chrome.runtime.sendMessage({
-        extensionId: chrome.runtime.id,
+        extensionId: RELEASE_EXTENSION_ID,
         type: SET_ENABLED_BY_USER_MESSAGE_TYPE,
         world: state.world,
         playerId: state.playerId,
@@ -664,21 +671,19 @@ export default function App() {
       value: formatDateStarted(state?.dateStarted),
     },
   ].filter((entry) => Boolean(entry.value))
-  const featureItems = FEATURE_LABELS
-    .map(([featureKey, label]) => {
-      const feature = state?.features?.[featureKey] ?? null
+  const featureItems: FeatureItem[] = FEATURE_LABELS.flatMap(([featureKey, label]) => {
+    const feature = state?.features?.[featureKey]
 
-      if (!feature) {
-        return null
-      }
+    if (feature == null) {
+      return []
+    }
 
-      return {
-        key: featureKey,
-        label,
-        tone: getFeatureTone(feature),
-      }
-    })
-    .filter((entry): entry is { key: string; label: string; tone: 'success' | 'warn' | 'neutral' } => entry !== null)
+    return [{
+      key: featureKey,
+      label,
+      tone: getFeatureTone(feature),
+    }]
+  })
 
   return (
     <Root ref={rootRef}>

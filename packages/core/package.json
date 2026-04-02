@@ -4,6 +4,14 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "require": "./src/index.js",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    }
+  },
   "engines": {
     "node": ">=20 <23"
   }

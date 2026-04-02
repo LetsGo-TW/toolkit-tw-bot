@@ -6,9 +6,6 @@ declare global {
     /** Objeto global do TribalWars */
     game_data: GameData;
 
-    /** Setado pelo handshake do connect → usado pelo WORLD MAIN */
-    dataStart?: { extensionId?: string };
-
     TWMap?: { non_attackable_players?: string[] };
 
     /** Lista (crua) de jogadores não atacáveis disponível na página */

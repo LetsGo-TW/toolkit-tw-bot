@@ -46,6 +46,7 @@
   "dependencies": {
     "@toolkit-tw-bot/browser": "workspace:*",
     "@toolkit-tw-bot/core": "workspace:*",
+    "@toolkit-tw-bot/document": "workspace:*",
     "@toolkit-tw-bot/utils": "workspace:*",
     "jquery": "^3.7.1",
     "pouchdb-browser": "^9.0.0",

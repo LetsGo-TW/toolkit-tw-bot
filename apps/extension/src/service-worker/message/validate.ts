@@ -1,4 +1,5 @@
 /// <reference types="chrome" />
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { getSenderOrigin, isAllowedOrigin } from "./origins";
 
 export async function validateEnvelope(received: any, sender: chrome.runtime.MessageSender) {
@@ -11,6 +12,9 @@ export async function validateEnvelope(received: any, sender: chrome.runtime.Mes
 
   // valida origin
   const myId = chrome.runtime.id;
+  if (myId !== RELEASE_EXTENSION_ID) {
+    throw new Error("Installed extensionId does not match release metadata");
+  }
   const isInternalSender = (
     sender.id === myId
     || sender.url?.startsWith(`chrome-extension://${myId}/`)
@@ -24,7 +28,7 @@ export async function validateEnvelope(received: any, sender: chrome.runtime.Mes
   }
 
   // valida extensionId
-  if (received.extensionId !== myId) {
+  if (received.extensionId !== RELEASE_EXTENSION_ID) {
     throw new Error("Invalid extensionId");
   }
 }

@@ -1,7 +1,8 @@
 /// <reference types="chrome" />
 
-import { getGameData, ProtectingBot } from "@toolkit-tw-bot/browser"
+import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { SUPPORT_SYNC_CTX_MESSAGE_TYPE } from "../../../../../../service-worker/message/types"
 import { setActiveTitle } from "../../../../shared/setActiveTitle"
 import { installChangeGlobalSupport } from "./changeGlobal"
@@ -30,7 +31,7 @@ async function syncCtxAndTitle() {
     window.location.origin,
   )
   const response = await chrome.runtime.sendMessage({
-    extensionId: chrome.runtime.id,
+    extensionId: RELEASE_EXTENSION_ID,
     type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
     world: gameData?.world,
     playerId: isFinitePlayerId(gameData?.player?.id),

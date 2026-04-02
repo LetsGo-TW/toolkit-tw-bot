@@ -1,7 +1,5 @@
-const getGameData = require('./get-game-data')
-const searchPlayerImageUrl = require('./search-player-image-url')
 const combineAbortControllerSignals = require('./combine-abort-controller-signals')
-const ProtectingBot = require('./protecting-bot')
+const { createIndexedDbDocStore } = require('./indexed-db')
 const {
   makeAjaxHeadersPost,
   makeAjaxHeadersGet,
@@ -10,10 +8,8 @@ const {
 } = require('./make-ajax')
 
 module.exports = {
-  getGameData,
-  searchPlayerImageUrl,
   combineAbortControllerSignals,
-  ProtectingBot,
+  createIndexedDbDocStore,
   makeAjaxHeadersPost,
   makeAjaxHeadersGet,
   makeAjaxHeadersGetDoc,

@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import type { SWMessage } from '../../types'
 import { getTabContext, upsertPreparedContext } from '../prepared-context'
 import {
@@ -53,7 +54,7 @@ async function notifyRunningTabAboutBotProtect(
 
   try {
     await chrome.tabs.sendMessage(runner.tabId, {
-      extensionId: chrome.runtime.id,
+      extensionId: RELEASE_EXTENSION_ID,
       type: RUNNER_BOT_PROTECT_MESSAGE_TYPE,
       scopeKey: runner.scopeKey,
       data: {

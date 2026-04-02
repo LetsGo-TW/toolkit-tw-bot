@@ -122,5 +122,6 @@
     "https://api-controller-lets-go.herokuapp.com/*",
     "https://dsbr.innogamescdn.com/assets/*/js/game/*'",
     "https://*.tribalwars.cash/*"
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqMlaeaG9KvixMbhkDHq90hcGLv20NT14HQTu22Z61z80mHoLwyH5zlx1nBWYqOFc+pVV+ojK1J40fRQk2Hnt/IVj96mrXEI5aij5RJgS8ZV479hgH12c3OrEon26KoVmVakrmRZFn0CqSskkmCoONmfcO+H52O5MepEaHJVWoorJC7quIW9lR1eL8zrTbJMVYDC4c9sIlm6UNzM6JTqby7b3jczfhywUpnKatawUOKhDgWyuc4/UH2OVyEQlUTc0yrozgHnlqVuDMxS+cDYDARl4CMl67+JtUYyJhqqp07AgEojBSbCyYxFHqstqN2TWiXSD82s+QSt0YKuKhYXRtwIDAQAB"
 }

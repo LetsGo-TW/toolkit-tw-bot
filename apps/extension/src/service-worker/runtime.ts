@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from './enabled-by-user'
 import { syncKnownTabActions, syncRunnerActions } from './action-state'
 import {
@@ -190,7 +191,7 @@ async function postRunnerCommand(
     })
 
     await chrome.tabs.sendMessage(runner.tabId, {
-      extensionId: chrome.runtime.id,
+      extensionId: RELEASE_EXTENSION_ID,
       type,
       scopeKey: runner.scopeKey,
       data,

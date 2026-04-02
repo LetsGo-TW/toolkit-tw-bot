@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { normalizeNumber, normalizeString } from '../normalize'
+import { syncWorldPlayerContexts } from '../context-db'
 
 const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
 
@@ -99,6 +100,18 @@ async function persistWorldPlayers(
   await persistStateIfChanged(WORLD_PLAYERS_STORAGE_KEY, previous, next)
 }
 
+async function syncWorldPlayerContextsSafely(record: WorldPlayerRecord) {
+  try {
+    await syncWorldPlayerContexts(record)
+  } catch (error) {
+    console.warn('[SW][IndexedDB] failed to sync world player contexts', {
+      world: record.world,
+      playerId: record.playerId,
+      error,
+    })
+  }
+}
+
 export function getWorldPlayerKey(
   world?: string | null,
   playerId?: number | null,
@@ -176,6 +189,7 @@ export async function setWorldPlayerEnabledByUser({
 
   worldPlayersCache = nextCache
   await persistWorldPlayers(previousCache, nextCache)
+  await syncWorldPlayerContextsSafely(nextRecord)
 
   return nextRecord
 }
@@ -229,6 +243,7 @@ export async function upsertWorldPlayer({
 
   worldPlayersCache = nextCache
   await persistWorldPlayers(previousCache, nextCache)
+  await syncWorldPlayerContextsSafely(nextRecord)
 
   return nextRecord
 }
