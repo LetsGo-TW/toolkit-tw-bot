@@ -18,3 +18,4 @@ apps/ops/data/
 #!.yarn/cache
 .pnp.*
 .codex
+.secrets
