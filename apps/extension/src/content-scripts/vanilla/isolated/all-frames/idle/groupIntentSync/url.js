@@ -35,6 +35,26 @@ export const isStaticGroupManagementScreenUrl = (urlLike = null) => {
   return screen === "overview_villages" && type === "static" && mode === "groups"
 }
 
+export const isSettingsVacationScreenUrl = (urlLike = null) => {
+  const url = parseUrl(urlLike)
+  if (!url) return false
+
+  const screen = String(url.searchParams.get("screen") || "").trim().toLowerCase()
+  const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase()
+
+  return screen === "settings" && mode === "vacation"
+}
+
+export const isSettingsSitterLoginActionUrl = (urlLike = null) => {
+  const url = parseUrl(urlLike)
+  if (!url) return false
+
+  const screen = String(url.searchParams.get("screen") || "").trim().toLowerCase()
+  const action = String(url.searchParams.get("action") || "").trim().toLowerCase()
+
+  return screen === "settings" && action === "sitter_login"
+}
+
 export const isOverviewVillagesScreenUrl = (urlLike = null) => {
   const url = parseUrl(urlLike)
   if (!url) return false
@@ -72,6 +92,20 @@ export const getGroupFixUrlBlockReason = (urlLike = null) => {
   if (ENCODED_SCREEN_PATTERN.test(screen)) return "encoded-screen"
 
   return ""
+}
+
+export const getContextualGroupFixUrlBlockReason = ({
+  currentUrlLike = null,
+  targetUrlLike = null
+} = {}) => {
+  if (
+    isSettingsVacationScreenUrl(currentUrlLike)
+    && isSettingsSitterLoginActionUrl(targetUrlLike)
+  ) {
+    return "settings-vacation-sitter-login"
+  }
+
+  return getGroupFixUrlBlockReason(targetUrlLike)
 }
 
 export const withGroupFix = (urlLike, groupId, options = {}) => {

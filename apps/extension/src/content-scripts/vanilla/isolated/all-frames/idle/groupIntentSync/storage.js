@@ -6,7 +6,7 @@ import {
 } from "./extension-context"
 
 const STORAGE_PREFIX = "go-group-intent-sync"
-const STORAGE_AREA_PRIORITY = ["local", "session"]
+const STORAGE_AREA_PRIORITY = ["session"]
 
 const resolveStorageAreas = () => STORAGE_AREA_PRIORITY
   .map((areaName) => ({
@@ -126,9 +126,14 @@ export const syncGroupIntentFixFromCurrentPage = async ({
   const context = readCurrentGroupIntentContext()
   const stored = await readGroupIntentFix(context)
   const currentGroupId = toFiniteNumber(context?.group_id, null)
+  const storedGroupId = toFiniteNumber(stored?.group_id, null)
 
   if (!Number.isFinite(currentGroupId)) {
     return stored || null
+  }
+
+  if (stored && storedGroupId === currentGroupId) {
+    return stored
   }
 
   if (!force && stored) return stored

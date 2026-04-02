@@ -1,6 +1,6 @@
 import { parseUrl, readCurrentGroupIntentContext, toFiniteNumber } from "./context"
 import {
-  getGroupFixUrlBlockReason,
+  getContextualGroupFixUrlBlockReason,
   isGroupManagementScreenUrl,
   isTwGameUrl
 } from "./url"
@@ -57,7 +57,10 @@ export const getAnchorRewriteBlockReason = (anchor) => {
   const target = String(anchor.getAttribute("target") || "").trim().toLowerCase()
   if (target && !SAFE_ANCHOR_TARGETS.has(target)) return "unsupported-target"
 
-  const blockReason = getGroupFixUrlBlockReason(rawHref)
+  const blockReason = getContextualGroupFixUrlBlockReason({
+    currentUrlLike: window.location.href,
+    targetUrlLike: rawHref
+  })
   if (blockReason) return blockReason
 
   return ""
@@ -83,7 +86,10 @@ export const getFormRewriteBlockReason = (form) => {
     return "unsupported-scheme"
   }
 
-  const blockReason = getGroupFixUrlBlockReason(rawAction)
+  const blockReason = getContextualGroupFixUrlBlockReason({
+    currentUrlLike: window.location.href,
+    targetUrlLike: rawAction
+  })
   if (blockReason) return blockReason
 
   return ""
@@ -102,7 +108,10 @@ export const getOptionRewriteBlockReason = (option) => {
     return "unsupported-scheme"
   }
 
-  const blockReason = getGroupFixUrlBlockReason(rawValue)
+  const blockReason = getContextualGroupFixUrlBlockReason({
+    currentUrlLike: window.location.href,
+    targetUrlLike: rawValue
+  })
   if (blockReason) return blockReason
 
   return ""
