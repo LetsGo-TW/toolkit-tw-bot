@@ -1,9 +1,34 @@
 import { styled } from 'styled-components'
 
 export const PlayerEnabledByUserSwitch = styled.label<{
-  $enabledByUser: boolean
+  $enabledByUser: boolean | null
   $disabled?: boolean
 }>`
+  ${({ $enabledByUser }) => {
+    const trackColor = $enabledByUser === null
+      ? '#5f6b76'
+      : ($enabledByUser ? '#13bf11' : '#b91c1c')
+    const knobShadow = $enabledByUser === null
+      ? `
+        inset 0 0 0 0.12rem #94a3b8,
+        0.15rem 0.15rem rgba(59, 55, 55, 0.3)
+      `
+      : ($enabledByUser
+        ? `
+          inset 0 0 0 0.15rem #13bf11,
+          0.15rem 0.15rem rgba(59, 55, 55, 0.3)
+        `
+        : `
+          inset 0 0 0 0.12rem #b91c1c,
+          0.15rem 0.15rem rgba(59, 55, 55, 0.3)
+        `)
+
+    return `
+      --player-switch-track: ${trackColor};
+      --player-switch-knob-shadow: ${knobShadow};
+    `
+  }}
+
   input {
     display: none;
   }
@@ -13,7 +38,7 @@ export const PlayerEnabledByUserSwitch = styled.label<{
   justify-content: center;
   position: relative;
   box-shadow: inset 0 0 0rem 0.03rem black;
-  background-color: ${({ $enabledByUser }) => ($enabledByUser ? '#13bf11' : 'red')};
+  background-color: var(--player-switch-track);
   cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
   opacity: ${({ $disabled }) => ($disabled ? 0.45 : 1)};
   height: 1rem;
@@ -30,11 +55,11 @@ export const PlayerEnabledByUserSwitch = styled.label<{
     border-radius: 1rem;
 
     ${({ $enabledByUser }) =>
-      $enabledByUser
+      $enabledByUser === true
         ? `
-          background-color: #13bf11;
+          background-color: var(--player-switch-track);
           box-shadow: inset 0 0 0rem 0.03rem black;
-          background: #13bf11;
+          background: var(--player-switch-track);
           width: 2rem;
         `
         : ''};
@@ -45,9 +70,7 @@ export const PlayerEnabledByUserSwitch = styled.label<{
     position: absolute;
     top: 0;
     background: rgb(82, 73, 73);
-    box-shadow:
-      inset 0 0 0 0.12rem red,
-      0.15rem 0.15rem rgba(59, 55, 55, 0.3);
+    box-shadow: var(--player-switch-knob-shadow);
     transition: 0.4s ease-in-out;
     height: 1rem;
     width: 1rem;
@@ -55,11 +78,9 @@ export const PlayerEnabledByUserSwitch = styled.label<{
     border-radius: 1rem;
 
     ${({ $enabledByUser }) =>
-      $enabledByUser
+      $enabledByUser === true
         ? `
-          box-shadow:
-            inset 0 0 0 0.15rem #13bf11,
-            0.15rem 0.15rem rgba(59, 55, 55, 0.3);
+          box-shadow: var(--player-switch-knob-shadow);
           left: 1rem;
         `
         : ''};

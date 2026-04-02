@@ -7,6 +7,8 @@ const CONNECT = 'CONNECT'
 const CTX = 'CTX'
 const START = 'BOT_RUNNER_START'
 const STOP = 'BOT_RUNNER_STOP'
+const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
+const RUNNER_BOT_PROTECT_EVENT = 'toolkit:runner-bot-protect'
 const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 
 /**
@@ -80,7 +82,7 @@ function isValidRunnerMessage(event) {
     return false
   }
 
-  return data?.type === START || data?.type === STOP
+  return data?.type === START || data?.type === STOP || data?.type === RUNNER_BOT_PROTECT
 }
 
 function setConnectionState(data) {
@@ -117,7 +119,13 @@ function getRuntimeModules() {
   if (isIntro) {
     document.title = '♻️ ' + document.title
     // printError('Wait starting...', 'green')
-    setTimeout(() => window.location.assign('/game.php?screen=overview'), 5 * 1000);
+    setTimeout(() => {
+      const gameData = window?.game_data || getGameData()
+      const url = new URL(gameData?.link_base_pure, window?.location?.origin)
+      url.searchParams.set('screen', 'overview')
+      url.searchParams.set('group', gameData?.groupId || 0)
+      window.location.assign(url.toString())
+    }, 5 * 1000);
     // setTimeout(() => window.location.assign(withGroupFix('/game.php?screen=overview')), 10 * 1000);
     throw new Error('Scripts are not executed on the introductory page.')
   }
@@ -306,12 +314,6 @@ async function stopRunner() {
 async function onConnectMessage(data) {
   setConnectionState(data)
   console.log('[PREPARED] CONNECT received', data)
-  const intGameData = setInterval(() => {
-    if (window.game_data) {
-      clearInterval(intGameData)
-      console.log(`[PREPARED] Identify gameData`, window.game_data)
-    }
-  }, 1)
   void postCtxToExtension()
 }
 
@@ -332,6 +334,14 @@ async function onStopMessage(data) {
 
   console.log('[PREPARED] STOP received', data)
   await stopRunner()
+}
+
+async function onRunnerBotProtectMessage(data) {
+  console.warn('[PREPARED] BOT_PROTECT received', data)
+
+  window.dispatchEvent(new CustomEvent(RUNNER_BOT_PROTECT_EVENT, {
+    detail: data,
+  }))
 }
 
 async function onPageMessage(event) {
@@ -365,6 +375,9 @@ async function onRunnerMessage(event) {
         return
       case STOP:
         await onStopMessage(data)
+        return
+      case RUNNER_BOT_PROTECT:
+        await onRunnerBotProtectMessage(data)
         return
       default:
         return

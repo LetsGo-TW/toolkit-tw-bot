@@ -4,6 +4,7 @@ import {
   ProtectingBot,
   searchPlayerImageUrl,
 } from '@toolkit-tw-bot/browser'
+import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { SET_PLAYER_AVATAR_MESSAGE_TYPE } from '../../../../../../../service-worker/message/types'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../message-types'
 import { CurrentGameData, getCurrentGameData, getCurrentUrl, isFinitePlayerId } from '../current'
@@ -30,18 +31,31 @@ function createCurrentPlayerInfoPlayerUrl(gameData: CurrentGameData) {
 async function persistAvatar({
   gameData,
   avatarUrl,
-  isProtectBot
+  isProtectBot,
 }: {
   gameData: CurrentGameData | undefined
   isProtectBot: boolean
   avatarUrl?: string | null
 }) {
+  const runtimeParams = getParamsUrl(
+    window.location.href,
+    window.location.origin,
+  )
+
   return chrome.runtime.sendMessage({
     extensionId: chrome.runtime.id,
     type: SET_PLAYER_AVATAR_MESSAGE_TYPE,
-    gameData,
+    world: gameData?.world,
+    t: runtimeParams.t ?? null,
+    playerId: isFinitePlayerId(gameData?.player?.id)
+      ? gameData.player.id
+      : null,
+    playerName: gameData?.player?.name ?? null,
+    features: gameData?.features ?? null,
+    date_started: gameData?.player?.date_started ?? null,
+    villages: gameData?.player?.villages ?? null,
     avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
-    isProtectBot
+    isBotProtected: isProtectBot,
   })
 }
 
@@ -49,13 +63,14 @@ async function syncAvatarFromDocument(
   doc: Document,
 ) {
   const isProtectBot = ProtectingBot['bot-protect-all-in-game'].active(doc)
+  const currentGameData = getCurrentGameData()
 
   const avatarUrl = searchPlayerImageUrl(doc) || null
 
   return persistAvatar({
-    gameData: getCurrentGameData(doc),
+    gameData: currentGameData,
     avatarUrl,
-    isProtectBot
+    isProtectBot,
   })
 }
 
@@ -78,7 +93,7 @@ export async function infoPlayer() {
 export async function syncPlayerAvatar() {
   const gameData = getCurrentGameData()
 
-  if (!gameData) return;
+  if (!gameData) return
 
   const currentUrl = getCurrentUrl()
 
@@ -91,7 +106,7 @@ export async function syncPlayerAvatar() {
   if (ProtectingBot['bot-protect-all-in-game'].active(document)) {
     return syncAvatarFromDocument(document)
   }
-  
+
   const fetched = await fetchCurrentDocument(infoPlayerUrl?.toString())
 
   if (!fetched) {

@@ -22,6 +22,7 @@ import {
   ensureRunnerTabsLoaded,
 } from './runner-tabs'
 import {
+  SET_ENABLED_BY_USER_MESSAGE_TYPE,
   START_MESSAGE_TYPE,
   STOP_MESSAGE_TYPE,
 } from './message/types'
@@ -157,6 +158,13 @@ function createRunnerCommandData(
   }
 }
 
+function shouldRefreshRunnerCommandForReason(reason: string) {
+  return (
+    reason === 'startup'
+    || reason === SET_ENABLED_BY_USER_MESSAGE_TYPE
+  )
+}
+
 async function postRunnerCommand(
   runner: RunnerRecord | null,
   {
@@ -256,7 +264,7 @@ export async function reconcileActiveRunner(
   })
 
   if (isSameRunnerByScope(previousRunnerByScope, nextRunnerByScope)) {
-    if (reason === 'startup') {
+    if (shouldRefreshRunnerCommandForReason(reason)) {
       await Promise.all(
         Object.values(nextRunnerByScope).map(async (nextRunner) => {
           const nextData = createRunnerCommandData(nextRunner, {

@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
+import type { FeaturesMap } from '../../types'
 import { isAllowedOrigin } from '../message/origins'
 import { normalizeBoolean, normalizeNumber, normalizeString } from '../normalize'
 
@@ -15,6 +16,12 @@ export type PreparedMessageData = {
   isTryConfirm?: unknown
   playerId?: unknown
   playerName?: unknown
+  features?: unknown
+  points?: unknown
+  rank?: unknown
+  villages?: unknown
+  dateStarted?: unknown
+  date_started?: unknown
 }
 
 export type TabContextRecord = {
@@ -28,6 +35,11 @@ export type TabContextRecord = {
   scopeKey: string | null
   playerId: number | null
   playerName: string | null
+  features: FeaturesMap | null
+  points: number | null
+  rank: number | null
+  villages: number | null
+  dateStarted: number | null
   updatedAt: string
 }
 
@@ -35,6 +47,60 @@ type TabContextByTabId = Record<string, TabContextRecord>
 
 let cacheLoaded = false
 let tabContextByTabIdCache: TabContextByTabId = {}
+
+function normalizeFeatureToggle(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Partial<{ possible: unknown; active: unknown }>
+
+  if (
+    typeof candidate.possible !== 'boolean'
+    || typeof candidate.active !== 'boolean'
+  ) {
+    return null
+  }
+
+  return {
+    possible: candidate.possible,
+    active: candidate.active,
+  }
+}
+
+function normalizeFeaturesMap(value: unknown): FeaturesMap | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([key, feature]) => {
+      const normalizedFeature = normalizeFeatureToggle(feature)
+
+      return normalizedFeature ? [key, normalizedFeature] as const : null
+    })
+    .filter((entry): entry is readonly [string, { possible: boolean; active: boolean }] => entry !== null)
+
+  if (!entries.length) {
+    return null
+  }
+
+  return Object.fromEntries(entries)
+}
+
+function normalizeNumberish(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
+}
 
 function normalizePreparedContextType(value: unknown): PreparedContextType | null {
   return value === 'GAME' || value === 'LOGIN' ? value : null
@@ -260,6 +326,11 @@ function createTabContextRecord(
     scopeKey: nextScopeKey,
     playerId: normalizeNumber(data.playerId) ?? previousRecord?.playerId ?? null,
     playerName: normalizeString(data.playerName) ?? previousRecord?.playerName ?? null,
+    features: normalizeFeaturesMap(data.features) ?? previousRecord?.features ?? null,
+    points: normalizeNumberish(data.points) ?? previousRecord?.points ?? null,
+    rank: normalizeNumberish(data.rank) ?? previousRecord?.rank ?? null,
+    villages: normalizeNumberish(data.villages) ?? previousRecord?.villages ?? null,
+    dateStarted: normalizeNumberish(data.dateStarted ?? data.date_started) ?? previousRecord?.dateStarted ?? null,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -353,6 +424,31 @@ export async function updatePreparedContextFromUrl(
         : urlParams.isInGame
           ? previousRecord.playerName
           : null,
+      features: urlParams.isInLogin
+        ? previousRecord.features
+        : urlParams.isInGame
+          ? previousRecord.features
+          : null,
+      points: urlParams.isInLogin
+        ? previousRecord.points
+        : urlParams.isInGame
+          ? previousRecord.points
+          : null,
+      rank: urlParams.isInLogin
+        ? previousRecord.rank
+        : urlParams.isInGame
+          ? previousRecord.rank
+          : null,
+      villages: urlParams.isInLogin
+        ? previousRecord.villages
+        : urlParams.isInGame
+          ? previousRecord.villages
+          : null,
+      dateStarted: urlParams.isInLogin
+        ? previousRecord.dateStarted
+        : urlParams.isInGame
+          ? previousRecord.dateStarted
+          : null,
       isTryConfirm: previousRecord.isTryConfirm,
       updatedAt: new Date().toISOString(),
     }
@@ -367,6 +463,11 @@ export async function updatePreparedContextFromUrl(
       scopeKey: null,
       playerId: null,
       playerName: null,
+      features: null,
+      points: null,
+      rank: null,
+      villages: null,
+      dateStarted: null,
       updatedAt: new Date().toISOString(),
     }
 

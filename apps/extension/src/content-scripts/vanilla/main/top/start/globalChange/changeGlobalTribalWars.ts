@@ -197,6 +197,13 @@ function emitDiagnostic(
   event: string,
   details?: Record<string, unknown>,
 ) {
+  if (
+    !isRunningTabEnabled()
+    && event !== 'runner.active-tab.change'
+  ) {
+    return
+  }
+
   const storageActiveTabRaw = readStorageValue('activetab')
 
   window.postMessage({
@@ -312,21 +319,24 @@ export default () => {
 
       const rawIdleTime = originalGetIdleTime(...args) as number
       const effectiveIdleTime = getEffectiveIdleTime(rawIdleTime)
+      const isRunningTab = isRunningTabEnabled()
 
-      recordTwCall(scope, 'getIdleTime', args, {
-        rawIdleTime,
-        effectiveIdleTime,
-        forced: effectiveIdleTime !== rawIdleTime,
-      })
+      if (isRunningTab) {
+        recordTwCall(scope, 'getIdleTime', args, {
+          rawIdleTime,
+          effectiveIdleTime,
+          forced: effectiveIdleTime !== rawIdleTime,
+        })
 
-      window.postMessage({
-        type: IDLE_MESSAGE_TYPE,
-        idleTime: rawIdleTime,
-        rawIdleTime,
-        effectiveIdleTime,
-        idleTimeForced: effectiveIdleTime !== rawIdleTime,
-        twActivitySnapshot: getTwActivitySnapshot(scope),
-      }, window.location.origin)
+        window.postMessage({
+          type: IDLE_MESSAGE_TYPE,
+          idleTime: rawIdleTime,
+          rawIdleTime,
+          effectiveIdleTime,
+          idleTimeForced: effectiveIdleTime !== rawIdleTime,
+          twActivitySnapshot: getTwActivitySnapshot(scope),
+        }, window.location.origin)
+      }
 
       return effectiveIdleTime
     }
@@ -447,10 +457,12 @@ export default () => {
     emitDiagnostic(scope, 'bootstrap')
 
     watchActiveTabAttribute((isActive, previousIsActive) => {
-      emitDiagnostic(scope, 'runner.active-tab.change', {
-        isActive,
-        previousIsActive,
-      })
+      if (isActive) {
+        emitDiagnostic(scope, 'runner.active-tab.change', {
+          isActive,
+          previousIsActive,
+        })
+      }
 
       if (!isActive) {
         stopIdleInterval(scope)

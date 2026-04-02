@@ -12,6 +12,7 @@ import {
   CTX_MESSAGE_TYPE,
   START_MESSAGE_TYPE,
   STOP_MESSAGE_TYPE,
+  SUPPORT_SYNC_CTX_MESSAGE_TYPE,
 } from '../message/types'
 import { getRunnerByScope, type RunnerRecord } from '../runner-tabs'
 import { reconcileActiveRunner } from '../runtime'
@@ -20,6 +21,19 @@ import { type PreparedMessageData, upsertPreparedContext } from './index'
 
 type PreparedContextRequest = SWMessage & {
   data?: PreparedMessageData
+}
+
+type SupportSyncCtxRequest = Partial<SWMessage> & {
+  world?: unknown
+  t?: unknown
+  playerId?: unknown
+  playerName?: unknown
+  features?: unknown
+  points?: unknown
+  rank?: unknown
+  villages?: unknown
+  dateStarted?: unknown
+  isBotProtected?: unknown
 }
 
 type RunnerCommandData = {
@@ -205,5 +219,79 @@ export async function registerPreparedCtx(
     enabledByUser: data.enabledByUser,
     tabId: tabContext.tabId,
     windowId: tabContext.windowId,
+  }
+}
+
+export async function syncSupportCtx(
+  received: SupportSyncCtxRequest,
+  sender: chrome.runtime.MessageSender,
+) {
+  await ensureEnabledByUserLoaded()
+
+  const world = typeof received.world === 'string' ? received.world : null
+  const playerId = typeof received.playerId === 'number' && Number.isFinite(received.playerId)
+    ? received.playerId
+    : null
+  const playerName = typeof received.playerName === 'string' && received.playerName.trim()
+    ? received.playerName.trim()
+    : null
+  const t = typeof received.t === 'number' && Number.isFinite(received.t)
+    ? received.t
+    : null
+  const isBotProtected = received.isBotProtected === true
+
+  const tabContext = await upsertPreparedContext(sender, {
+    context: 'GAME',
+    world,
+    t,
+    playerId,
+    playerName,
+    features: received.features,
+    points: received.points,
+    rank: received.rank,
+    villages: received.villages,
+    dateStarted: received.dateStarted,
+  })
+
+  if (!tabContext) {
+    return {
+      ok: false,
+      error: 'Missing sender tab context',
+      type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+    }
+  }
+
+  if (tabContext.world && typeof tabContext.playerId === 'number') {
+    await upsertWorldPlayer({
+      world: tabContext.world,
+      playerId: tabContext.playerId,
+      playerName: tabContext.playerName,
+      scopeKey: tabContext.scopeKey,
+    })
+  }
+
+  const currentRunner = getRunnerByScope(tabContext.scopeKey)
+  const isActive = isRunnerForSender(currentRunner, sender)
+  const isTryConfirm = getParamsUrl(sender.tab?.url || '').isTryConfirm === true
+  const data = createRunnerCommandData({
+    isRunningTab: isActive,
+    world: tabContext.world,
+    playerId: tabContext.playerId,
+    isTryConfirm,
+    isMdfScope: tabContext.t !== null,
+  })
+
+  return {
+    ok: true,
+    type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+    scopeKey: tabContext.scopeKey,
+    context: tabContext.context,
+    world: tabContext.world,
+    playerId: tabContext.playerId,
+    playerName: tabContext.playerName,
+    data: {
+      ...data,
+      isBotProtected,
+    },
   }
 }

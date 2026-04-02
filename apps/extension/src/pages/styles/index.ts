@@ -12,7 +12,7 @@ export const theme = {
   textPrimary: '#f8f8f2',
   textSecondary: '#f1fa8c',
   textLabel: '#8be9fd',
-  neutral: '#6272a4',
+  neutral: '#7e8aae',
   success: '#50fa7b',
   successAura: 'rgba(80, 250, 123, 0.22)',
   warn: '#ffb86c',

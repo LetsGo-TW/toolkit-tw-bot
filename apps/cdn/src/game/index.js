@@ -2,12 +2,31 @@ import { getGameData, ProtectingBot } from "@toolkit-tw-bot/browser"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 
 const CDN = 'GAME.STAGE'
+const RUNNER_BOT_PROTECT_EVENT = 'toolkit:runner-bot-protect'
+const BOT_PROTECT_HANDLER_KEY = '__toolkitTwBotGameStageBotProtectHandlerInstalled__'
 
 const getCurrentGameData = () => {
   if (typeof window !== "undefined" && typeof window.game_data !== "undefined") {
     return window.game_data
   }
   return getGameData()
+}
+
+const installRunnerBotProtectListener = () => {
+  if (window[BOT_PROTECT_HANDLER_KEY]) {
+    return
+  }
+
+  window[BOT_PROTECT_HANDLER_KEY] = true
+
+  window.addEventListener(RUNNER_BOT_PROTECT_EVENT, (event) => {
+    if (typeof window.toolkitTwBotOnRunnerBotProtect === 'function') {
+      window.toolkitTwBotOnRunnerBotProtect(event.detail)
+      return
+    }
+
+    console.warn(`[${RUNNER_BOT_PROTECT_EVENT}]`, event.detail)
+  })
 }
 
 const game = (extensionId) => {
@@ -25,7 +44,6 @@ const game = (extensionId) => {
       t: runtimeParams.t ?? null,
       playerId: gameData?.player?.id,
       playerName: gameData?.player?.name,
-      avatarUrl: gameData?.player?.avatar || gameData?.player?.image || null,
       isBotProtected,
     })
 
@@ -64,6 +82,7 @@ const preparedExtensionId = window.dataStart?.extensionId
 
 if (preparedExtensionId) {
   delete window.dataStart
+  installRunnerBotProtectListener()
 
   void game(preparedExtensionId)
 }

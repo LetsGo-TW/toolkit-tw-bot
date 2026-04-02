@@ -1,16 +1,54 @@
 /// <reference types="chrome" />
 
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/browser"
+import { getParamsUrl } from "@toolkit-tw-bot/core"
+import { SUPPORT_SYNC_CTX_MESSAGE_TYPE } from "../../../../../../service-worker/message/types"
+import { setActiveTitle } from "../../../../shared/setActiveTitle"
 import { installChangeGlobalSupport } from "./changeGlobal"
 import {
   infoPlayer,
   isSupportInfoPlayerMessage,
   syncPlayerAvatar,
 } from "./info-player"
+import { getCurrentGameData, isFinitePlayerId } from "./current"
 
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupport__'
 
 type ToolkitWindow = Window & {
   [BOOTSTRAP_KEY]?: boolean
+}
+
+async function syncCtxAndTitle() {
+  const gameData = getCurrentGameData();
+
+  if (!gameData) {
+    return null
+  }
+
+  const runtimeParams = getParamsUrl(
+    window.location.href,
+    window.location.origin,
+  )
+  const response = await chrome.runtime.sendMessage({
+    extensionId: chrome.runtime.id,
+    type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+    world: gameData?.world,
+    playerId: isFinitePlayerId(gameData?.player?.id),
+    playerName: gameData?.player?.name,
+    features: gameData?.features ?? null,
+    points: gameData?.player?.points ?? null,
+    rank: gameData?.player?.rank ?? null,
+    villages: gameData?.player?.villages ?? null,
+    dateStarted: gameData?.player?.date_started ?? null,
+    t: runtimeParams.t ?? null,
+    isBotProtected: ProtectingBot['bot-protect-all-in-game'].active(document),
+  })
+
+  const data = (response as { data?: Record<string, unknown> } | null)?.data
+
+  if (data) {
+    setActiveTitle(data)
+  }
 }
 
 function onExtensionMessage(
@@ -51,6 +89,7 @@ async function bootstrap() {
 
   chrome.runtime.onMessage.addListener(onExtensionMessage)
 
+  await syncCtxAndTitle()
   // se estiver em info_player screen e a imagem for atualizada
   await infoPlayer()
   installChangeGlobalSupport()

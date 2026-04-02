@@ -250,6 +250,10 @@ async function onMessageChange({ data, origin }: MessageEvent) {
   if (!data || !data.type) return
 
   if (data.type === DIAGNOSTIC_MESSAGE_TYPE) {
+    if (!runInTab()) {
+      return
+    }
+
     logStyled('[TW_DIAGNOSTIC_EVENT]', LOG_STYLE_DIAGNOSTIC, data)
 
     if (data.event === 'document.visibilitychange') {

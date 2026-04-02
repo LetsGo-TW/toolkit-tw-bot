@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'r
 import styled from 'styled-components'
 import Tooltip from '@toolkit-tw-bot/browser/tooltip'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
-import type { ExtensionLicenseState, LicenseStatus } from '../../types'
+import type { ExtensionLicenseState, FeaturesMap, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
 import Loading from '../components/loading'
@@ -13,10 +13,11 @@ const SET_ENABLED_BY_USER_MESSAGE_TYPE = 'SET_ENABLED_BY_USER'
 const RUNNER_STORAGE_KEY = 'runnerByScope'
 const TAB_CONTEXT_STORAGE_KEY = 'tabContextByTabId'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
+const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
 const PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY = 'playerAvatarByScopeKey'
 const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
 const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
-const PLAYER_AVATAR_TTL_MS = 12 * 60 * 60 * 1000
+const PLAYER_AVATAR_TTL_MS = 3 * 60 * 60 * 1000
 
 type PopupState = {
   ok: boolean
@@ -31,6 +32,11 @@ type PopupState = {
   t?: number | null
   playerId?: number | null
   playerName?: string | null
+  features?: FeaturesMap | null
+  points?: number | null
+  rank?: number | null
+  villages?: number | null
+  dateStarted?: number | null
   avatarUrl?: string | null
   avatarUpdatedAt?: string | null
   enabledByUser?: boolean | null
@@ -87,6 +93,12 @@ const UserCard = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
+`
+
+const BotSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 `
 
 const Avatar = styled.img`
@@ -186,7 +198,7 @@ const Cell = styled.div`
 
 const Label = styled.span`
   color: ${({ theme }) => theme.textLabel};
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 `
@@ -195,6 +207,43 @@ const Value = styled.strong`
   font-size: 0.88rem;
   line-height: 1.2;
   word-break: break-word;
+`
+
+const FeatureRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: 100%;
+`
+
+const FeaturePill = styled(Pill)`
+  text-transform: none;
+  letter-spacing: 0.03em;
+`
+
+const TwSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 1rem;
+`
+
+const TechnicalMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+`
+
+const TechnicalMetaItem = styled.span`
+  color: ${({ theme }) => theme.neutral};
+  font-size: 0.62rem;
+  line-height: 1.3;
+  opacity: 0.78;
+
+  strong {
+    color: inherit;
+    font-weight: 600;
+  }
 `
 
 const Footer = styled.footer`
@@ -281,7 +330,7 @@ const EmptyTitle = styled.h2`
 
 const EmptyText = styled.p`
   margin: 0;
-  color: ${({ theme }) => theme.textSecondary};
+  color: ${({ theme }) => theme.neutral};
   font-size: 0.84rem;
   line-height: 1.45;
 `
@@ -363,6 +412,43 @@ function getRuntimeTone({
   return 'neutral' as const
 }
 
+const FEATURE_LABELS = [
+  ['Premium', 'Premium account'],
+  ['FarmAssistent', 'Farm assistant'],
+  ['AccountManager', 'Account manager'],
+] as const
+
+function getFeatureTone(feature?: { possible?: boolean; active?: boolean } | null) {
+  if (!feature || feature.possible !== true) {
+    return 'neutral' as const
+  }
+
+  return feature.active === true ? 'success' as const : 'warn' as const
+}
+
+function formatNumberValue(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null
+  }
+
+  return new Intl.NumberFormat('pt-BR').format(value)
+}
+
+function formatDateStarted(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+
+  const timestampMs = value < 1_000_000_000_000 ? value * 1000 : value
+  const date = new Date(timestampMs)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat('pt-BR').format(date)
+}
+
 export default function App() {
   const rootRef = useRef<HTMLElement | null>(null)
   const avatarRefreshKeyRef = useRef<string | null>(null)
@@ -426,7 +512,7 @@ export default function App() {
         !changes[RUNNER_STORAGE_KEY]
         && !changes[TAB_CONTEXT_STORAGE_KEY]
         && !changes[WINDOW_LOCK_STORAGE_KEY]
-        && !changes[ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY]
+        && !changes[WORLD_PLAYERS_STORAGE_KEY]
         && !changes[PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY]
       ) {
         return
@@ -536,7 +622,10 @@ export default function App() {
 
   const isReady = state?.supported && state?.ready
   const hasPlayerIdentity = typeof state?.playerId === 'number'
-  const isPlayerEnabledByUser = state?.enabledByUser === true
+  const playerEnabledByUserState = hasPlayerIdentity && typeof state?.enabledByUser === 'boolean'
+    ? state.enabledByUser
+    : null
+  const isPlayerEnabledByUser = playerEnabledByUserState === true
   const runtimeLabel = getRuntimeLabel({
     active: state?.active,
     enabledByUser: state?.enabledByUser,
@@ -553,6 +642,43 @@ export default function App() {
     : isPlayerEnabledByUser
       ? 'Turn off for this player'
       : 'Turn on for this player'
+  const playerMetrics = [
+    {
+      key: 'points',
+      label: 'Points',
+      value: formatNumberValue(state?.points),
+    },
+    {
+      key: 'rank',
+      label: 'Ranking',
+      value: formatNumberValue(state?.rank),
+    },
+    {
+      key: 'villages',
+      label: 'Villages',
+      value: formatNumberValue(state?.villages),
+    },
+    {
+      key: 'date-started',
+      label: 'Since',
+      value: formatDateStarted(state?.dateStarted),
+    },
+  ].filter((entry) => Boolean(entry.value))
+  const featureItems = FEATURE_LABELS
+    .map(([featureKey, label]) => {
+      const feature = state?.features?.[featureKey] ?? null
+
+      if (!feature) {
+        return null
+      }
+
+      return {
+        key: featureKey,
+        label,
+        tone: getFeatureTone(feature),
+      }
+    })
+    .filter((entry): entry is { key: string; label: string; tone: 'success' | 'warn' | 'neutral' } => entry !== null)
 
   return (
     <Root ref={rootRef}>
@@ -579,67 +705,94 @@ export default function App() {
           </EmptyPanel>
         ) : (
           <Panel>
-            <UserCard>
-              <Avatar src={state?.avatarUrl || userUrl} alt={state?.playerName || 'Player'} />
-              <UserMeta>
-                <UserLine>
-                  {state?.world ? `${state.world} - ` : ''}
-                  {state?.playerName || 'Player not identified yet'}
-                </UserLine>
-                <SubLine>
-                  {state?.context === 'LOGIN'
-                    ? 'Login context'
-                    : state?.context === 'GAME'
-                      ? 'Game context'
-                      : 'Waiting for prepared context'}
-                </SubLine>
-                <Pills>
-                  <Pill $tone={runtimeTone}>
-                    {runtimeLabel}
-                  </Pill>
-                  <Pill $tone={getLicenseTone(state?.license?.status)}>
-                    License {getLicenseText(state?.license?.status)}
-                  </Pill>
-                  {state?.isTryConfirm ? (
-                    <Pill $tone="danger">Try Confirm</Pill>
-                  ) : null}
-                </Pills>
-              </UserMeta>
-              <UserSwitchSlot>
-                <PlayerEnabledByUserSwitch
-                  $enabledByUser={isPlayerEnabledByUser}
-                  $disabled={!canToggleEnabledByUser}
-                  data-popup-title={enabledByUserTooltip}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isPlayerEnabledByUser}
-                    disabled={!canToggleEnabledByUser}
-                    aria-label="Toggle current player execution"
-                    onChange={() => { void handleEnabledByUserChange() }}
-                  />
-                </PlayerEnabledByUserSwitch>
-              </UserSwitchSlot>
-            </UserCard>
+            <BotSection>
+              <UserCard>
+                <Avatar src={state?.avatarUrl || userUrl} alt={state?.playerName || 'Player'} />
+                <UserMeta>
+                  <UserLine>
+                    {state?.world ? `${state.world} - ` : ''}
+                    {state?.playerName || 'Player not identified yet'}
+                  </UserLine>
+                  <SubLine>
+                    {state?.context === 'LOGIN'
+                      ? 'Login context'
+                      : state?.context === 'GAME'
+                        ? 'Game context'
+                        : 'Waiting for prepared context'}
+                  </SubLine>
+                  <Pills>
+                    <Pill $tone={runtimeTone}>
+                      {runtimeLabel}
+                    </Pill>
+                    <Pill $tone={getLicenseTone(state?.license?.status)}>
+                      License {getLicenseText(state?.license?.status)}
+                    </Pill>
+                    {state?.isTryConfirm ? (
+                      <Pill $tone="danger">Try Confirm</Pill>
+                    ) : null}
+                  </Pills>
+                </UserMeta>
+                <UserSwitchSlot>
+                  <PlayerEnabledByUserSwitch
+                    $enabledByUser={playerEnabledByUserState}
+                    $disabled={!canToggleEnabledByUser}
+                    data-popup-title={enabledByUserTooltip}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isPlayerEnabledByUser}
+                      disabled={!canToggleEnabledByUser}
+                      aria-label="Toggle current player execution"
+                      onChange={() => { void handleEnabledByUserChange() }}
+                    />
+                  </PlayerEnabledByUserSwitch>
+                </UserSwitchSlot>
+              </UserCard>
 
-            <Grid>
-              <Cell>
-                <Label>Scope</Label>
-                <Value>{getScopeLabel(state?.world, state?.t)}</Value>
-              </Cell>
-              <Cell>
-                <Label>Player ID</Label>
-                <Value>{state?.playerId ?? '-'}</Value>
-              </Cell>
-              <Cell>
-                <Label>Tab</Label>
-                <Value>#{state?.tabId ?? '-'}</Value>
-              </Cell>
-              <Cell>
-                <Label>Window</Label>
-                <Value>#{state?.windowId ?? '-'}</Value>
-              </Cell>
-            </Grid>
+              <TechnicalMeta>
+                <TechnicalMetaItem>
+                  <strong>Scope:</strong> {getScopeLabel(state?.world, state?.t)}
+                </TechnicalMetaItem>
+                {typeof state?.playerId === 'number' ? (
+                  <TechnicalMetaItem>
+                    <strong>Player:</strong> #{state.playerId}
+                  </TechnicalMetaItem>
+                ) : null}
+                {typeof state?.tabId === 'number' ? (
+                  <TechnicalMetaItem>
+                    <strong>Tab:</strong> #{state.tabId}
+                  </TechnicalMetaItem>
+                ) : null}
+                {typeof state?.windowId === 'number' ? (
+                  <TechnicalMetaItem>
+                    <strong>Window:</strong> #{state.windowId}
+                  </TechnicalMetaItem>
+                ) : null}
+              </TechnicalMeta>
+            </BotSection>
+
+            <TwSection>
+              {featureItems.length ? (
+                <FeatureRow>
+                  {featureItems.map((feature) => (
+                    <FeaturePill key={feature.key} $tone={feature.tone}>
+                      {feature.label}
+                    </FeaturePill>
+                  ))}
+                </FeatureRow>
+              ) : null}
+
+              {playerMetrics.length ? (
+                <Grid>
+                  {playerMetrics.map((metric) => (
+                    <Cell key={metric.key}>
+                      <Label>{metric.label}</Label>
+                      <Value>{metric.value}</Value>
+                    </Cell>
+                  ))}
+                </Grid>
+              ) : null}
+            </TwSection>
 
             {!isReady ? (
               <Hint>

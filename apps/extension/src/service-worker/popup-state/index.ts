@@ -1,7 +1,7 @@
 /// <reference types="chrome" />
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
-import { createLicenseState, type SWMessage } from '../../types'
+import { createLicenseState, type FeaturesMap, type SWMessage } from '../../types'
 import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by-user'
 import { GET_POPUP_STATE_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber } from '../normalize'
@@ -95,6 +95,11 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     t: tabContext?.t ?? urlParams.t ?? null,
     playerId: tabContext?.playerId ?? null,
     playerName: tabContext?.playerName ?? null,
+    features: (tabContext?.features ?? null) as FeaturesMap | null,
+    points: tabContext?.points ?? null,
+    rank: tabContext?.rank ?? null,
+    villages: tabContext?.villages ?? null,
+    dateStarted: tabContext?.dateStarted ?? null,
     avatarUrl: playerAvatar?.avatarUrl ?? null,
     avatarUpdatedAt: playerAvatar?.updatedAt ?? null,
     enabledByUser: tabContext?.world && typeof tabContext?.playerId === 'number'
