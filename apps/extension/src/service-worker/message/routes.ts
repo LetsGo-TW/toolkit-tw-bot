@@ -3,17 +3,21 @@
 import { MessageEnvelope } from "../../types";
 import { getConnectState } from "../connect-state";
 import { setEnabledByUser } from "../enabled-by-user/runtime";
+import { handleLogin } from "../login/runtime";
 import { getPopupState } from "../popup-state";
 import { registerPreparedCtx, syncSupportCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
+import { setReconnectOnSessionExpired } from "../reconnect-on-session-expired/runtime";
 import { stageGame } from '../world-players/runtime'
 import {
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
   GET_POPUP_STATE_MESSAGE_TYPE,
+  LOGIN_MESSAGE_TYPE,
   SET_ENABLED_BY_USER_MESSAGE_TYPE,
   SET_PLAYER_AVATAR_MESSAGE_TYPE,
+  SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE,
   SUPPORT_SYNC_CTX_MESSAGE_TYPE,
   WINDOW_FORCE_FOCUS,
 } from "./types";
@@ -23,6 +27,8 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
   switch (received?.type) {
     case CONNECT_MESSAGE_TYPE:
       return getConnectState(sender as chrome.runtime.MessageSender);
+    case LOGIN_MESSAGE_TYPE:
+      return handleLogin(received, sender as chrome.runtime.MessageSender);
     case CTX_MESSAGE_TYPE:
       return registerPreparedCtx(
         received,
@@ -41,6 +47,8 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       return getPopupState(received);
     case SET_ENABLED_BY_USER_MESSAGE_TYPE:
       return setEnabledByUser(received);
+    case SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE:
+      return setReconnectOnSessionExpired(received);
     case SET_PLAYER_AVATAR_MESSAGE_TYPE:
       return updatePlayerAvatar(received, sender as chrome.runtime.MessageSender);
     default:

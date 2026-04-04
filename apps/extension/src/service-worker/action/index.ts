@@ -51,7 +51,8 @@ function getActionTitle({
   t,
   playerName,
   license,
-}: Omit<TabActionState, 'tabId' | 'isTryConfirm' | 'botProtect'>) {
+  botProtect = false,
+}: Omit<TabActionState, 'tabId' | 'isTryConfirm'>) {
   const licenseStatus = license.status
   const isRunning = active && enabledByUser === true && license.allowedByLicense
 
@@ -72,6 +73,10 @@ function getActionTitle({
     parts.push('License inactive')
   } else if (licenseStatus === 'error') {
     parts.push('License error')
+  }
+
+  if (botProtect) {
+    parts.push('hCaptcha identified')
   }
 
   if (enabledByUser === false) {
@@ -121,6 +126,7 @@ export async function syncTabAction({
       t,
       playerName,
       license,
+      botProtect,
     }),
   })
 

@@ -133,10 +133,7 @@ function getStageEntry() {
   const runtimeParams = getRuntimeModules()
 
   if (runtimeParams.isInLogin) {
-    return {
-      kind: 'login',
-      filename: 'login.staged.js',
-    }
+    return null
   }
 
   return {
@@ -266,7 +263,9 @@ async function startRunner() {
 
     const stageEntry = getStageEntry()
 
-    await injectStageScript(stageEntry.filename)
+    if (stageEntry?.filename) {
+      await injectStageScript(stageEntry.filename)
+    }
 
     runnerState.running = true
   })()

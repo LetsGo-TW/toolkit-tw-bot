@@ -2,12 +2,14 @@
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from './enabled-by-user'
+import { cleanupLegacyPlayerAvatarStorage } from './player-avatar'
 import { syncKnownTabActions, syncRunnerActions } from './action-state'
 import {
   ensurePreparedContextLoaded,
   getPreparedContextScopeKeys,
   getTabContext,
 } from './prepared-context'
+import { scheduleProbeAlarm } from './prepared-context/probe-scoped'
 import {
   getCurrentRunners,
   getDesiredRunner,
@@ -27,6 +29,8 @@ import {
   START_MESSAGE_TYPE,
   STOP_MESSAGE_TYPE,
 } from './message/types'
+import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from './world-players'
+import { runtimeAllowedByLicense } from './world-players/runtime'
 
 type ReconcileActiveRunnerOptions = {
   preferredWindowId?: number | null
@@ -39,6 +43,7 @@ type RunnerCommandData = {
   enabledByUser: boolean
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
+  isBotProtected: boolean
   isTryConfirm: boolean
   isMdfScope: boolean
 }
@@ -136,24 +141,26 @@ function createNextWindowLocksByScope(
   return nextWindowLocksByScope
 }
 
-function createRunnerCommandData(
+async function createRunnerCommandData(
   runner: RunnerRecord | null,
   {
     isRunningTab,
   }: {
     isRunningTab: boolean
   },
-): RunnerCommandData {
+): Promise<RunnerCommandData> {
   const tabContext = runner ? getTabContext(runner.tabId) : null
+  const worldPlayer = runner ? getWorldPlayerByScopeKey(runner.scopeKey) : null
+  const world = tabContext?.world ?? runner?.world ?? worldPlayer?.world ?? null
+  const playerId = tabContext?.playerId ?? worldPlayer?.playerId ?? null
+  const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(worldPlayer)
 
   return {
     isRunningTab,
-    enabledByUser: getPlayerEnabledByUser(
-      tabContext?.world ?? null,
-      tabContext?.playerId ?? null,
-    ),
-    isAllowedByLicense: true,
-    isLicenseExpiring: false,
+    enabledByUser: getPlayerEnabledByUser(world, playerId),
+    isAllowedByLicense,
+    isLicenseExpiring,
+    isBotProtected: tabContext?.isBotProtected === true,
     isTryConfirm: tabContext?.isTryConfirm === true,
     isMdfScope: tabContext?.t !== null,
   }
@@ -214,6 +221,7 @@ export async function reconcileActiveRunner(
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
   await ensureEnabledByUserLoaded()
+  await ensureWorldPlayersLoaded()
 
   const {
     preferredWindowId,
@@ -250,7 +258,9 @@ export async function reconcileActiveRunner(
     }),
   )
   const nextRunnerByScope = Object.fromEntries(
-    nextRunnerEntries.filter(Boolean),
+    nextRunnerEntries.filter(
+      (entry): entry is readonly [string, RunnerRecord] => entry !== null,
+    ),
   ) as RunnerByScope
 
   console.log('[SW][Runner] reconcile:resolved', {
@@ -268,15 +278,19 @@ export async function reconcileActiveRunner(
     if (shouldRefreshRunnerCommandForReason(reason)) {
       await Promise.all(
         Object.values(nextRunnerByScope).map(async (nextRunner) => {
-          const nextData = createRunnerCommandData(nextRunner, {
+          const nextData = await createRunnerCommandData(nextRunner, {
             isRunningTab: true,
           })
 
           await postRunnerCommand(nextRunner, {
-            type: nextData.enabledByUser
+            type: nextData.enabledByUser && nextData.isAllowedByLicense
               ? START_MESSAGE_TYPE
               : STOP_MESSAGE_TYPE,
             data: nextData,
+          })
+
+          void scheduleProbeAlarm(nextRunner.scopeKey).catch((error) => {
+            console.error('[probe schedule][refresh-runner]', error)
           })
         }),
       )
@@ -313,14 +327,18 @@ export async function reconcileActiveRunner(
     if (previousRunner && !isSameRunner(previousRunner, nextRunner)) {
       await postRunnerCommand(previousRunner, {
         type: STOP_MESSAGE_TYPE,
-        data: createRunnerCommandData(previousRunner, {
+        data: await createRunnerCommandData(previousRunner, {
           isRunningTab: false,
         }),
+      })
+
+      void scheduleProbeAlarm(previousRunner.scopeKey).catch((error) => {
+        console.error('[probe schedule][previous-runner]', error)
       })
     }
 
     if (nextRunner && !isSameRunner(previousRunner, nextRunner)) {
-      const nextData = createRunnerCommandData(nextRunner, {
+      const nextData = await createRunnerCommandData(nextRunner, {
         isRunningTab: true,
       })
 
@@ -329,6 +347,10 @@ export async function reconcileActiveRunner(
           ? START_MESSAGE_TYPE
           : STOP_MESSAGE_TYPE,
         data: nextData,
+      })
+
+      void scheduleProbeAlarm(nextRunner.scopeKey).catch((error) => {
+        console.error('[probe schedule][next-runner]', error)
       })
     }
   }
@@ -354,6 +376,8 @@ export async function initializeRuntime() {
   await ensureRunnerTabsLoaded()
   await ensurePreparedContextLoaded()
   await ensureEnabledByUserLoaded()
+  await ensureWorldPlayersLoaded()
+  await cleanupLegacyPlayerAvatarStorage()
 
   if (!Object.keys(getWindowLocks()).length) {
     const currentRunnerByScope = getCurrentRunners()

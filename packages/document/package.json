@@ -12,7 +12,7 @@
       "default": "./src/index.js"
     },
     "./getGameData": {
-      "types": "./src/index.d.ts",
+      "types": "./src/get-game-data.d.ts",
       "require": "./src/get-game-data.js",
       "import": "./src/get-game-data.js",
       "default": "./src/get-game-data.js"
@@ -24,7 +24,7 @@
       "default": "./src/protecting-bot/index.js"
     },
     "./searchPlayerImageUrl": {
-      "types": "./src/index.d.ts",
+      "types": "./src/search-player-image-url.d.ts",
       "require": "./src/search-player-image-url.js",
       "import": "./src/search-player-image-url.js",
       "default": "./src/search-player-image-url.js"
@@ -39,13 +39,13 @@
   "typesVersions": {
     "*": {
       "getGameData": [
-        "src/index.d.ts"
+        "src/get-game-data.d.ts"
       ],
       "protectingBot": [
         "src/protecting-bot/index.d.ts"
       ],
       "searchPlayerImageUrl": [
-        "src/index.d.ts"
+        "src/search-player-image-url.d.ts"
       ],
       "tooltip": [
         "src/tooltip/index.d.ts"

@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { onReceived } from "./message/index";
+import { onCompletedWebRequest, onCompletedWebRequestFilter } from "./on-completed-web-request";
 import { onInstalledExtension } from "./on-installed";
 import {
   createOnPreparedContextCleanupAlarmListener,
@@ -58,6 +59,11 @@ if (!chrome.tabs.onDetached.hasListener(onTabDetached)) {
 if (!chrome.tabs.onUpdated.hasListener(onTabUpdated)) {
   chrome.tabs.onUpdated.addListener(onTabUpdated);
 }
-
+if (!chrome.webRequest.onCompleted.hasListener(onCompletedWebRequest)) {
+  chrome.webRequest.onCompleted.addListener(
+    onCompletedWebRequest, 
+    onCompletedWebRequestFilter
+  )
+}
 void ensurePreparedContextCleanupAlarm()
 void initializeRuntime()

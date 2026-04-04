@@ -17,11 +17,13 @@ export type ContextDocument = {
   allyId?: number | null
   avatarUrl?: string | null
   createdAt: string
+  dateStarted?: number | null
   enabledByUser?: boolean | null
   kind: ContextDocumentKind
   lastWorld?: string | null
   playerId?: number | null
   playerName?: string | null
+  reconnectOnSessionExpired?: boolean | null
   scopeKey?: string | null
   updatedAt: string
   userId?: string | null
@@ -125,9 +127,11 @@ async function upsertWorldPlayerContext(record: WorldPlayerRecord) {
     _id: id,
     avatarUrl: record.avatarUrl ?? readStringField(previous, 'avatarUrl'),
     createdAt: readStringField(previous, 'createdAt') ?? now,
+    dateStarted: record.dateStarted ?? previous?.dateStarted ?? null,
     enabledByUser: record.enabledByUser,
     kind: 'world-player',
     playerId: record.playerId,
+    reconnectOnSessionExpired: record.reconnectOnSessionExpired,
     scopeKey: record.scopeKey ?? readStringField(previous, 'scopeKey'),
     updatedAt: now,
     world: record.world,

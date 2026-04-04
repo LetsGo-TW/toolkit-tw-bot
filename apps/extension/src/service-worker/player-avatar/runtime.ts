@@ -2,6 +2,7 @@
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import type { SWMessage } from '../../types'
+import { syncTabActionByTabId } from '../action-state'
 import { getTabContext, upsertPreparedContext } from '../prepared-context'
 import {
   RUNNER_BOT_PROTECT_MESSAGE_TYPE,
@@ -10,7 +11,6 @@ import {
 import { normalizeNumber, normalizeString } from '../normalize'
 import { getRunnerByScope } from '../runner-tabs'
 import { upsertWorldPlayer } from '../world-players'
-import { setPlayerAvatar } from './index'
 
 type SetPlayerAvatarRequest = Partial<SWMessage> & {
   world?: unknown
@@ -27,20 +27,23 @@ type SetPlayerAvatarRequest = Partial<SWMessage> & {
   isBotProtected?: unknown
 }
 
-async function notifyRunningTabAboutBotProtect(
-  sender: chrome.runtime.MessageSender | undefined,
-  {
-    scopeKey,
-    world,
-    playerId,
-    playerName,
-  }: {
-    scopeKey?: string | null
-    world?: string | null
-    playerId?: number | null
-    playerName?: string | null
-  },
-) {
+export async function relayRunningTabBotProtect({
+  scopeKey,
+  world,
+  playerId,
+  playerName,
+  detectedInTabId = null,
+  detectedInWindowId = null,
+  detectedAt = new Date().toISOString(),
+}: {
+  scopeKey?: string | null
+  world?: string | null
+  playerId?: number | null
+  playerName?: string | null
+  detectedInTabId?: number | null
+  detectedInWindowId?: number | null
+  detectedAt?: string
+}) {
   const runner = getRunnerByScope(scopeKey)
 
   if (!runner) {
@@ -61,9 +64,9 @@ async function notifyRunningTabAboutBotProtect(
         world: world ?? runner.world,
         playerId: typeof playerId === 'number' ? playerId : null,
         playerName: playerName ?? null,
-        detectedAt: new Date().toISOString(),
-        detectedInTabId: sender.tab?.id ?? null,
-        detectedInWindowId: sender.tab?.windowId ?? null,
+        detectedAt,
+        detectedInTabId,
+        detectedInWindowId,
       },
     })
 
@@ -84,6 +87,30 @@ async function notifyRunningTabAboutBotProtect(
   }
 }
 
+async function notifyRunningTabAboutBotProtect(
+  sender: chrome.runtime.MessageSender | undefined,
+  {
+    scopeKey,
+    world,
+    playerId,
+    playerName,
+  }: {
+    scopeKey?: string | null
+    world?: string | null
+    playerId?: number | null
+    playerName?: string | null
+  },
+) {
+  return relayRunningTabBotProtect({
+    scopeKey,
+    world,
+    playerId,
+    playerName,
+    detectedInTabId: sender?.tab?.id ?? null,
+    detectedInWindowId: sender?.tab?.windowId ?? null,
+  })
+}
+
 export async function updatePlayerAvatar(
   request: SetPlayerAvatarRequest = {},
   sender?: chrome.runtime.MessageSender,
@@ -92,6 +119,8 @@ export async function updatePlayerAvatar(
   const playerId = normalizeNumber(request.playerId)
   const playerName = normalizeString(request.playerName)
   const avatarUrl = normalizeString(request.avatarUrl)
+  const avatarUpdatedAt = avatarUrl ? new Date().toISOString() : null
+  const dateStarted = normalizeNumber(request.dateStarted ?? request.date_started)
   const isBotProtected = request.isBotProtected === true
   const tabContext = sender
     ? await upsertPreparedContext(sender, {
@@ -100,24 +129,9 @@ export async function updatePlayerAvatar(
       t: request.t,
       playerId,
       playerName,
-      features: request.features,
-      points: request.points,
-      rank: request.rank,
-      villages: request.villages,
-      dateStarted: request.dateStarted ?? request.date_started,
     })
     : null
   const fallbackTabContext = tabContext || getTabContext(sender?.tab?.id)
-
-  if (world && playerId !== null) {
-    await upsertWorldPlayer({
-      world,
-      playerId,
-      playerName,
-      avatarUrl,
-      scopeKey: fallbackTabContext?.scopeKey ?? null,
-    })
-  }
 
   const botProtectRelay = isBotProtected
     ? await notifyRunningTabAboutBotProtect(sender, {
@@ -152,19 +166,27 @@ export async function updatePlayerAvatar(
     }
   }
 
-  const record = await setPlayerAvatar({
+  const record = await upsertWorldPlayer({
     world,
     playerId,
+    playerName,
     avatarUrl,
+    avatarUpdatedAt,
+    dateStarted,
+    scopeKey: fallbackTabContext?.scopeKey ?? null,
   })
+
+  if (typeof fallbackTabContext?.tabId === 'number') {
+    await syncTabActionByTabId(fallbackTabContext.tabId)
+  }
 
   return {
     ok: true,
     type: SET_PLAYER_AVATAR_MESSAGE_TYPE,
-    world: record.world,
-    playerId: record.playerId,
-    avatarUrl: record.avatarUrl,
-    updatedAt: record.updatedAt,
+    world: record?.world ?? world,
+    playerId: record?.playerId ?? playerId,
+    avatarUrl: record?.avatarUrl ?? avatarUrl,
+    updatedAt: record?.avatarUpdatedAt ?? null,
     botProtectRelay,
   }
 }

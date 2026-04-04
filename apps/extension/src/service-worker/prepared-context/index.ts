@@ -14,6 +14,7 @@ export type PreparedMessageData = {
   world?: unknown
   t?: unknown
   isTryConfirm?: unknown
+  isBotProtected?: unknown
   playerId?: unknown
   playerName?: unknown
   features?: unknown
@@ -32,6 +33,7 @@ export type TabContextRecord = {
   world: string | null
   t: number | null
   isTryConfirm: boolean
+  isBotProtected: boolean
   scopeKey: string | null
   playerId: number | null
   playerName: string | null
@@ -124,25 +126,11 @@ function sanitizeTabContextByTabId(value: TabContextByTabId) {
   )
 }
 
-async function persistStateIfChanged(
-  key: string,
-  previousValue: unknown,
-  nextValue: unknown,
-) {
-  if (JSON.stringify(previousValue) === JSON.stringify(nextValue)) {
-    return
-  }
-
-  await chrome.storage.local.set({
-    [key]: nextValue,
-  })
-}
-
 async function persistTabContextByTabId(
-  previous: TabContextByTabId,
-  next: TabContextByTabId,
+  _previous: TabContextByTabId,
+  _next: TabContextByTabId,
 ) {
-  await persistStateIfChanged(TAB_CONTEXT_STORAGE_KEY, previous, next)
+  return
 }
 
 export function getWorldFromUrl(urlString?: string | null) {
@@ -152,9 +140,10 @@ export function getWorldFromUrl(urlString?: string | null) {
 
   try {
     const url = new URL(urlString)
-    const world = url.hostname.split('.')[0] || null
+    const worldFromPortalPath = url.pathname.match(/^\/page\/play\/([^/?#]+)/)?.[1] || null
+    const world = url.hostname.split('.')[0] || worldFromPortalPath || null
 
-    return world === 'www' ? null : world
+    return world === 'www' ? worldFromPortalPath : world
   } catch {
     return null
   }
@@ -200,6 +189,100 @@ export function getTabContextKey(tabId: number) {
   return String(tabId)
 }
 
+function getHostPermissionUrls() {
+  return chrome.runtime.getManifest().host_permissions || []
+}
+
+async function queryOpenTwTabs() {
+  const hostPermissions = getHostPermissionUrls()
+
+  if (!hostPermissions.length) {
+    return []
+  }
+
+  return chrome.tabs.query({
+    url: hostPermissions,
+  })
+}
+
+export async function getOpenTwTabIds() {
+  const tabs = await queryOpenTwTabs()
+
+  return tabs
+    .map((tab) => tab.id)
+    .filter((tabId): tabId is number => typeof tabId === 'number')
+}
+
+function createTabContextSeedFromTab(
+  tab: chrome.tabs.Tab,
+  previousRecord?: TabContextRecord | null,
+): TabContextRecord | null {
+  if (typeof tab.id !== 'number' || typeof tab.windowId !== 'number') {
+    return null
+  }
+
+  const url = getTabUrl(tab)
+
+  if (!url || !isTribalWarsUrl(url)) {
+    return null
+  }
+
+  const urlParams = getParamsUrl(url)
+  const urlScope = getScopeFromUrl(url)
+  const worldFromUrl = getWorldFromUrl(url)
+
+  return {
+    tabId: tab.id,
+    windowId: tab.windowId,
+    url,
+    context: urlParams.isInLogin
+      ? 'LOGIN'
+      : urlParams.isInGame
+        ? 'GAME'
+        : null,
+    world: urlParams.isInLogin
+      ? previousRecord?.world ?? worldFromUrl
+      : urlScope?.world ?? worldFromUrl,
+    t: urlParams.isInLogin
+      ? previousRecord?.t ?? null
+      : urlScope?.t ?? null,
+    isTryConfirm: urlParams.isTryConfirm === true,
+    isBotProtected: false,
+    scopeKey: urlParams.isInLogin
+      ? previousRecord?.scopeKey ?? null
+      : urlScope?.scopeKey ?? null,
+    playerId: previousRecord?.playerId ?? null,
+    playerName: previousRecord?.playerName ?? null,
+    features: null,
+    points: null,
+    rank: null,
+    villages: null,
+    dateStarted: null,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+async function createPreparedContextCacheFromOpenTwTabs(
+  previousCache: TabContextByTabId,
+) {
+  const openTwTabs = await queryOpenTwTabs()
+
+  return Object.fromEntries(
+    openTwTabs
+      .map((tab) => {
+        const nextRecord = createTabContextSeedFromTab(
+          tab,
+          previousCache[typeof tab.id === 'number' ? getTabContextKey(tab.id) : ''] || null,
+        )
+
+        return nextRecord
+          ? [getTabContextKey(nextRecord.tabId), nextRecord] as const
+          : null
+      })
+      .filter((entry): entry is readonly [string, TabContextRecord] => entry !== null),
+  ) as TabContextByTabId
+}
+
 export async function ensurePreparedContextLoaded() {
   if (cacheLoaded) {
     return
@@ -208,11 +291,14 @@ export async function ensurePreparedContextLoaded() {
   const stored = await chrome.storage.local.get([TAB_CONTEXT_STORAGE_KEY])
   const normalizedCache = normalizeTabContextByTabId(stored[TAB_CONTEXT_STORAGE_KEY])
   const sanitizedCache = sanitizeTabContextByTabId(normalizedCache)
+  const liveCache = await createPreparedContextCacheFromOpenTwTabs(sanitizedCache)
 
-  tabContextByTabIdCache = sanitizedCache
+  tabContextByTabIdCache = liveCache
   cacheLoaded = true
 
-  await persistTabContextByTabId(normalizedCache, sanitizedCache)
+  if (stored[TAB_CONTEXT_STORAGE_KEY] !== undefined) {
+    await chrome.storage.local.remove(TAB_CONTEXT_STORAGE_KEY)
+  }
 }
 
 export function getTabContext(tabId?: number | null) {
@@ -261,15 +347,25 @@ export function getScopeFromTabContext(tabId?: number | null) {
 
   const tabContext = tabContextByTabIdCache[getTabContextKey(tabId)]
 
-  if (!tabContext?.world || !isTribalWarsUrl(tabContext.url)) {
-    return null
+  if (typeof tabContext?.scopeKey === 'string' && tabContext.scopeKey.length > 0) {
+    const [world, tValue] = tabContext.scopeKey.split(':')
+
+    if (!world) {
+      return null
+    }
+
+    const t = tValue === 'main' || typeof tValue !== 'string'
+      ? null
+      : normalizeNumber(tValue)
+
+    return {
+      world,
+      t,
+      scopeKey: tabContext.scopeKey,
+    }
   }
 
-  return {
-    world: tabContext.world,
-    t: tabContext.t ?? null,
-    scopeKey: `${tabContext.world}:${tabContext.t ?? 'main'}`,
-  }
+  return null
 }
 
 export function getScopeForTab(tab?: chrome.tabs.Tab | null) {
@@ -309,6 +405,8 @@ function createTabContextRecord(
   const preparedT = normalizeNumber(data.t)
   const hasPreparedIsTryConfirm = Object.prototype.hasOwnProperty.call(data, 'isTryConfirm')
   const preparedIsTryConfirm = normalizeBoolean(data.isTryConfirm)
+  const hasPreparedIsBotProtected = Object.prototype.hasOwnProperty.call(data, 'isBotProtected')
+  const preparedIsBotProtected = normalizeBoolean(data.isBotProtected)
   const nextWorld = urlScope?.world ?? preparedWorld ?? previousRecord?.world ?? null
   const nextT = urlScope?.t ?? preparedT ?? previousRecord?.t ?? null
   const nextScopeKey = nextWorld ? `${nextWorld}:${nextT ?? 'main'}` : null
@@ -323,6 +421,9 @@ function createTabContextRecord(
     isTryConfirm: hasPreparedIsTryConfirm
       ? preparedIsTryConfirm
       : previousRecord?.isTryConfirm || false,
+    isBotProtected: hasPreparedIsBotProtected
+      ? preparedIsBotProtected
+      : previousRecord?.isBotProtected === true,
     scopeKey: nextScopeKey,
     playerId: normalizeNumber(data.playerId) ?? previousRecord?.playerId ?? null,
     playerName: normalizeString(data.playerName) ?? previousRecord?.playerName ?? null,
@@ -424,32 +525,13 @@ export async function updatePreparedContextFromUrl(
         : urlParams.isInGame
           ? previousRecord.playerName
           : null,
-      features: urlParams.isInLogin
-        ? previousRecord.features
-        : urlParams.isInGame
-          ? previousRecord.features
-          : null,
-      points: urlParams.isInLogin
-        ? previousRecord.points
-        : urlParams.isInGame
-          ? previousRecord.points
-          : null,
-      rank: urlParams.isInLogin
-        ? previousRecord.rank
-        : urlParams.isInGame
-          ? previousRecord.rank
-          : null,
-      villages: urlParams.isInLogin
-        ? previousRecord.villages
-        : urlParams.isInGame
-          ? previousRecord.villages
-          : null,
-      dateStarted: urlParams.isInLogin
-        ? previousRecord.dateStarted
-        : urlParams.isInGame
-          ? previousRecord.dateStarted
-          : null,
+      features: null,
+      points: null,
+      rank: null,
+      villages: null,
+      dateStarted: null,
       isTryConfirm: previousRecord.isTryConfirm,
+      isBotProtected: false,
       updatedAt: new Date().toISOString(),
     }
     : {
@@ -460,6 +542,7 @@ export async function updatePreparedContextFromUrl(
       world: nextWorld,
       t: null,
       isTryConfirm: false,
+      isBotProtected: false,
       scopeKey: null,
       playerId: null,
       playerName: null,
@@ -497,49 +580,7 @@ export async function updatePreparedContextFromUrl(
 
 export async function syncPreparedContextWithOpenTwTabs() {
   await ensurePreparedContextLoaded()
-
-  const hostPermissions = chrome.runtime.getManifest().host_permissions || []
-
-  if (!hostPermissions.length) {
-    return tabContextByTabIdCache
-  }
-
-  const openTwTabs = await chrome.tabs.query({
-    url: hostPermissions,
-  })
-  const openTwTabsById = new Map<number, chrome.tabs.Tab>()
-
-  for (const tab of openTwTabs) {
-    if (typeof tab.id === 'number') {
-      openTwTabsById.set(tab.id, tab)
-    }
-  }
-
-  const nextCache = Object.fromEntries(
-    Object.values(tabContextByTabIdCache)
-      .flatMap((record) => {
-        const tab = openTwTabsById.get(record.tabId)
-
-        if (!tab) {
-          return []
-        }
-
-        const nextUrl = getTabUrl(tab)
-
-        if (!isTribalWarsUrl(nextUrl)) {
-          return []
-        }
-
-        return [[
-          getTabContextKey(record.tabId),
-          {
-            ...record,
-            windowId: typeof tab.windowId === 'number' ? tab.windowId : record.windowId,
-            url: nextUrl,
-          },
-        ] satisfies [string, TabContextRecord]]
-      }),
-  ) as TabContextByTabId
+  const nextCache = await createPreparedContextCacheFromOpenTwTabs(tabContextByTabIdCache)
 
   const previousCache = tabContextByTabIdCache
   tabContextByTabIdCache = nextCache

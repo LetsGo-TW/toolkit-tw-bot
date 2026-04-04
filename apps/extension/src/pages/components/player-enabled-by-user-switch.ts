@@ -1,19 +1,19 @@
 import { styled } from 'styled-components'
 
-export const PlayerEnabledByUserSwitch = styled.label<{
-  $enabledByUser: boolean | null
+export const ToggleSwitch = styled.label<{
+  $checked: boolean | null
   $disabled?: boolean
 }>`
-  ${({ $enabledByUser }) => {
-    const trackColor = $enabledByUser === null
+  ${({ $checked }) => {
+    const trackColor = $checked === null
       ? '#5f6b76'
-      : ($enabledByUser ? '#13bf11' : '#b91c1c')
-    const knobShadow = $enabledByUser === null
+      : ($checked ? '#13bf11' : '#b91c1c')
+    const knobShadow = $checked === null
       ? `
         inset 0 0 0 0.12rem #94a3b8,
         0.15rem 0.15rem rgba(59, 55, 55, 0.3)
       `
-      : ($enabledByUser
+      : ($checked
         ? `
           inset 0 0 0 0.15rem #13bf11,
           0.15rem 0.15rem rgba(59, 55, 55, 0.3)
@@ -54,8 +54,8 @@ export const PlayerEnabledByUserSwitch = styled.label<{
     width: 2rem;
     border-radius: 1rem;
 
-    ${({ $enabledByUser }) =>
-      $enabledByUser === true
+    ${({ $checked }) =>
+      $checked === true
         ? `
           background-color: var(--player-switch-track);
           box-shadow: inset 0 0 0rem 0.03rem black;
@@ -77,8 +77,8 @@ export const PlayerEnabledByUserSwitch = styled.label<{
     left: -0.06rem;
     border-radius: 1rem;
 
-    ${({ $enabledByUser }) =>
-      $enabledByUser === true
+    ${({ $checked }) =>
+      $checked === true
         ? `
           box-shadow: var(--player-switch-knob-shadow);
           left: 1rem;
@@ -86,3 +86,5 @@ export const PlayerEnabledByUserSwitch = styled.label<{
         : ''};
   }
 `
+
+export const PlayerEnabledByUserSwitch = ToggleSwitch

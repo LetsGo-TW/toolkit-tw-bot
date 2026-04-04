@@ -17,7 +17,8 @@ import {
 } from '../message/types'
 import { getRunnerByScope, type RunnerRecord } from '../runner-tabs'
 import { reconcileActiveRunner } from '../runtime'
-import { upsertWorldPlayer } from '../world-players'
+import { getWorldPlayer, upsertWorldPlayer, type WorldPlayerRecord } from '../world-players'
+import { runtimeAllowedByLicense } from '../world-players/runtime'
 import { type PreparedMessageData, upsertPreparedContext } from './index'
 
 type PreparedContextRequest = SWMessage & {
@@ -42,6 +43,7 @@ type RunnerCommandData = {
   enabledByUser: boolean
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
+  isBotProtected: boolean
   isTryConfirm: boolean
   isMdfScope: boolean
 }
@@ -59,24 +61,30 @@ function isRunnerForSender(
   )
 }
 
-function createRunnerCommandData({
+async function createRunnerCommandData({
   isRunningTab,
   world = null,
   playerId = null,
+  worldPlayer = null,
   isTryConfirm = false,
   isMdfScope = false,
 }: {
   isRunningTab: boolean
   world?: string | null
   playerId?: number | null
+  worldPlayer?: WorldPlayerRecord | null
   isTryConfirm?: boolean
   isMdfScope?: boolean
-}): RunnerCommandData {
+}): Promise<RunnerCommandData> {
+  const currentWorldPlayer = worldPlayer ?? getWorldPlayer(world, playerId)
+  const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(currentWorldPlayer)
+
   return {
     isRunningTab,
     enabledByUser: getPlayerEnabledByUser(world, playerId),
-    isAllowedByLicense: true,
-    isLicenseExpiring: false,
+    isAllowedByLicense,
+    isLicenseExpiring,
+    isBotProtected: false,
     isTryConfirm,
     isMdfScope,
   }
@@ -150,14 +158,15 @@ export async function registerPreparedCtx(
     }
   }
 
-  if (tabContext.world && typeof tabContext.playerId === 'number') {
-    await upsertWorldPlayer({
+  const worldPlayer = tabContext.world && typeof tabContext.playerId === 'number'
+    ? await upsertWorldPlayer({
       world: tabContext.world,
       playerId: tabContext.playerId,
       playerName: tabContext.playerName,
+      dateStarted: tabContext.dateStarted,
       scopeKey: tabContext.scopeKey,
     })
-  }
+    : null
 
   await reconcileActiveRunner({
     preferredWindowId: sender.tab?.windowId ?? null,
@@ -177,10 +186,11 @@ export async function registerPreparedCtx(
     data: received.data ?? null,
   })
 
-  const data = createRunnerCommandData({
+  const data = await createRunnerCommandData({
     isRunningTab: isActive,
     world: tabContext.world,
     playerId: tabContext.playerId,
+    worldPlayer,
     isTryConfirm: getParamsUrl(sender.tab?.url || '').isTryConfirm === true,
     isMdfScope: tabContext.t !== null,
   })
@@ -245,6 +255,7 @@ export async function syncSupportCtx(
     context: 'GAME',
     world,
     t,
+    isBotProtected,
     playerId,
     playerName,
     features: received.features,
@@ -267,6 +278,7 @@ export async function syncSupportCtx(
       world: tabContext.world,
       playerId: tabContext.playerId,
       playerName: tabContext.playerName,
+      dateStarted: tabContext.dateStarted,
       scopeKey: tabContext.scopeKey,
     })
   }
@@ -274,13 +286,16 @@ export async function syncSupportCtx(
   const currentRunner = getRunnerByScope(tabContext.scopeKey)
   const isActive = isRunnerForSender(currentRunner, sender)
   const isTryConfirm = getParamsUrl(sender.tab?.url || '').isTryConfirm === true
-  const data = createRunnerCommandData({
+  const data = await createRunnerCommandData({
     isRunningTab: isActive,
     world: tabContext.world,
     playerId: tabContext.playerId,
     isTryConfirm,
     isMdfScope: tabContext.t !== null,
   })
+  data.isBotProtected = isBotProtected
+
+  await syncTabActionByTabId(tabContext.tabId)
 
   return {
     ok: true,
@@ -292,7 +307,6 @@ export async function syncSupportCtx(
     playerName: tabContext.playerName,
     data: {
       ...data,
-      isBotProtected,
     },
   }
 }

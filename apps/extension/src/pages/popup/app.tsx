@@ -3,19 +3,19 @@ import styled from 'styled-components'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
+import { POPUP_REFRESH_MESSAGE_TYPE } from '../../service-worker/message/types'
 import type { ExtensionLicenseState, FeaturesMap, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
 import Loading from '../components/loading'
-import { PlayerEnabledByUserSwitch } from '../components/player-enabled-by-user-switch'
+import { PlayerEnabledByUserSwitch, ToggleSwitch } from '../components/player-enabled-by-user-switch'
 
 const POPUP_STATE_MESSAGE_TYPE = 'GET_POPUP_STATE'
 const SET_ENABLED_BY_USER_MESSAGE_TYPE = 'SET_ENABLED_BY_USER'
+const SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE = 'SET_RECONNECT_ON_SESSION_EXPIRED'
 const RUNNER_STORAGE_KEY = 'runnerByScope'
-const TAB_CONTEXT_STORAGE_KEY = 'tabContextByTabId'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
 const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
-const PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY = 'playerAvatarByScopeKey'
 const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
 const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
 const PLAYER_AVATAR_TTL_MS = 3 * 60 * 60 * 1000
@@ -41,6 +41,8 @@ type PopupState = {
   avatarUrl?: string | null
   avatarUpdatedAt?: string | null
   enabledByUser?: boolean | null
+  isBotProtected?: boolean
+  reconnectOnSessionExpired?: boolean | null
   isTryConfirm?: boolean
   active?: boolean
   ready?: boolean
@@ -245,6 +247,34 @@ const TechnicalMetaItem = styled.span`
     color: inherit;
     font-weight: 600;
   }
+`
+
+const SettingRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.7rem;
+  background: ${({ theme }) => theme.surfaceInner};
+`
+
+const SettingText = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+`
+
+const SettingTitle = styled.strong`
+  font-size: 0.8rem;
+  line-height: 1.2;
+`
+
+const SettingDescription = styled.span`
+  color: ${({ theme }) => theme.textSecondary};
+  font-size: 0.68rem;
+  line-height: 1.35;
 `
 
 const Footer = styled.footer`
@@ -462,6 +492,7 @@ export default function App() {
   const [state, setState] = useState<PopupState | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
+  const [savingReconnectOnSessionExpired, setSavingReconnectOnSessionExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadPopupState = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -517,10 +548,8 @@ export default function App() {
 
       if (
         !changes[RUNNER_STORAGE_KEY]
-        && !changes[TAB_CONTEXT_STORAGE_KEY]
         && !changes[WINDOW_LOCK_STORAGE_KEY]
         && !changes[WORLD_PLAYERS_STORAGE_KEY]
-        && !changes[PLAYER_AVATAR_BY_SCOPE_KEY_STORAGE_KEY]
       ) {
         return
       }
@@ -532,6 +561,30 @@ export default function App() {
 
     return () => {
       chrome.storage.onChanged.removeListener(onStorageChanged)
+    }
+  }, [loadPopupState])
+
+  useEffect(() => {
+    const onRuntimeMessage = (
+      received: unknown,
+      _sender: chrome.runtime.MessageSender,
+    ) => {
+      if (
+        !received
+        || typeof received !== 'object'
+        || (received as { type?: string }).type !== POPUP_REFRESH_MESSAGE_TYPE
+      ) {
+        return false
+      }
+
+      void loadPopupState({ silent: true })
+      return false
+    }
+
+    chrome.runtime.onMessage.addListener(onRuntimeMessage)
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(onRuntimeMessage)
     }
   }, [loadPopupState])
 
@@ -627,6 +680,41 @@ export default function App() {
     }
   }, [savingEnabledByUser, state])
 
+  const handleReconnectOnSessionExpiredChange = useCallback(async () => {
+    if (
+      savingReconnectOnSessionExpired
+      || typeof state?.playerId !== 'number'
+      || !state?.world
+    ) {
+      return
+    }
+
+    setSavingReconnectOnSessionExpired(true)
+    setError(null)
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        extensionId: RELEASE_EXTENSION_ID,
+        type: SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE,
+        world: state.world,
+        playerId: state.playerId,
+        reconnectOnSessionExpired: !(state.reconnectOnSessionExpired === true),
+        targetTabId: state.tabId ?? null,
+        targetWindowId: state.windowId ?? null,
+      }) as PopupState
+
+      if (!response?.ok) {
+        throw new Error(response?.reason || 'Unable to update reconnect state')
+      }
+
+      setState(response)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setSavingReconnectOnSessionExpired(false)
+    }
+  }, [savingReconnectOnSessionExpired, state])
+
   const isReady = state?.supported && state?.ready
   const hasPlayerIdentity = typeof state?.playerId === 'number'
   const playerEnabledByUserState = hasPlayerIdentity && typeof state?.enabledByUser === 'boolean'
@@ -644,11 +732,29 @@ export default function App() {
     hasPlayerIdentity,
   })
   const canToggleEnabledByUser = hasPlayerIdentity && !savingEnabledByUser
+  const isMdfScope = state?.t !== null
+  const hasReconnectOption = hasPlayerIdentity && state?.license?.allowedByLicense === true
+  const showReconnectOption = hasPlayerIdentity
+  const reconnectOnSessionExpiredState = showReconnectOption
+    ? (isMdfScope ? false : state?.reconnectOnSessionExpired === true)
+    : null
+  const canToggleReconnectOnSessionExpired = (
+    hasReconnectOption
+    && !isMdfScope
+    && !savingReconnectOnSessionExpired
+  )
   const enabledByUserTooltip = !hasPlayerIdentity
     ? 'Waiting for player identification'
     : isPlayerEnabledByUser
       ? 'Turn off for this player'
       : 'Turn on for this player'
+  const reconnectTooltip = !hasReconnectOption
+    ? 'Available when the player has an active license'
+    : isMdfScope
+      ? 'Unavailable for MDF scopes'
+    : reconnectOnSessionExpiredState === true
+      ? 'Disable automatic reconnect when the session expires'
+      : 'Enable automatic reconnect when the session expires'
   const playerMetrics = [
     {
       key: 'points',
@@ -729,6 +835,11 @@ export default function App() {
                     <Pill $tone={runtimeTone}>
                       {runtimeLabel}
                     </Pill>
+                    {state?.isBotProtected ? (
+                      <Pill $tone="danger">
+                        hCaptcha identified
+                      </Pill>
+                    ) : null}
                     <Pill $tone={getLicenseTone(state?.license?.status)}>
                       License {getLicenseText(state?.license?.status)}
                     </Pill>
@@ -739,7 +850,7 @@ export default function App() {
                 </UserMeta>
                 <UserSwitchSlot>
                   <PlayerEnabledByUserSwitch
-                    $enabledByUser={playerEnabledByUserState}
+                    $checked={playerEnabledByUserState}
                     $disabled={!canToggleEnabledByUser}
                     data-popup-title={enabledByUserTooltip}
                   >
@@ -774,6 +885,32 @@ export default function App() {
                   </TechnicalMetaItem>
                 ) : null}
               </TechnicalMeta>
+
+              {showReconnectOption ? (
+                <SettingRow>
+                  <SettingText>
+                    <SettingTitle>Reconnect on session expired</SettingTitle>
+                    <SettingDescription>
+                      {isMdfScope
+                        ? 'Disabled for MDF scopes.'
+                        : 'Waits 15-30s and reconnects automatically when no manual login input is required.'}
+                    </SettingDescription>
+                  </SettingText>
+                  <ToggleSwitch
+                    $checked={reconnectOnSessionExpiredState}
+                    $disabled={!canToggleReconnectOnSessionExpired}
+                    data-popup-title={reconnectTooltip}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={reconnectOnSessionExpiredState === true}
+                      disabled={!canToggleReconnectOnSessionExpired}
+                      aria-label="Toggle reconnect on session expired"
+                      onChange={() => { void handleReconnectOnSessionExpiredChange() }}
+                    />
+                  </ToggleSwitch>
+                </SettingRow>
+              ) : null}
             </BotSection>
 
             <TwSection>

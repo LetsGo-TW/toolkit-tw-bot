@@ -15,7 +15,10 @@ export type WorldPlayerRecord = {
   playerId: number
   playerName: string | null
   avatarUrl: string | null
+  avatarUpdatedAt: string | null
+  dateStarted: number | null
   enabledByUser: boolean
+  reconnectOnSessionExpired: boolean
   scopeKey: string | null
   license: WorldPlayerLicenseRecord
   updatedAt: string
@@ -60,7 +63,10 @@ function normalizeWorldPlayerRecord(value: unknown): WorldPlayerRecord | null {
     playerId,
     playerName: normalizeString(candidate.playerName) ?? null,
     avatarUrl: normalizeString((candidate as { avatarUrl?: unknown }).avatarUrl) ?? null,
+    avatarUpdatedAt: normalizeString((candidate as { avatarUpdatedAt?: unknown }).avatarUpdatedAt) ?? null,
+    dateStarted: normalizeNumber((candidate as { dateStarted?: unknown }).dateStarted),
     enabledByUser: candidate.enabledByUser !== false,
+    reconnectOnSessionExpired: candidate.reconnectOnSessionExpired === true,
     scopeKey: normalizeString(candidate.scopeKey) ?? null,
     license: normalizeWorldPlayerLicenseRecord(candidate.license),
     updatedAt: normalizeString(candidate.updatedAt) ?? new Date().toISOString(),
@@ -147,6 +153,15 @@ export function getWorldPlayer(
   return worldPlayersCache[key] || null
 }
 
+export function getWorldPlayerByScopeKey(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return null
+  }
+
+  return Object.values(worldPlayersCache)
+    .find((record) => record.scopeKey === scopeKey) || null
+}
+
 export async function setWorldPlayerEnabledByUser({
   world,
   playerId,
@@ -172,7 +187,60 @@ export async function setWorldPlayerEnabledByUser({
     playerId: normalizedPlayerId,
     playerName: previousRecord?.playerName ?? null,
     avatarUrl: previousRecord?.avatarUrl ?? null,
+    avatarUpdatedAt: previousRecord?.avatarUpdatedAt ?? null,
+    dateStarted: previousRecord?.dateStarted ?? null,
     enabledByUser,
+    reconnectOnSessionExpired: previousRecord?.reconnectOnSessionExpired ?? false,
+    scopeKey: previousRecord?.scopeKey ?? null,
+    license: previousRecord?.license ?? {
+      id: null,
+      token: null,
+    },
+    updatedAt: new Date().toISOString(),
+  }
+
+  const previousCache = worldPlayersCache
+  const nextCache = {
+    ...previousCache,
+    [worldPlayerKey]: nextRecord,
+  }
+
+  worldPlayersCache = nextCache
+  await persistWorldPlayers(previousCache, nextCache)
+  await syncWorldPlayerContextsSafely(nextRecord)
+
+  return nextRecord
+}
+
+export async function setWorldPlayerReconnectOnSessionExpired({
+  world,
+  playerId,
+  reconnectOnSessionExpired,
+}: {
+  world?: string | null
+  playerId?: number | null
+  reconnectOnSessionExpired: boolean
+}) {
+  const normalizedWorld = normalizeString(world)
+  const normalizedPlayerId = normalizeNumber(playerId)
+  const worldPlayerKey = getWorldPlayerKey(normalizedWorld, normalizedPlayerId)
+
+  if (!normalizedWorld || normalizedPlayerId === null || !worldPlayerKey) {
+    return null
+  }
+
+  await ensureWorldPlayersLoaded()
+
+  const previousRecord = worldPlayersCache[worldPlayerKey] || null
+  const nextRecord: WorldPlayerRecord = {
+    world: normalizedWorld,
+    playerId: normalizedPlayerId,
+    playerName: previousRecord?.playerName ?? null,
+    avatarUrl: previousRecord?.avatarUrl ?? null,
+    avatarUpdatedAt: previousRecord?.avatarUpdatedAt ?? null,
+    dateStarted: previousRecord?.dateStarted ?? null,
+    enabledByUser: previousRecord?.enabledByUser ?? false,
+    reconnectOnSessionExpired,
     scopeKey: previousRecord?.scopeKey ?? null,
     license: previousRecord?.license ?? {
       id: null,
@@ -199,18 +267,24 @@ export async function upsertWorldPlayer({
   playerId,
   playerName,
   avatarUrl,
+  avatarUpdatedAt,
+  dateStarted,
   scopeKey,
 }: {
   world?: string | null
   playerId?: number | null
   playerName?: string | null
   avatarUrl?: string | null
+  avatarUpdatedAt?: string | null
+  dateStarted?: number | null
   scopeKey?: string | null
 }) {
   const normalizedWorld = normalizeString(world)
   const normalizedPlayerId = normalizeNumber(playerId)
   const normalizedPlayerName = normalizeString(playerName) ?? null
   const normalizedAvatarUrl = normalizeString(avatarUrl) ?? null
+  const normalizedAvatarUpdatedAt = normalizeString(avatarUpdatedAt) ?? null
+  const normalizedDateStarted = normalizeNumber(dateStarted)
   const normalizedScopeKey = normalizeString(scopeKey) ?? null
   const worldPlayerKey = getWorldPlayerKey(normalizedWorld, normalizedPlayerId)
 
@@ -226,7 +300,10 @@ export async function upsertWorldPlayer({
     playerId: normalizedPlayerId,
     playerName: normalizedPlayerName ?? previousRecord?.playerName ?? null,
     avatarUrl: normalizedAvatarUrl ?? previousRecord?.avatarUrl ?? null,
+    avatarUpdatedAt: normalizedAvatarUpdatedAt ?? previousRecord?.avatarUpdatedAt ?? null,
+    dateStarted: normalizedDateStarted ?? previousRecord?.dateStarted ?? null,
     enabledByUser: previousRecord?.enabledByUser ?? false,
+    reconnectOnSessionExpired: previousRecord?.reconnectOnSessionExpired ?? false,
     scopeKey: normalizedScopeKey ?? previousRecord?.scopeKey ?? null,
     license: previousRecord?.license ?? {
       id: null,

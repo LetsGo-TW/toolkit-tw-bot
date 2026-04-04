@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { syncPreparedContextWithOpenTwTabs } from '.'
+import { handleProbeAlarm } from './probe-scoped'
 
 const PREPARED_CONTEXT_CLEANUP_ALARM = 'prepared-context.cleanup'
 const PREPARED_CONTEXT_CLEANUP_PERIOD_MINUTES = 0.5
@@ -18,12 +19,19 @@ export async function ensurePreparedContextCleanupAlarm() {
 }
 
 export function createOnPreparedContextCleanupAlarmListener() {
-  return async (alarm: chrome.alarms.Alarm) => {
-    if (alarm.name !== PREPARED_CONTEXT_CLEANUP_ALARM) {
+  return (alarm: chrome.alarms.Alarm) => {
+    if (alarm.name.startsWith('probe:')) {
+      void handleProbeAlarm(alarm).catch((error) => {
+        console.error('[probe alarm]', error)
+      })
       return
     }
 
-    await syncPreparedContextWithOpenTwTabs()
+    if (alarm.name.startsWith(PREPARED_CONTEXT_CLEANUP_ALARM)) {
+      void syncPreparedContextWithOpenTwTabs().catch((error) => {
+        console.error('[prepared cleanup alarm]', error)
+      })
+    }
   }
 }
 

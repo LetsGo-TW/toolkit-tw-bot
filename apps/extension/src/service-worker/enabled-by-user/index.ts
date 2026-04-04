@@ -1,6 +1,10 @@
 /// <reference types="chrome" />
 
-import { getWorldPlayer, setWorldPlayerEnabledByUser } from '../world-players'
+import {
+  ensureWorldPlayersLoaded,
+  getWorldPlayer,
+  setWorldPlayerEnabledByUser,
+} from '../world-players'
 
 const ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY = 'enabledByUserByPlayerId'
 
@@ -10,6 +14,8 @@ export async function ensureEnabledByUserLoaded() {
   if (cacheLoaded) {
     return
   }
+
+  await ensureWorldPlayersLoaded()
 
   const stored = await chrome.storage.local.get([ENABLED_BY_USER_BY_PLAYER_ID_STORAGE_KEY])
 

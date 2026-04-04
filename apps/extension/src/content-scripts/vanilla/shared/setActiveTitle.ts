@@ -1,6 +1,8 @@
 export type SetActiveTitleParams = {
   isRunningTab?: boolean
   enabledByUser?: boolean
+  isReconnectEnabled?: boolean
+  isReconnectState?: boolean
   isBotProtected?: boolean
   isTryConfirm?: boolean
   isMdfScope?: boolean
@@ -12,6 +14,8 @@ export type SetActiveTitleParams = {
 export function setActiveTitle({
   isRunningTab = false,
   enabledByUser = true,
+  isReconnectEnabled = true,
+  isReconnectState = false,
   isAllowedByLicense = true,
   isLicenseExpiring = false,
   isIntro = false,
@@ -31,6 +35,15 @@ export function setActiveTitle({
 
   if (!isRunningTab) {
     document.title = title
+    return
+  }
+
+  if (isReconnectState) {
+    emoji = '♻️'
+    if (!enabledByUser || !isReconnectEnabled) emoji = '🛑'
+    if (!isAllowedByLicense) emoji = '⛔'
+    if (isMdfScope) emoji = `[${emoji}]`
+    document.title = `${emoji} ${title}`
     return
   }
 

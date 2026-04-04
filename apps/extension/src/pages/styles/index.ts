@@ -10,7 +10,7 @@ export const theme = {
   surfaceInset: 'rgba(255, 255, 255, 0.03)',
   borderSoft: 'rgba(255, 255, 255, 0.08)',
   textPrimary: '#f8f8f2',
-  textSecondary: '#f1fa8c',
+  textSecondary: '#ffca5ffc',
   textLabel: '#8be9fd',
   neutral: '#7e8aae',
   success: '#50fa7b',

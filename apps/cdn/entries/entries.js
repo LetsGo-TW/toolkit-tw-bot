@@ -13,12 +13,6 @@ module.exports = {
         obfuscationLevel: 'high',
       },
     },
-    'login.staged': {
-      entry: '../src/login/index.js',
-      build: {
-        obfuscationLevel: 'high',
-      },
-    },
   },
 
   workers: {},
