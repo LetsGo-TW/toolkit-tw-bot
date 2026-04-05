@@ -9,6 +9,7 @@ import {
   getPreparedContextScopeKeys,
   getTabContext,
 } from './prepared-context'
+import { hasErrorAlarmForTab } from './prepared-context/error-tabId'
 import { scheduleProbeAlarm } from './prepared-context/probe-scoped'
 import {
   getCurrentRunners,
@@ -44,6 +45,7 @@ type RunnerCommandData = {
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
   isBotProtected: boolean
+  isNetError: boolean
   isTryConfirm: boolean
   isMdfScope: boolean
 }
@@ -154,6 +156,7 @@ async function createRunnerCommandData(
   const world = tabContext?.world ?? runner?.world ?? worldPlayer?.world ?? null
   const playerId = tabContext?.playerId ?? worldPlayer?.playerId ?? null
   const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(worldPlayer)
+  const isNetError = runner ? await hasErrorAlarmForTab(runner.tabId) : false
 
   return {
     isRunningTab,
@@ -161,6 +164,7 @@ async function createRunnerCommandData(
     isAllowedByLicense,
     isLicenseExpiring,
     isBotProtected: tabContext?.isBotProtected === true,
+    isNetError,
     isTryConfirm: tabContext?.isTryConfirm === true,
     isMdfScope: tabContext?.t !== null,
   }
@@ -170,6 +174,8 @@ function shouldRefreshRunnerCommandForReason(reason: string) {
   return (
     reason === 'startup'
     || reason === SET_ENABLED_BY_USER_MESSAGE_TYPE
+    || reason === 'error-alarm-scheduled'
+    || reason === 'error-alarm-cleared'
   )
 }
 

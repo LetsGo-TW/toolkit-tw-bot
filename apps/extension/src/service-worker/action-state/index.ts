@@ -20,6 +20,7 @@ import {
   getWorldPlayer,
   getWorldPlayerByScopeKey,
 } from '../world-players'
+import { hasErrorAlarmForTab } from '../prepared-context/error-tabId'
 import { runtimeLicenseState } from '../world-players/runtime'
 
 async function notifyPopupRefresh() {
@@ -68,6 +69,7 @@ export async function syncTabActionByTabId(tabId?: number | null) {
     ? getPlayerEnabledByUser(world, playerId)
     : null
   const license = await runtimeLicenseState(worldPlayer)
+  const isNetError = await hasErrorAlarmForTab(tabId)
 
   await syncTabAction({
     tabId,
@@ -80,6 +82,7 @@ export async function syncTabActionByTabId(tabId?: number | null) {
     playerName: context?.playerName ?? runnerWorldPlayer?.playerName ?? null,
     isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
     botProtect: context?.isBotProtected === true,
+    isNetError,
     license,
   })
 

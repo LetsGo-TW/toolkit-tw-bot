@@ -8,6 +8,7 @@ import {
   getPlayerEnabledByUser,
 } from './enabled-by-user'
 import { cleanupLoginTabsForScope } from './prepared-context/cleanup-login-tabs'
+import { hasErrorAlarmForTab } from './prepared-context/error-tabId'
 import { type PreparedMessageData, upsertPreparedContext } from './prepared-context'
 import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from './message/types'
 import { getRunnerByScope, type RunnerRecord } from './runner-tabs'
@@ -21,7 +22,9 @@ type RunnerCommandData = {
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
   isBotProtected: boolean
+  isNetError: boolean
   isTryConfirm: boolean
+  isIntro: boolean
   isMdfScope: boolean
 }
 
@@ -64,6 +67,8 @@ async function createRunnerCommandData({
   playerId = null,
   worldPlayer = null,
   isTryConfirm = false,
+  isNetError = false,
+  isIntro = false,
   isMdfScope = false,
 }: {
   isRunningTab: boolean
@@ -71,6 +76,8 @@ async function createRunnerCommandData({
   playerId?: number | null
   worldPlayer?: WorldPlayerRecord | null
   isTryConfirm?: boolean
+  isNetError?: boolean
+  isIntro?: boolean
   isMdfScope?: boolean
 }): Promise<RunnerCommandData> {
   const currentWorldPlayer = worldPlayer ?? getWorldPlayer(world, playerId)
@@ -82,7 +89,9 @@ async function createRunnerCommandData({
     isAllowedByLicense,
     isLicenseExpiring,
     isBotProtected: false,
+    isNetError,
     isTryConfirm,
+    isIntro,
     isMdfScope,
   }
 }
@@ -204,12 +213,15 @@ export async function syncSenderVisibleState({
 
   const currentRunner = getRunnerByScope(tabContext.scopeKey)
   const isActive = isRunnerForSender(currentRunner, sender)
+  const isNetError = await hasErrorAlarmForTab(tabContext.tabId)
   const data = await createRunnerCommandData({
     isRunningTab: isActive,
     world: tabContext.world,
     playerId: tabContext.playerId,
     worldPlayer,
+    isNetError,
     isTryConfirm: getParamsUrl(sender.tab?.url || '').isTryConfirm === true,
+    isIntro: getParamsUrl(sender.tab?.url || '').isIntro === true,
     isMdfScope: tabContext.t !== null,
   })
 

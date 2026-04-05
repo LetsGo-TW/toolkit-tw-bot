@@ -1,5 +1,7 @@
+import { syncTabActionByTabId } from "../action-state";
 import { isTribalWarsUrl } from "../prepared-context";
 import { scheduleErrorAlarm } from "../prepared-context/error-tabId";
+import { reconcileActiveRunner } from "../runtime";
 
 // Tempos base sugeridos (em segundos) baseados no tipo de recuperação de rede
 const netError = new Map([
@@ -72,6 +74,12 @@ function onWebNavigationErrorOccurred(details: chrome.webNavigation.WebNavigatio
   const delayInMinutes = waitTime / 60
 
   void scheduleErrorAlarm(details.tabId, delayInMinutes)
+  void syncTabActionByTabId(details.tabId).catch((error) => {
+    console.error('[action sync][error-alarm-scheduled]', error)
+  })
+  void reconcileActiveRunner('error-alarm-scheduled').catch((error) => {
+    console.error('[runner reconcile][error-alarm-scheduled]', error)
+  })
 }
 
 export { onWebNavigationErrorOccurred };

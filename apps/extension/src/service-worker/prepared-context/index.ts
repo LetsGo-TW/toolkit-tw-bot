@@ -488,11 +488,11 @@ export async function updatePreparedContextFromUrl(
   const urlParams = getParamsUrl(nextUrl)
   const nextWorld = getWorldFromUrl(nextUrl)
   const nextUrlScope = getScopeFromUrl(nextUrl)
-  const nextContext = (
+  const nextContext: PreparedContextType | null = (
     urlParams.isInLogin
       ? 'LOGIN'
       : urlParams.isInGame
-        ? previousRecord?.context ?? null
+        ? 'GAME'
         : null
   )
   const nextRecord = previousRecord
@@ -530,7 +530,7 @@ export async function updatePreparedContextFromUrl(
       rank: null,
       villages: null,
       dateStarted: null,
-      isTryConfirm: previousRecord.isTryConfirm,
+      isTryConfirm: urlParams.isTryConfirm === true,
       isBotProtected: false,
       updatedAt: new Date().toISOString(),
     }

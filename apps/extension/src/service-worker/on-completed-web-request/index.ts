@@ -1,6 +1,9 @@
 /// <reference types="chrome" />
 
+import { syncTabActionByTabId } from "../action-state"
+import { clearErrorAlarmForTab } from "../prepared-context/error-tabId"
 import { scheduleProbeAlarm } from "../prepared-context/probe-scoped"
+import { reconcileActiveRunner } from "../runtime"
 
 export const onCompletedWebRequestFilter: chrome.webRequest.RequestFilter = {
   urls: chrome.runtime.getManifest().host_permissions,
@@ -27,7 +30,7 @@ function isRelevantTwDoc(details: chrome.webRequest.OnCompletedDetails) {
   return true
 }
 
-export const onCompletedWebRequest = (
+export const onCompletedWebRequest = async (
   details: chrome.webRequest.OnCompletedDetails,
 ) => {
   const matched = isRelevantTwDoc(details)
@@ -44,9 +47,21 @@ export const onCompletedWebRequest = (
 
   if (!matched) return
 
+  const clearedNetError = await clearErrorAlarmForTab(details.tabId)
+
+  if (clearedNetError) {
+    await syncTabActionByTabId(details.tabId)
+
+    void reconcileActiveRunner({
+      reason: 'error-alarm-cleared',
+      targetScopeKey: scopeKey,
+    }).catch((error) => {
+      console.error('[runner reconcile][error-alarm-cleared]', error)
+    })
+  }
+
   void scheduleProbeAlarm(scopeKey, true).catch((error) => {
     console.log('[schedule probe alarm]', error)
   })
 }
-
 

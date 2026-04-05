@@ -5,9 +5,29 @@ function parseErrorAlarmName(alarmName: string) {
   return Number(tabId)
 }
 
+function createErrorAlarmName(tabId: number) {
+  return `error:${tabId}`
+}
+
+async function hasErrorAlarmForTab(tabId?: number | null) {
+  if (typeof tabId !== 'number') {
+    return false
+  }
+
+  return Boolean(await chrome.alarms.get(createErrorAlarmName(tabId)))
+}
+
+async function clearErrorAlarmForTab(tabId?: number | null) {
+  if (typeof tabId !== 'number') {
+    return false
+  }
+
+  return chrome.alarms.clear(createErrorAlarmName(tabId))
+}
+
 async function scheduleErrorAlarm(tabId: number, delayInMinutes: number) {
   console.log('[SW][SCHEDULE ERROR ALARM]', tabId, delayInMinutes)
-  const alarmName = `error:${tabId}`
+  const alarmName = createErrorAlarmName(tabId)
   const target = await getRecoverableTabCtxTarget(tabId)
 
   if (!target) {
@@ -47,6 +67,8 @@ async function handleErrorAlarm(alarm: chrome.alarms.Alarm) {
 }
 
 export { 
+  clearErrorAlarmForTab,
+  hasErrorAlarmForTab,
   handleErrorAlarm, 
   scheduleErrorAlarm
 }

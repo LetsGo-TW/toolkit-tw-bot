@@ -17,6 +17,7 @@ export type TabActionState = {
   t: number | null
   playerName: string | null
   isTryConfirm: boolean
+  isNetError?: boolean
   license: ExtensionLicenseState
   botProtect?: boolean
 }
@@ -52,6 +53,7 @@ function getActionTitle({
   playerName,
   license,
   botProtect = false,
+  isNetError = false,
 }: Omit<TabActionState, 'tabId' | 'isTryConfirm'>) {
   const licenseStatus = license.status
   const isRunning = active && enabledByUser === true && license.allowedByLicense
@@ -79,6 +81,10 @@ function getActionTitle({
     parts.push('hCaptcha identified')
   }
 
+  if (isNetError) {
+    parts.push('Connection error')
+  }
+
   if (enabledByUser === false) {
     parts.push('Off')
   } else {
@@ -100,6 +106,7 @@ export async function syncTabAction({
   isTryConfirm,
   license,
   botProtect = false,
+  isNetError = false,
 }: TabActionState) {
   if (typeof tabId !== 'number') {
     return
@@ -127,6 +134,7 @@ export async function syncTabAction({
       playerName,
       license,
       botProtect,
+      isNetError,
     }),
   })
 
@@ -147,7 +155,7 @@ export async function syncTabAction({
 
   if (isRunning) {
     await chrome.action.setBadgeBackgroundColor({
-      color: botProtect ? 'black' : (isTryConfirm ? '#7f1d1d' : 'orangered'),
+      color: botProtect ? 'black' : (isNetError ? 'black' : (isTryConfirm ? '#deb017' : 'orangered')),
       tabId,
     })
     await chrome.action.setBadgeTextColor({
@@ -156,7 +164,7 @@ export async function syncTabAction({
     })
     await chrome.action.setBadgeText({
       tabId,
-      text: botProtect ? '🤚' : (isTryConfirm ? '☢️' : '▶️'),
+      text: botProtect ? '🤚' : (isNetError ? '📡' : (isTryConfirm ? '☢️' : '▶️')),
     })
   } else {
     await chrome.action.setBadgeText({
