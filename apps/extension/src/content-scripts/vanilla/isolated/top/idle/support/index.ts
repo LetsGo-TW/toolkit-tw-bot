@@ -131,10 +131,25 @@ async function runSupportProbe() {
     isBotProtected,
   })
 
+  const avatarError = (
+    avatarResponse
+    && typeof avatarResponse === 'object'
+    && 'ok' in avatarResponse
+    && (avatarResponse as { ok?: boolean }).ok === false
+    && 'error' in avatarResponse
+    && typeof (avatarResponse as { error?: unknown }).error === 'string'
+  )
+    ? (avatarResponse as { error: string }).error
+    : null
+
+  const networkError = avatarError !== null
+
   return {
     ok: true,
     type: SUPPORT_PROBE_MESSAGE_TYPE,
     isBotProtected,
+    networkError,
+    error: avatarError,
     avatarResponse,
     ctxResponse,
     snapshot: getPopupPageSnapshot({

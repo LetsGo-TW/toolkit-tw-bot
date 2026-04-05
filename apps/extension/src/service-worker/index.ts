@@ -2,6 +2,7 @@
 
 import { onReceived } from "./message/index";
 import { onCompletedWebRequest, onCompletedWebRequestFilter } from "./on-completed-web-request";
+import { onWebNavigationErrorOccurred } from "./on-navigation-error-ocurred";
 import { onInstalledExtension } from "./on-installed";
 import {
   createOnPreparedContextCleanupAlarmListener,
@@ -65,5 +66,9 @@ if (!chrome.webRequest.onCompleted.hasListener(onCompletedWebRequest)) {
     onCompletedWebRequestFilter
   )
 }
+if (!chrome.webNavigation.onErrorOccurred.hasListener(onWebNavigationErrorOccurred)) {
+  chrome.webNavigation.onErrorOccurred.addListener(onWebNavigationErrorOccurred);
+}
+
 void ensurePreparedContextCleanupAlarm()
 void initializeRuntime()

@@ -2,15 +2,14 @@
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import type { SWMessage } from '../../types'
-import { syncTabActionByTabId } from '../action-state'
-import { getTabContext, upsertPreparedContext } from '../prepared-context'
+import { getTabContext } from '../prepared-context'
 import {
   RUNNER_BOT_PROTECT_MESSAGE_TYPE,
   SET_PLAYER_AVATAR_MESSAGE_TYPE,
 } from '../message/types'
 import { normalizeNumber, normalizeString } from '../normalize'
 import { getRunnerByScope } from '../runner-tabs'
-import { upsertWorldPlayer } from '../world-players'
+import { syncSenderVisibleState } from '../sync-visible-state'
 
 type SetPlayerAvatarRequest = Partial<SWMessage> & {
   world?: unknown
@@ -122,16 +121,30 @@ export async function updatePlayerAvatar(
   const avatarUpdatedAt = avatarUrl ? new Date().toISOString() : null
   const dateStarted = normalizeNumber(request.dateStarted ?? request.date_started)
   const isBotProtected = request.isBotProtected === true
-  const tabContext = sender
-    ? await upsertPreparedContext(sender, {
+  const syncResult = sender
+    ? await syncSenderVisibleState({
+      sender,
+      reason: SET_PLAYER_AVATAR_MESSAGE_TYPE,
       context: 'GAME',
       world,
-      t: request.t,
+      t: normalizeNumber(request.t),
       playerId,
       playerName,
+      features: request.features ?? null,
+      points: request.points ?? null,
+      rank: request.rank ?? null,
+      villages: request.villages ?? null,
+      dateStarted,
+      isBotProtected,
+      avatarUrl,
+      avatarUpdatedAt,
     })
     : null
-  const fallbackTabContext = tabContext || getTabContext(sender?.tab?.id)
+  const fallbackTabContext = (
+    syncResult?.ok
+      ? syncResult.tabContext
+      : getTabContext(sender?.tab?.id)
+  ) || null
 
   const botProtectRelay = isBotProtected
     ? await notifyRunningTabAboutBotProtect(sender, {
@@ -166,19 +179,9 @@ export async function updatePlayerAvatar(
     }
   }
 
-  const record = await upsertWorldPlayer({
-    world,
-    playerId,
-    playerName,
-    avatarUrl,
-    avatarUpdatedAt,
-    dateStarted,
-    scopeKey: fallbackTabContext?.scopeKey ?? null,
-  })
-
-  if (typeof fallbackTabContext?.tabId === 'number') {
-    await syncTabActionByTabId(fallbackTabContext.tabId)
-  }
+  const record = syncResult?.ok
+    ? syncResult.worldPlayer
+    : null
 
   return {
     ok: true,

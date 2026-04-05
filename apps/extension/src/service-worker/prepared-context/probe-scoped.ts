@@ -1,56 +1,10 @@
-import { getRunnerByScope } from '../runner-tabs'
-import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from '../world-players'
-import { runtimeAllowedByLicense } from '../world-players/runtime'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { SUPPORT_PROBE_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
-import { getTabContext } from '.'
 import { random } from '@toolkit-tw-bot/core'
+import { getScopedRunnerTarget } from './get-targets'
 
 const MIN_DELAY_SECONDS = 30
 const MAX_DELAY_SECONDS = 40
-
-async function getProbeTarget(scopeKey: string) {
-  const runner = getRunnerByScope(scopeKey)
-
-  if (!runner) {
-    return null
-  }
-
-  let tab: chrome.tabs.Tab
-  try {
-    tab = await chrome.tabs.get(runner.tabId)
-  } catch {
-    return null
-  }
-
-  const runnerNow = getRunnerByScope(scopeKey)
-  if (
-    !runnerNow
-    || runnerNow.tabId !== runner.tabId
-    || runnerNow.windowId !== runner.windowId
-  ) {
-    return null
-  }
-
-  await ensureWorldPlayersLoaded()
-  const worldPlayer = getWorldPlayerByScopeKey(scopeKey)
-
-  if (!worldPlayer) return null
-
-  const tabContext = getTabContext(runnerNow.tabId)
-  if (tabContext?.context === 'LOGIN') return null
-  if (tabContext?.isBotProtected === true) return null
-  
-  const enabledByUser = worldPlayer?.enabledByUser === true
-  const { isAllowedByLicense } = await runtimeAllowedByLicense(worldPlayer)
-  if (!enabledByUser || !isAllowedByLicense) return null
-
-  return {
-    runner: runnerNow,
-    tab,
-    worldPlayer,
-  }
-}
 
 function parseProbeAlarmName(alarmName: string) {
   const scopeKey = alarmName.slice('probe:'.length)
@@ -66,7 +20,7 @@ function calculateRandomDelayInMinutes() {
 async function scheduleProbeAlarm(scopeKey: string, isWebRequest: boolean = false) {
   console.log('[SW][SCHEDULE PROBE ALARM]', scopeKey, isWebRequest)
   const alarmName = `probe:${scopeKey}`
-  const target = await getProbeTarget(scopeKey)
+  const target = await getScopedRunnerTarget(scopeKey)
 
   if (!target) {
     await clearProbeAlarm(alarmName)
@@ -92,7 +46,7 @@ async function clearProbeAlarm(alarmName: string) {
 
 async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
   const scopeKey = parseProbeAlarmName(alarm.name)
-  const target = await getProbeTarget(scopeKey)
+  const target = await getScopedRunnerTarget(scopeKey)
 
   console.log('[SW][HANDLE PROBE ALARM]', scopeKey, target)
   if (!target) {
@@ -109,9 +63,27 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
       ok?: boolean
       type?: string
       isBotProtected?: boolean
+      networkError?: boolean
+      error?: string | null
     } | null
 
     console.log('[SW][PROBE] response', response)
+
+    if (response?.networkError) {
+      await clearProbeAlarm(alarm.name)
+      console.warn('[SW][PROBE] networkError', {
+        scopeKey,
+        tabId: target.runner.tabId,
+        error: response.error ?? null,
+      })
+
+      try {
+        await chrome.tabs.reload(target.runner.tabId)
+      } catch (reloadError) {
+        console.error('[SW][PROBE] reload failed', reloadError)
+      }
+    }
+
 
     if (response?.isBotProtected === true) {
       await clearProbeAlarm(alarm.name)

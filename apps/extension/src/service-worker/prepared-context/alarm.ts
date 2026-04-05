@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { syncPreparedContextWithOpenTwTabs } from '.'
+import { handleErrorAlarm } from './error-tabId'
 import { handleProbeAlarm } from './probe-scoped'
 
 const PREPARED_CONTEXT_CLEANUP_ALARM = 'prepared-context.cleanup'
@@ -23,6 +24,13 @@ export function createOnPreparedContextCleanupAlarmListener() {
     if (alarm.name.startsWith('probe:')) {
       void handleProbeAlarm(alarm).catch((error) => {
         console.error('[probe alarm]', error)
+      })
+      return
+    }
+
+    if (alarm.name.startsWith('error:')) {
+      void handleErrorAlarm(alarm).catch((error) => {
+        console.error('[error alarm]', error)
       })
       return
     }
