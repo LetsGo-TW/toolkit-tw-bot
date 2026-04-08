@@ -609,6 +609,58 @@ function getRuntimeTone({
   return 'neutral' as const
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+const LICENSE_TOOLTIP_ICON_HTML = [
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">',
+  '<path d="M12 3 5 6v6c0 4.6 2.82 8.27 7 9.7 4.18-1.43 7-5.1 7-9.7V6l-7-3Z"></path>',
+  '<path d="m9.3 12.2 1.8 1.8 3.8-3.8"></path>',
+  '</svg>',
+].join('')
+
+function getLicenseTooltipHtml({
+  licenseStatus,
+  formattedLicenseDueAt,
+  formattedTokenExpiresAt,
+}: {
+  licenseStatus: LicenseStatus | undefined
+  formattedLicenseDueAt?: string | null
+  formattedTokenExpiresAt?: string | null
+}) {
+  if (licenseStatus !== 'active' && licenseStatus !== 'warning') {
+    return null
+  }
+
+  const headline = licenseStatus === 'warning'
+    ? formattedLicenseDueAt
+      ? `License active until ${formattedLicenseDueAt}. Close to expiry.`
+      : 'License active and close to expiry.'
+    : formattedLicenseDueAt
+      ? `License active until ${formattedLicenseDueAt}.`
+      : 'License active for this player.'
+
+  const sessionExpiresLine = formattedTokenExpiresAt
+    ? `<div class="go-tooltip-license-meta">Session expires: ${escapeHtml(formattedTokenExpiresAt)}</div>`
+    : ''
+
+  return [
+    `<div class="go-tooltip-license${licenseStatus === 'warning' ? ' is-warning' : ''}">`,
+    '<div class="go-tooltip-license-row">',
+    `<span class="go-tooltip-license-icon">${LICENSE_TOOLTIP_ICON_HTML}</span>`,
+    `<span class="go-tooltip-license-text">${escapeHtml(headline)}</span>`,
+    '</div>',
+    sessionExpiresLine,
+    '</div>',
+  ].join('')
+}
+
 const FEATURE_LABELS = [
   ['Premium', 'Premium account'],
   ['FarmAssistent', 'Farm assistant'],
@@ -995,7 +1047,15 @@ export default function App() {
       tooltipId: 'go-extension-popup-tooltip',
     })
 
-    return tooltip.bind(rootEl, '[data-popup-title]', (el) => el.getAttribute('data-popup-title'))
+    return tooltip.bind(rootEl, '[data-popup-title], [data-popup-html]', (el) => {
+      const html = el.getAttribute('data-popup-html')
+
+      if (typeof html === 'string' && html.trim()) {
+        return html
+      }
+
+      return el.getAttribute('data-popup-title')
+    })
   }, [])
 
   const handleEnabledByUserChange = useCallback(async () => {
@@ -1178,9 +1238,17 @@ export default function App() {
   ].filter((entry) => Boolean(entry.value))
   const formattedUpdatedAt = formatUpdatedAt(state?.updatedAt)
   const formattedLicenseDueAt = formatDateTime(state?.licenseDueAt)
+  const formattedTokenExpiresAt = formatDateTime(state?.tokenExpiresAt)
   const licenseTooltip = formattedLicenseDueAt
     ? `License expires at ${formattedLicenseDueAt}`
+    : formattedTokenExpiresAt
+      ? `Session expires at ${formattedTokenExpiresAt}`
     : undefined
+  const licenseTooltipHtml = getLicenseTooltipHtml({
+    licenseStatus: state?.license?.status,
+    formattedLicenseDueAt,
+    formattedTokenExpiresAt,
+  })
   const featureItems: FeatureItem[] = FEATURE_LABELS.flatMap(([featureKey, label]) => {
     const feature = state?.features?.[featureKey]
 
@@ -1248,6 +1316,7 @@ export default function App() {
                       <Pill
                         $tone={getLicenseTone(state?.license?.status)}
                         data-popup-title={licenseTooltip}
+                        data-popup-html={licenseTooltipHtml || undefined}
                       >
                         License {getLicenseText(state?.license?.status)}
                       </Pill>
