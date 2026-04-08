@@ -19,7 +19,7 @@ const ICON_PASTE_SELECTION = svgToDataUri(
     '<path d="M10.2 10h4.4M10.2 12.9h4.4M10.2 15.8h3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' +
   '</svg>'
 )
-const DEFAULT_BOT_ICON_URL = 'https://raw.githubusercontent.com/UnrecognizedBR/public/master/icons/icon_green_60.png'
+const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
 
 function getDefaultBotIconUrl() {
   const candidates = [

@@ -95,7 +95,7 @@ const ICON_DRAFT_LIST = svgToDataUri(`
     <path d="M6 7.5h8M6 10h8M6 12.5h5" stroke="#1f2937" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
 `)
-const DEFAULT_BOT_ICON_URL = 'https://raw.githubusercontent.com/UnrecognizedBR/public/master/icons/icon_green_60.png'
+const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
 
 function getBotTooltipIconUrl() {
   const candidates = [

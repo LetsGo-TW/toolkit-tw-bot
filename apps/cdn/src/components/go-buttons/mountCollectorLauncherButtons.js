@@ -28,7 +28,7 @@ const collectorPreviewCtx = {
   root: null,
   token: null
 }
-const DEFAULT_BOT_ICON_URL = 'https://raw.githubusercontent.com/UnrecognizedBR/public/master/icons/icon_green_60.png'
+const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
 const collectorPreviewTargetsDraftCore = createTargetsDraftCore()
 let plannerOneToManyModulePromise = null
 
