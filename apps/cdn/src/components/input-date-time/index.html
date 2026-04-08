@@ -1,0 +1,82 @@
+<!-- <div class="go-dtgrp" id="go-dtgrp"> -->
+  <form class="go-dtgrp" id="go-dtgrp" action="">
+    <div class="go-dtbox">
+      <label class="go-dtgrp-label" for="go-date-time">Chegada</label>
+      <input
+        type="datetime-local"
+        id="go-date-time"
+        class="go-dtbox-input"
+        step="1"
+        data-title="Data e hora"
+      />
+      <div class="go-dtbox-error">Data invalida.</div>
+
+      <div class="go-dtbox-actions">
+        <button type="button" class="go-ibtn go-ico-calendar"  id="go-btn-cal"  data-title="Calendário"></button>
+        <button type="button" class="go-ibtn" id="go-btn-time" data-title="Últimos horários">
+          <div class="go-ico-time">
+            <span class="go-hand0" aria-hidden="true"></span>
+            <span class="go-hand5" aria-hidden="true"></span>
+          </div>
+        </button>
+        <button type="button" class="go-ibtn" id="go-btn-copy" data-title="Copiar">
+          <div class="go-ico-copy">
+            <span class="go-ico-copy-edge" aria-hidden="true"></span>
+          </div>
+        </button>
+        <button type="button" class="go-ibtn" id="go-btn-paste" data-title="Colar">
+          <div class="go-ico-paste">
+            <span class="go-ico-paste-el">-</span>
+            <span class="go-ico-paste-edge" aria-hidden="true"></span>
+          </div>
+        </button>
+      </div>
+
+      <div class="go-dd" id="go-time-dd" hidden>
+        <span class="go-no-copy" data-datetime="2026-01-22T19:22:06">25/01/2026, 19:22:06</span>
+        <span class="go-no-copy" data-datetime="2026-01-29T19:22:06">29/01/2026, 19:22:06</span>
+      </div>
+    </div>
+
+    <span class="go-dtgrp-sep"></span>
+
+    <div class="go-msbox">
+      <!-- step - -->
+      <button type="button" class="go-dtgrp-btn go-ms-step" id="go-ms-step-dec" data-title="Diminuir Milissegundos">−</button>
+
+      <!-- ms -->
+      <label class="go-dtgrp-label" for="go-ms">Millis</label>
+      <input
+        type="number"
+        id="go-ms"
+        class="go-dtgrp-ms"
+        min="0"
+        max="999"
+        step="1"
+        value="0"
+        inputmode="numeric"
+        data-title="Milissegundos (0 a 999)"
+      >
+
+      <!-- step + -->
+      <button type="button" class="go-dtgrp-btn go-ms-step" id="go-ms-step-inc" data-title="Aumentar Milissegundos">+</button>
+
+    </div>
+    <!-- step value -->
+    <div class="">
+      <label class="go-dtgrp-label" for="go-ms-step">Step</label>
+      <input
+        type="number"
+        class="go-dtgrp-step"
+        id="go-ms-step"
+        min="5"
+        max="100"
+        step="1"
+        value="10"
+        data-title="Step Milissegundos (5 a 100)"
+      >
+
+    </div>
+  </form>
+  <span id="go-server-clock-overlay" class="go-server-clock-overlay" hidden></span>
+<!-- </div> -->

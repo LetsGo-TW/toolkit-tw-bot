@@ -1,0 +1,176 @@
+.go-planner-action-buttons,
+.go-btn-info-village {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.go-planner-action-buttons-group,
+.go-btn-inline-group {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.go-planner-action-buttons .go-btn-inline,
+.go-planner-action-buttons-group .go-btn-inline,
+.go-btn-info-village .go-btn-inline,
+.go-btn-inline-group .go-btn-inline {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(92, 71, 34, .45);
+    border-radius: 4px;
+    background: linear-gradient(180deg, #fffdf7 0%, #efe4ca 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 2px rgba(0, 0, 0, .2);
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease, border-color 120ms ease, background 120ms ease;
+    cursor: pointer;
+}
+
+.go-planner-action-buttons .go-btn-inline img,
+.go-planner-action-buttons-group .go-btn-inline img,
+.go-btn-info-village .go-btn-inline img,
+.go-btn-inline-group .go-btn-inline img {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+.go-planner-action-buttons .go-btn-inline.go-btn-inline-sword img,
+.go-planner-action-buttons-group .go-btn-inline.go-btn-inline-sword img,
+.go-btn-info-village .go-btn-inline.go-btn-inline-sword img,
+.go-btn-inline-group .go-btn-inline.go-btn-inline-sword img {
+    width: 22px;
+    height: 22px;
+}
+.go-planner-action-buttons .go-btn-inline.go-btn-inline-sword,
+.go-planner-action-buttons-group .go-btn-inline.go-btn-inline-sword,
+.go-btn-info-village .go-btn-inline.go-btn-inline-sword,
+
+.go-planner-action-buttons .go-btn-inline:hover,
+.go-planner-action-buttons-group .go-btn-inline:hover,
+.go-btn-info-village .go-btn-inline:hover,
+.go-btn-inline-group .go-btn-inline:hover {
+    transform: translateY(-1px);
+    border-color: rgba(92, 71, 34, .6);
+    background: linear-gradient(180deg, #fff7e8 0%, #e8d4a9 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92), 0 2px 4px rgba(0, 0, 0, .24);
+}
+.go-planner-action-buttons .go-btn-inline.is-selected,
+.go-planner-action-buttons-group .go-btn-inline.is-selected,
+.go-planner-action-buttons .go-btn-inline[aria-pressed="true"],
+.go-planner-action-buttons-group .go-btn-inline[aria-pressed="true"],
+.go-btn-info-village .go-btn-inline.is-selected,
+.go-btn-inline-group .go-btn-inline.is-selected,
+.go-btn-info-village .go-btn-inline[aria-pressed="true"],
+.go-btn-inline-group .go-btn-inline[aria-pressed="true"] {
+    border-color: #5f4b23;
+    background: linear-gradient(180deg, #9c7c3c 0%, #7d6230 60%, #6a5227 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 1px 3px rgba(0, 0, 0, .28);
+}
+.go-planner-action-buttons .go-btn-inline.is-selected img,
+.go-planner-action-buttons-group .go-btn-inline.is-selected img,
+.go-planner-action-buttons .go-btn-inline[aria-pressed="true"] img,
+.go-planner-action-buttons-group .go-btn-inline[aria-pressed="true"] img,
+.go-btn-info-village .go-btn-inline.is-selected img,
+.go-btn-inline-group .go-btn-inline.is-selected img,
+.go-btn-info-village .go-btn-inline[aria-pressed="true"] img,
+.go-btn-inline-group .go-btn-inline[aria-pressed="true"] img {
+    filter: brightness(1.12) contrast(1.03);
+}
+.go-planner-action-buttons .go-btn-inline.is-selected:hover,
+.go-planner-action-buttons-group .go-btn-inline.is-selected:hover,
+.go-planner-action-buttons .go-btn-inline[aria-pressed="true"]:hover,
+.go-planner-action-buttons-group .go-btn-inline[aria-pressed="true"]:hover,
+.go-btn-info-village .go-btn-inline.is-selected:hover,
+.go-btn-inline-group .go-btn-inline.is-selected:hover,
+.go-btn-info-village .go-btn-inline[aria-pressed="true"]:hover,
+.go-btn-inline-group .go-btn-inline[aria-pressed="true"]:hover {
+    transform: translateY(0);
+    border-color: #5f4b23;
+    background: linear-gradient(180deg, #9c7c3c 0%, #7d6230 60%, #6a5227 100%);
+}
+.go-planner-action-buttons .go-btn-inline:active,
+.go-planner-action-buttons-group .go-btn-inline:active,
+.go-btn-info-village .go-btn-inline:active,
+.go-btn-inline-group .go-btn-inline:active {
+    transform: translateY(0);
+    filter: saturate(1.05);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, .2);
+}
+
+.go-planner-action-buttons .go-btn-inline:disabled,
+.go-planner-action-buttons-group .go-btn-inline:disabled,
+.go-btn-info-village .go-btn-inline:disabled,
+.go-btn-inline-group .go-btn-inline:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    transform: none !important;
+    filter: none !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 2px rgba(0, 0, 0, .2);
+}
+
+.go-icon-16 { width: 16px; height: 16px; }
+.go-icon-24 { width: 24px; height: 24px; }
+.go-icon-32 { width: 32px; height: 32px; }
+
+.go-collector-overwrite-draft-menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1000004;
+    min-width: 0;
+    width: max-content;
+    max-width: min(260px, calc(100vw - 32px));
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(22,22,22,.96);
+    box-shadow: 0 10px 26px rgba(0,0,0,.34);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.go-collector-overwrite-draft-menu[hidden] {
+    display: none !important;
+}
+
+.go-collector-overwrite-draft-text {
+    color: #f3f4f6;
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+    max-width: 230px;
+}
+
+.go-collector-overwrite-draft-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.go-collector-overwrite-draft-actions button {
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 6px;
+    background: rgba(255,255,255,.07);
+    color: #f9fafb;
+    padding: 4px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.go-collector-overwrite-draft-actions button:hover {
+    background: rgba(255,255,255,.13);
+}

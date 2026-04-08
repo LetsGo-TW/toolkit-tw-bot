@@ -1,0 +1,93 @@
+.go-info-balloon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.go-info-balloon-badge {
+  appearance: none;
+  border: 1px solid #a10b0b;
+  border-radius: 999px;
+  background: #cf222e;
+  color: #fff;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.go-info-balloon-icon-text {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(-0.25px);
+}
+
+.go-info-balloon-badge svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.go-info-balloon-badge:hover,
+.go-info-balloon-badge.is-open {
+  background: #b91c1c;
+}
+
+.go-info-balloon-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 7px);
+  z-index: 2147483647;
+  min-width: 212px;
+  max-width: 280px;
+  padding: 6px 22px 6px 8px;
+  border-radius: 4px;
+  background: #d33535;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+.go-info-balloon-panel::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: -6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #d33535;
+}
+
+.go-info-balloon-title {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.go-info-balloon-text {
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: pre-line;
+}
+
+.go-info-balloon-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}

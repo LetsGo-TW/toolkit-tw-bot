@@ -1,0 +1,136 @@
+.go-dd{
+  position: absolute;
+  z-index: 999999;
+
+  top: calc(100% + 6px);
+  left: 0;
+
+  /* ✅ width mínimo (não força 260px) */
+  width: max-content;         /* cresce conforme o conteúdo */
+  min-width: 220px;           /* segurança */
+  max-width: 420px;           /* evita ficar enorme */
+  box-sizing: border-box;
+
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+
+  padding: 6px;
+}
+
+/* itens */
+.go-dd > span{
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: Verdana, Arial;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.go-dd > span:hover{
+  background: rgba(30,110,220,.10);
+}
+
+/* ✅ scroll fininho (igual seu padrão) */
+.go-dd{
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(0,0,0,.35) transparent;
+}
+.go-dd::-webkit-scrollbar{ width: 7px; }
+.go-dd::-webkit-scrollbar-track{ background: transparent; }
+.go-dd::-webkit-scrollbar-thumb{
+  background: rgba(0,0,0,.25);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.go-dd::-webkit-scrollbar-thumb:hover{
+  background: rgba(0,0,0,.4);
+  background-clip: content-box;
+}
+.go-dd-no-content {
+  color: darkgray;
+}
+
+.go-dd-action {
+  min-width: 260px;
+  max-width: 340px;
+  padding: 8px;
+}
+
+.go-dd-action-title {
+  font-family: Verdana, Arial;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2e2e2e;
+  margin-bottom: 4px;
+}
+
+.go-dd-action-message {
+  font-family: Verdana, Arial;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #4f4f4f;
+  margin-bottom: 8px;
+  white-space: normal;
+}
+
+.go-dd-action-list {
+  display: grid;
+  gap: 6px;
+}
+
+.go-dd-action-btn {
+  appearance: none;
+  border: 1px solid rgba(0,0,0,.3);
+  border-radius: 6px;
+  background: #f4f4f4;
+  color: #222;
+  padding: 6px 10px;
+  font-family: Verdana, Arial;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+
+.go-dd-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+
+.go-dd-action-btn.is-neutral {
+  background: #f4f4f4;
+  color: #222;
+}
+
+.go-dd-action-btn.is-primary {
+  background: #1e6edc;
+  border-color: #1658b1;
+  color: #fff;
+}
+
+.go-dd-action-btn.is-success {
+  background: #1f8e2f;
+  border-color: #176823;
+  color: #fff;
+}
+
+.go-dd-action-btn.is-warn {
+  background: #e7b24b;
+  border-color: #b9851f;
+  color: #2c2108;
+}
+
+.go-dd-action-btn.is-danger {
+  background: #c73737;
+  border-color: #922929;
+  color: #fff;
+}

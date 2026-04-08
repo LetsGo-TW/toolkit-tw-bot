@@ -1,0 +1,45 @@
+.go-coord-drag-token {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 0 1px;
+  outline: 1px dashed rgba(0, 0, 0, 0.12);
+  outline-offset: 1px;
+}
+
+.go-coord-drag-token.go-coord-drag-token-selected {
+  background: rgba(255, 208, 0, 0.30);
+  outline: 1px solid #c98600;
+}
+
+.go-coord-drag-box {
+  position: fixed;
+  z-index: 1000000;
+  border: 1px solid #d18a00;
+  background: rgba(255, 206, 102, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.go-coord-drag-cursor-badge {
+  position: fixed;
+  z-index: 1000000;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(20, 20, 20, 0.92);
+  color: #fff;
+  font: 700 11px/20px Arial, sans-serif;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+body.go-coord-drag-no-select,
+body.go-coord-drag-no-select * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: crosshair !important;
+}

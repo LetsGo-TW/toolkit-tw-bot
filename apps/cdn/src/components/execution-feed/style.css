@@ -1,0 +1,197 @@
+.go-ef-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 14050;
+  display: none;
+  background: rgba(26, 21, 11, 0.16);
+  backdrop-filter: blur(2.2px);
+  -webkit-backdrop-filter: blur(2.2px);
+  pointer-events: auto;
+}
+
+.go-ef-overlay.is-active {
+  display: block;
+}
+
+.go-ef-panel {
+  position: fixed;
+  width: min(688px, calc(100vw - 40px));
+  min-width: min(560px, calc(100vw - 40px));
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 104px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: auto;
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.go-ef-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 24px 4px 8px;
+  border-radius: 5px;
+  background: rgba(14, 14, 14, 0.82);
+}
+
+.go-ef-header-target {
+  color: #f3f4f6;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.go-ef-header-meta {
+  color: #d1d5db;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.go-ef-close {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  transform: translate(75%, -75%);
+  width: 18px;
+  height: 18px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(209, 213, 219, 0.45);
+  background: rgba(22, 22, 22, 0.88);
+  color: #e5e7eb;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 600;
+  font-family: Arial, sans-serif;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.go-ef-close.is-visible {
+  display: inline-flex;
+}
+
+.go-ef-close:hover {
+  border-color: rgba(243, 244, 246, 0.8);
+  background: rgba(30, 30, 30, 0.95);
+  color: #f9fafb;
+}
+
+.go-ef-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 140, 140, 0.95) transparent;
+}
+
+.go-ef-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.go-ef-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.go-ef-list::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.95);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.go-ef-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.25;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(20, 20, 20, 0.7);
+}
+
+.go-ef-status-col {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.go-ef-status {
+  display: inline-block;
+  text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.go-ef-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.go-ef-status.is-pending,
+.go-ef-status.is-running,
+.go-ef-status.is-info {
+  color: #4b5563;
+  border-color: rgba(75, 85, 99, 0.35);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.go-ef-status.is-success {
+  color: #155724;
+  border-color: rgba(21, 87, 36, 0.35);
+  background: rgba(220, 252, 231, 0.78);
+}
+
+.go-ef-status.is-warn {
+  color: #8a4b00;
+  border-color: rgba(194, 120, 3, 0.35);
+  background: rgba(254, 243, 199, 0.85);
+}
+
+.go-ef-status.is-error {
+  color: #7f1d1d;
+  border-color: rgba(127, 29, 29, 0.35);
+  background: rgba(254, 226, 226, 0.78);
+}
+
+.go-ef-title {
+  color: #f3f4f6;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.go-ef-detail {
+  color: #d1d5db;
+}

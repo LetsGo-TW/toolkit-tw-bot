@@ -1,0 +1,18 @@
+[
+  {
+    "command": "chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/sounds/sunrise-114326.mp3"
+  },
+  {
+    "attack": [
+      {
+        "snob": "chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/sounds/Snob-4s.mp3"
+      }, 
+      {
+        "others" : false
+      }
+    ]
+  },
+  {
+    "solver": "chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/sounds/Snob-4s.mp3"
+  }
+]

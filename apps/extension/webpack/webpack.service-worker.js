@@ -72,6 +72,11 @@ module.exports = () => {
             to: '_locales',
             noErrorOnMissing: true,
           },
+          {
+            from: path.resolve(__dirname, '../src/sounds'),
+            to: 'sounds',
+            noErrorOnMissing: true,
+          },
         ],
       }),
     ],

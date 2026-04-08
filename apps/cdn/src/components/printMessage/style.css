@@ -1,0 +1,44 @@
+.go-print-message {
+  font-weight: normal;
+  font-size: 14px;
+  position: fixed;
+  text-align: center;
+  width: 450px;
+  top: 200px;
+  left: 50%;
+  margin: 0 0 0 -205px;
+  cursor: grab;
+  color: #fff;
+  border: 1px solid var(--go-print-message-border, #204900);
+  background: linear-gradient(to bottom, var(--go-print-message-bg, #19a903 0%,#159002 44%,#0f6e00) 100%);
+  z-index: 100000;
+  box-shadow: 1px 1px 2px 0 rgb(60 30 0 / 35%);
+  border-radius: 5px;
+  text-shadow: 1px 1px 1px #000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.go-print-message__content {
+  padding: 5px 24px 5px 6px;
+  margin: 0;
+}
+
+.go-print-message::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 10px;
+  height: 14px;
+  opacity: 0.95;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.95) 1px, transparent 1.5px);
+  background-size: 5px 5px;
+  background-position: 0 0;
+}
+
+.go-print-message--pressing,
+.go-print-message--dragging {
+  cursor: grabbing;
+}

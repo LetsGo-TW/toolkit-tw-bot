@@ -1,3 +1,6 @@
+const { random } = require("@toolkit-tw-bot/core")
+const getGameData = require("../get-game-data")
+
 const BOT_PROTECT_DATASET_KEY = 'botProtect'
 
 function hasSelector(html = document, selector = '') {
@@ -38,6 +41,12 @@ function dsBodyStateMatches(html = document, expectedState = '') {
 const ProtectingBot = {
   type: 'Bot-Protect',
   dsBody,
+  screen: ['info_player', 'report', 'ally', 'settings'],
+  redirect: () => {
+    const ran = Math.floor(random(1, 4))
+    const url = new URL(`${getGameData().link_base_pure}${ProtectingBot.screen[ran - 1]}`, window.location.origin)
+    document.location.assign(url);
+  },
   error() {
     return new Error('Identified bot protection', { cause: 'Protecting-Bot' })
   },

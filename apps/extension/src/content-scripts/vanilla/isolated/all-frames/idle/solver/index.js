@@ -1,4 +1,7 @@
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+
 async function injetarEClicar() {
+  console.log('[CS] __GO_SC_INJECTED__')
   // 1. Armadilha Anti-Tampermonkey / Greasemonkey
   if (typeof GM_info !== 'undefined' || typeof GM !== 'undefined' || typeof unsafeWindow !== 'undefined') {
     setTimeout(() => {
@@ -90,6 +93,7 @@ async function injetarEClicar() {
     // Precisamos pedir para o Background Script (Service Worker) executar o clique.
     await Logger.add('Requesting NATIVE_CLICK to SW', { targetX, targetY });
     chrome.runtime.sendMessage({
+      extensionId: RELEASE_EXTENSION_ID,
       type: 'NATIVE_CLICK',
       logKey: LOG_KEY, // Passa a chave única de log para o SW saber onde anotar
       coords: { x: targetX, y: targetY }

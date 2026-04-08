@@ -1,9 +1,9 @@
 module.exports = {
-  // solver: {
-  //   importPath: '../hCaptcha',
-  //   chunkName: 'solver',
-  //   exportName: 'default',
-  // },
+  solver: {
+    importPath: './hCaptcha/index.js',
+    chunkName: 'solver-runtime',
+    exportName: 'default',
+  },
 
   // main: {
   //   importPath: '../Main',

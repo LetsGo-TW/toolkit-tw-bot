@@ -1,0 +1,63 @@
+div#go-config-copy-to-clipboard {
+  width: -webkit-fill-available;
+  position: relative;
+  display: inline-block;
+  background-color: #f4e4bc;
+  color: chocolate;
+  margin-top: 0.3rem;
+}
+
+div#go-config-copy-to-clipboard-content {
+  display: none;
+}
+
+div#go-config-copy-to-clipboard-content.show {
+  width: -webkit-fill-available;;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  gap: 1rem;
+}
+
+.go-config-copy-itens,
+.go-config-copy-subitens{
+  display: flex;
+}
+.go-config-copy-itens {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.5rem;
+  border: solid 0.01rem darkgrey;
+  border-radius: 0.5rem;
+  gap: 0.5rem;
+
+  h4 {
+    color: saddlebrown;
+    margin: 0;
+  }
+}
+.go-config-copy-subitens {
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.go-label-checkbox {
+  margin: inherit;
+}
+
+.go-input {
+  font-size: 9pt;
+  font-family: Verdana,Arial;
+  margin: 4px;
+  height: 16px;
+  padding-left: 4px;
+}
+
+input#go-millisecond {
+  display: none;
+}
+
+input#go-millisecond.show {
+  display: block
+}

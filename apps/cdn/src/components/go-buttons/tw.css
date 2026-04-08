@@ -1,0 +1,74 @@
+.popup_box_content {
+    background-image: url('https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/popup/content_background.webp');
+    max-height: 92vh;
+    overflow: auto;
+}
+
+.popup_box_container {
+    z-index: 14000;
+    position: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    left: 0;
+    top: 4px;
+    width: 100%;
+    height: 100%;
+}
+.target-select {
+    width: auto;
+    margin-top: 0 !important;
+}
+.float_left {
+    float: left;
+}
+.target-input {
+    background-color: #fff;
+    border: 1px solid #91775e;
+    overflow: hidden;
+    width: 310px;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    margin-bottom: 5px;
+}
+.target-input input[type=text] {
+    height: 20px;
+    width: 310px;
+    resize: none;
+    padding: 2px;
+    border: none;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    outline: none;
+}
+.village-item:last-child {
+    border: none;
+}
+.village-item.read-only {
+    cursor: auto !important;
+}
+.village-item {
+    border-bottom: 1px solid #7d510f;
+    background-color: #fff5da;
+    cursor: pointer;
+    overflow: hidden;
+}
+.village-item .village-picture {
+    float: left;
+    margin-right: 5px;
+    border-radius: 20px;
+}
+.village-item .village-name {
+    font-weight: bold;
+    font-size: 12px;
+    margin-top: 0px;
+}
+.village-item .village-info, .village-item .village-distance {
+    display: block;
+    margin-top: 0px;
+    font-size: 87%;
+    line-height: 11px;
+}
+.village_anchor {
+    white-space: nowrap;
+}

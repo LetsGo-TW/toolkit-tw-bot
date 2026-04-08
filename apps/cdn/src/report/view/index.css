@@ -1,0 +1,94 @@
+.go-report-popup {
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 24px);
+  transform: translate(-50%, -50%);
+  z-index: 1000002;
+  display: none;
+  width: min(360px, calc(100vw - 16px));
+  /* min-height: 81px; */
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(18, 18, 18, 0.96);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  color: #f8fafc;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+.go-report-popup.is-open {
+  display: block;
+}
+
+.go-report-popup.is-dragging .go-report-popup-header {
+  cursor: grabbing;
+}
+
+.go-report-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  min-height: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.go-report-popup-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  object-fit: contain;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.go-report-popup-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+  margin: 0;
+  color: #f8fafc;
+}
+
+.go-report-popup-close {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.go-report-popup-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.go-report-popup-body {
+  padding: 5px 2px 5px 5px;
+  /* min-height: 64px; */
+}
+
+.go-report-popup-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 11px;
+  color: #cbd5e1;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+}

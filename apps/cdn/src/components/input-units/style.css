@@ -1,0 +1,84 @@
+.go-input-unit-group {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .85);;
+  font-size: 8pt;
+  font-family: Verdana, Arial;
+}
+
+.go-input-unit-group.is-selected {
+  background: #add77c7a;
+}
+
+.go-unit-toggle {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .85);;
+  padding: 0;
+  line-height: 14px;
+  cursor: pointer;
+}
+
+.go-unit-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+}
+
+.go-unit-icon-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.go-unit-input {
+  width: 42px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  /* border: none; */
+  /* outline: none; */
+  background: transparent;
+  font-size: 9pt;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+
+.go-unit-input:disabled {
+  color: #7d6a3a;
+}
+
+.go-unit-input::-webkit-outer-spin-button,
+.go-unit-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.go-unit-available {
+  min-width: 40px;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  padding: 0;
+  height: 18px;
+  cursor: pointer;
+}
+.go-unit-available:not(:disabled):hover {
+  color: #8b0000;
+}
+
+.go-unit-available:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.go-unit-available.is-hidden {
+  display: none;
+}

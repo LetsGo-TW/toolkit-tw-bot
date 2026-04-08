@@ -1,0 +1,96 @@
+.go-report-offer-root {
+  display: block;
+}
+
+.go-report-offer-list {
+  display: grid;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.55) transparent;
+}
+
+.go-report-offer-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.go-report-offer-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.go-report-offer-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+}
+
+.go-report-offer-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.go-report-offer-list::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.go-report-offer-item {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 7px;
+  font-size: 11px;
+  color: #dbe7ff;
+}
+
+.go-report-offer-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.go-report-offer-item-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.go-report-offer-item-date {
+  color: #93c5fd;
+  font-size: 11px;
+}
+
+.go-report-offer-item-body {
+  display: grid;
+  gap: 2px;
+  color: #cbd5e1;
+}
+
+.go-report-offer-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.go-report-offer-item-row.is-icon > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 14px;
+}
+
+.go-report-offer-item-row.is-total strong {
+  color: #ffffff;
+}
+
+.go-report-offer-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #cbd5e1;
+}

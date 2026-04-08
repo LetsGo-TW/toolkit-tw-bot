@@ -1,0 +1,200 @@
+.go-collector-base {
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 28px);
+  transform: translateX(-50%);
+  z-index: 1000001;
+  display: none;
+  min-width: 172px;
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(20, 20, 20, .90);
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  color: #f3f4f6;
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.go-collector-base.is-open {
+  display: block;
+}
+
+.go-collector-base.is-dragging .go-collector-base-header {
+  cursor: grabbing;
+}
+
+.go-collector-base-title {
+  display: block;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.go-collector-base-youtube-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  padding: 0 3px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.10);
+  text-decoration: none;
+  flex: 0 0 auto;
+  cursor: pointer;
+  line-height: 0;
+  margin-left: 0.5rem;
+  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+
+.go-collector-base-youtube-link img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.go-collector-base-youtube-link:hover {
+  transform: scale(1.08);
+  filter: brightness(1.1);
+  opacity: 1;
+}
+
+.go-collector-base-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 20px 4px 0;
+  min-height: 18px;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.go-collector-base-bot-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  border-radius: 999px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.go-collector-base-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.06);
+  color: #f3f4f6;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.go-collector-base-close:hover {
+  background: rgba(255,255,255,.12);
+}
+
+.go-collector-base-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.go-collector-base-toolbar[hidden] {
+  display: none !important;
+}
+
+.go-collector-base-status {
+  margin: 0 0 6px;
+  font-size: 10px;
+  color: #d1d5db;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.go-collector-base-status-label {
+  opacity: .92;
+}
+
+.go-collector-base-count-badge {
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.10);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.go-collector-base-spacer {
+  flex: 1 1 auto;
+}
+
+.go-collector-base-action {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,255,255,.05);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.go-collector-base-action:hover {
+  background: rgba(255,255,255,.11);
+}
+
+.go-collector-base-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.go-collector-base-action img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.go-collector-base-body {
+  margin: 0 0 6px;
+}
+
+.go-collector-base-body[hidden] {
+  display: none !important;
+}
+
+.go-collector-base-footer {
+  position: relative;
+  display: block;
+  overflow: visible;
+}
+
+.go-collector-base-actions-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

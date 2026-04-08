@@ -1,6 +1,8 @@
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import { DynamicImports } from "../dynamic-import"
+import ConfigSolver from "../hCaptcha/config"
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT_EVENT = 'toolkit:runner-bot-protect'
@@ -30,6 +32,20 @@ const installRunnerBotProtectListener = () => {
   })
 }
 
+const getDynamicImport = async (moduleName) => {
+  if (typeof moduleName !== 'string' || !moduleName.trim()) {
+    return null
+  }
+
+  const loader = DynamicImports[moduleName]
+
+  if (typeof loader !== 'function') {
+    return null
+  }
+
+  return await loader()
+}
+
 const game = () => {
   const run = async () => {
     const gameData = getCurrentGameData();
@@ -50,26 +66,44 @@ const game = () => {
 
     console.log(`[${CDN}]: `, response);
 
+    if (!response || response.ok !== true) return;
+
     // ativa CS listen
     document.querySelector("html")?.setAttribute('data-activetab', 'true')
 
-    // if (!response || response.ok !== true) return;
+    const data = response.data ?? null
+    const machineName = typeof response.machine === 'string'
+      ? response.machine.trim()
+      : ''
+    const moduleName = typeof response.module === 'string'
+      ? response.module.trim()
+      : ''
 
-    // if (isBotProtected || ProtectingBot['bot-protect-all-in-game'].active()) {
-    //   const solver = await DinamicImports.solver()
-    //   await solver(data)
-    //   return
-    // }
+    await ConfigSolver.init()
 
-    // const url = new URL(window.location.href, window.location.origin)
-    // const screen = url.searchParams.get('screen')
-    
-    // const insert = {}
-    // insert[screen] = DinamicImports[screen] ? await DinamicImports[screen]() : null
-    // insert.game = await DinamicImports.game()
-    // console.log({ insert })
-    // if (insert[screen]) await insert[screen](data)
-    // await insert.game(data)
+    if (machineName === 'solver') {
+      const solver = await getDynamicImport(machineName)
+      if (!solver) return
+      await solver(data)
+      return
+    }
+
+    const moduleRunner = await getDynamicImport(moduleName)
+    const machineRunner = await getDynamicImport(machineName)
+
+    console.log({
+      module: moduleName || null,
+      machine: machineName || null,
+      hasModuleRunner: Boolean(moduleRunner),
+      hasMachineRunner: Boolean(machineRunner),
+    })
+
+    if (moduleRunner) {
+      await moduleRunner(data)
+    }
+
+    if (!machineRunner) return
+    await machineRunner(data)
   }
 
   if (document.readyState === 'loading') {

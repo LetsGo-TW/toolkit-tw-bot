@@ -1,0 +1,77 @@
+.go-report-hcaptcha {
+  width: 100%;
+  color: #000;
+}
+
+[data-go-report-hcaptcha-list] {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 350px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c1a264 transparent;
+}
+
+[data-go-report-hcaptcha-list]::-webkit-scrollbar {
+  width: 5px;
+}
+
+[data-go-report-hcaptcha-list]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-go-report-hcaptcha-list]::-webkit-scrollbar-thumb {
+  background-color: #c1a264;
+  border-radius: 4px;
+}
+
+.go-report-hcaptcha-item {
+  background-color: #fdfaf3;
+  border: 1px solid #c1a264;
+  border-radius: 4px;
+  padding: 5px;
+  margin-right: 2px;
+}
+
+.go-report-hcaptcha-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e1d2af;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.go-report-hcaptcha-item-title {
+  margin: 0;
+  font-size: 14px;
+  color: #603000;
+}
+
+.go-report-hcaptcha-item-date {
+  font-size: 11px;
+  color: #888;
+}
+
+.go-report-hcaptcha-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.go-report-hcaptcha-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.go-report-hcaptcha-empty {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.status-success { color: #008200; font-weight: bold; }
+.status-error { color: #b10000; font-weight: bold; }
