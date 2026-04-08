@@ -36,7 +36,7 @@ router.post("/", async (req, res) => {
     const token = jwt.sign(
       { id: player._id, due: player.due },
       JWT_SECRET,
-      { expiresIn: 3600 * 2 }, // 2h
+      { expiresIn: 3600 }, // 1h
     );
 
     return res.send({ player, token });
