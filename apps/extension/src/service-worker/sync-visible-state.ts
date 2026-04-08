@@ -9,11 +9,17 @@ import {
 } from './enabled-by-user'
 import { cleanupLoginTabsForScope } from './prepared-context/cleanup-login-tabs'
 import { hasErrorAlarmForTab } from './prepared-context/error-tabId'
-import { type PreparedMessageData, upsertPreparedContext } from './prepared-context'
+import {
+  getTabIdsByWorldPlayer,
+  syncPreparedContextsByWorldPlayer,
+  type PreparedMessageData,
+  upsertPreparedContext,
+} from './prepared-context'
 import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from './message/types'
 import { getRunnerByScope, type RunnerRecord } from './runner-tabs'
 import { reconcileActiveRunner } from './runtime'
 import { getWorldPlayer, upsertWorldPlayer, type WorldPlayerRecord } from './world-players'
+import { ensureWorldPlayerLicense } from './world-players/license/ensure-world-player-license'
 import { runtimeAllowedByLicense } from './world-players/runtime'
 
 type RunnerCommandData = {
@@ -44,6 +50,7 @@ type SyncSenderVisibleStateArgs = {
   isBotProtected?: boolean
   avatarUrl?: string | null
   avatarUpdatedAt?: string | null
+  ensureWorldPlayerLicenseSource?: 'button' | 'runtime' | null
   reconcileRunner?: boolean
   cleanupLoginTabs?: boolean
 }
@@ -164,6 +171,7 @@ export async function syncSenderVisibleState({
   isBotProtected = false,
   avatarUrl = null,
   avatarUpdatedAt = null,
+  ensureWorldPlayerLicenseSource = null,
   reconcileRunner: shouldReconcileRunner = false,
   cleanupLoginTabs: shouldCleanupLoginTabs = false,
 }: SyncSenderVisibleStateArgs) {
@@ -191,7 +199,7 @@ export async function syncSenderVisibleState({
     }
   }
 
-  const worldPlayer = tabContext.world && typeof tabContext.playerId === 'number'
+  let worldPlayer = tabContext.world && typeof tabContext.playerId === 'number'
     ? await upsertWorldPlayer({
       world: tabContext.world,
       playerId: tabContext.playerId,
@@ -202,6 +210,20 @@ export async function syncSenderVisibleState({
       scopeKey: tabContext.scopeKey,
     })
     : null
+
+  if (
+    ensureWorldPlayerLicenseSource
+    && tabContext.world
+    && typeof tabContext.playerId === 'number'
+  ) {
+    const ensured = await ensureWorldPlayerLicense(
+      tabContext.world,
+      tabContext.playerId,
+      ensureWorldPlayerLicenseSource,
+    )
+
+    worldPlayer = ensured?.worldPlayer ?? worldPlayer
+  }
 
   if (shouldReconcileRunner) {
     await reconcileActiveRunner({
@@ -235,7 +257,32 @@ export async function syncSenderVisibleState({
     data,
   })
 
-  await syncTabActionByTabId(tabContext.tabId)
+  const relatedTabIds = (
+    tabContext.world
+    && typeof tabContext.playerId === 'number'
+  )
+    ? await syncPreparedContextsByWorldPlayer({
+      world: tabContext.world,
+      playerId: tabContext.playerId,
+      playerName: tabContext.playerName,
+      features: tabContext.features,
+      points: tabContext.points,
+      rank: tabContext.rank,
+      villages: tabContext.villages,
+      dateStarted: tabContext.dateStarted,
+    })
+    : getTabIdsByWorldPlayer(tabContext.world || '', tabContext.playerId ?? -1)
+
+  const tabIdsToRefresh = Array.from(
+    new Set([
+      tabContext.tabId,
+      ...relatedTabIds,
+    ]),
+  )
+
+  await Promise.all(
+    tabIdsToRefresh.map((tabId) => syncTabActionByTabId(tabId)),
+  )
 
   if (shouldCleanupLoginTabs && tabContext.context === 'GAME' && shouldStart) {
     try {

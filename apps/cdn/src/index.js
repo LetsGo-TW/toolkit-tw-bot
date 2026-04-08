@@ -237,13 +237,19 @@ async function postCtxToExtension() {
     throw new Error('Extension Id is required.')
   }
 
-  console.log('[PREPARED] sending CTX', getPreparedContext())
+  const context = getPreparedContext()
 
-  await chrome.runtime.sendMessage(runnerState.extensionId, {
+  console.log('[PREPARED] sending CTX', context)
+
+  const response = await chrome.runtime.sendMessage(runnerState.extensionId, {
     extensionId: runnerState.extensionId,
     type: CTX,
-    data: getPreparedContext(),
+    data: context,
   })
+
+  console.log('[PREPARED] CTX response', response)
+
+  return response
 }
 
 /** @returns {Promise<void>} */
@@ -304,7 +310,7 @@ async function onConnectMessage(data) {
   ensureExpectedExtensionId(data)
   setConnectionState(data)
   console.log('[PREPARED] CONNECT received', data)
-  void postCtxToExtension()
+  await postCtxToExtension()
 }
 
 async function onStartMessage(data) {

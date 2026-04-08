@@ -1,9 +1,8 @@
 import { createIndexedDbDocStore } from '@toolkit-tw-bot/browser/indexedDb'
 import { normalizeNumber, normalizeString } from '../normalize'
 import type { WorldPlayerRecord } from '../world-players'
+import { SERVICE_WORKER_DB_NAME, SERVICE_WORKER_DB_VERSION } from '../indexdb/constants'
 
-const SERVICE_WORKER_DB_NAME = 'toolkit-extension-sw'
-const SERVICE_WORKER_DB_VERSION = 1
 const CONTEXTS_STORE_NAME = 'contexts'
 
 export type ContextDocumentKind =

@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { syncPreparedContextWithOpenTwTabs } from '.'
+import { handleLicenseAlarm } from '../world-players/license/alarm'
 import { handleErrorAlarm } from './error-tabId'
 import { handleProbeAlarm } from './probe-scoped'
 
@@ -24,6 +25,13 @@ export function createOnPreparedContextCleanupAlarmListener() {
     if (alarm.name.startsWith('probe:')) {
       void handleProbeAlarm(alarm).catch((error) => {
         console.error('[probe alarm]', error)
+      })
+      return
+    }
+
+    if (alarm.name.startsWith('license:')) {
+      void handleLicenseAlarm(alarm).catch((error) => {
+        console.error('[license alarm]', error)
       })
       return
     }

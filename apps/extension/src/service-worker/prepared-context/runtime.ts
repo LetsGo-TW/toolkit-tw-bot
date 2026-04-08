@@ -8,6 +8,7 @@ import {
 } from '../message/types'
 import { type PreparedMessageData } from './index'
 import { syncSenderVisibleState } from '../sync-visible-state'
+import { runtimeAllowedByLicense } from '../world-players/runtime'
 
 type PreparedContextRequest = SWMessage & {
   data?: PreparedMessageData
@@ -48,6 +49,7 @@ export async function registerPreparedCtx(
     villages: received.data?.villages,
     dateStarted: received.data?.dateStarted ?? received.data?.date_started ?? null,
     isBotProtected: received.data?.isBotProtected === true,
+    ensureWorldPlayerLicenseSource: 'runtime',
     reconcileRunner: true,
     cleanupLoginTabs: true,
   })
@@ -71,13 +73,16 @@ export async function registerPreparedCtx(
     ok: true,
     type: CTX_MESSAGE_TYPE,
     active: isActive,
-    scopeKey: tabContext.scopeKey,
-    context: tabContext.context,
-    world: tabContext.world,
-    t: tabContext.t,
-    enabledByUser: data.enabledByUser,
-    tabId: tabContext.tabId,
-    windowId: tabContext.windowId,
+    scopeKey: tabContext?.scopeKey,
+    context: tabContext?.context,
+    world: tabContext?.world,
+    t: tabContext?.t,
+    enabledByUser: data?.enabledByUser,
+    tabId: tabContext?.tabId,
+    windowId: tabContext?.windowId,
+    data: {
+      ...data,
+    },
   }
 }
 
@@ -122,11 +127,11 @@ export async function syncSupportCtx(
   return {
     ok: true,
     type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
-    scopeKey: tabContext.scopeKey,
-    context: tabContext.context,
-    world: tabContext.world,
-    playerId: tabContext.playerId,
-    playerName: tabContext.playerName,
+    scopeKey: tabContext?.scopeKey,
+    context: tabContext?.context,
+    world: tabContext?.world,
+    playerId: tabContext?.playerId,
+    playerName: tabContext?.playerName,
     data: {
       ...data,
     },
@@ -172,12 +177,23 @@ export async function syncGameStage(
     return result
   }
 
+  let screen: string | null = null
+
+  if (typeof sender.url === 'string' && sender.url.trim()) {
+    try {
+      screen = new URL(sender.url).searchParams.get('screen')
+    } catch {
+      screen = null
+    }
+  }
+
+  const machine = isBotProtected ? 'solver' : 'game'
+  const module = isBotProtected ? null : screen
+
   return {
-    ok: true,
+    ok: result?.data?.isAllowedByLicense === true,
     type: GAME_STAGE_MESSAGE_TYPE,
-    token: result.worldPlayer?.license.token ?? null,
-    worldPlayer: result.worldPlayer,
-    isBotProtected,
-    data: result.data,
+    module,
+    machine,
   }
 }

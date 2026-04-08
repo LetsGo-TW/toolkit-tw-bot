@@ -15,6 +15,67 @@ function createStoreRequestError(action, storeName, key, error) {
   )
 }
 
+const indexedDbStoreRegistry = new Map()
+
+function getIndexedDbRegistry(dbName) {
+  if (!indexedDbStoreRegistry.has(dbName)) {
+    indexedDbStoreRegistry.set(dbName, {
+      stores: new Map(),
+      version: 1,
+    })
+  }
+
+  return indexedDbStoreRegistry.get(dbName)
+}
+
+function registerIndexedDbDocStore({
+  dbName,
+  storeName,
+  version = 1,
+  indexes = [],
+}) {
+  const registry = getIndexedDbRegistry(dbName)
+  const previous = registry.stores.get(storeName) || {
+    indexes: [],
+    storeName,
+  }
+
+  registry.version = Math.max(registry.version, version)
+  registry.stores.set(storeName, {
+    ...previous,
+    indexes: Array.isArray(indexes) ? indexes : [],
+    storeName,
+  })
+
+  return registry
+}
+
+function ensureRegisteredStores(database, transaction, dbName) {
+  const registry = indexedDbStoreRegistry.get(dbName)
+
+  if (!registry) {
+    return
+  }
+
+  registry.stores.forEach(({ storeName, indexes = [] }) => {
+    const store = database.objectStoreNames.contains(storeName)
+      ? transaction.objectStore(storeName)
+      : database.createObjectStore(storeName, { keyPath: '_id' })
+
+    indexes.forEach((index) => {
+      if (!index?.name || !index?.keyPath) {
+        return
+      }
+
+      if (!store.indexNames.contains(index.name)) {
+        store.createIndex(index.name, index.keyPath, {
+          unique: index.unique === true,
+        })
+      }
+    })
+  })
+}
+
 function createIndexedDbDocStore({
   dbName,
   storeName,
@@ -28,6 +89,13 @@ function createIndexedDbDocStore({
   if (!storeName) {
     throw new Error('createIndexedDbDocStore: storeName is required')
   }
+
+  registerIndexedDbDocStore({
+    dbName,
+    indexes,
+    storeName,
+    version,
+  })
 
   let dbPromise = null
 
@@ -43,25 +111,29 @@ function createIndexedDbDocStore({
 
         request.onupgradeneeded = () => {
           const database = request.result
-          const store = database.objectStoreNames.contains(storeName)
-            ? request.transaction.objectStore(storeName)
-            : database.createObjectStore(storeName, { keyPath: '_id' })
+          const transaction = request.transaction
 
-          indexes.forEach((index) => {
-            if (!index?.name || !index?.keyPath) {
-              return
-            }
+          if (!transaction) {
+            reject(createIndexedDbError(`Missing upgrade transaction for IndexedDB "${dbName}"`))
+            return
+          }
 
-            if (!store.indexNames.contains(index.name)) {
-              store.createIndex(index.name, index.keyPath, {
-                unique: index.unique === true,
-              })
-            }
-          })
+          ensureRegisteredStores(database, transaction, dbName)
         }
 
         request.onsuccess = () => {
           const database = request.result
+
+          if (!database.objectStoreNames.contains(storeName)) {
+            database.close()
+            dbPromise = null
+            reject(
+              createIndexedDbError(
+                `IndexedDB "${dbName}" is missing required store "${storeName}"`,
+              ),
+            )
+            return
+          }
 
           database.onversionchange = () => {
             database.close()

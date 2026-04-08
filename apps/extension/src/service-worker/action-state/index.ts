@@ -23,10 +23,11 @@ import {
 import { hasErrorAlarmForTab } from '../prepared-context/error-tabId'
 import { runtimeLicenseState } from '../world-players/runtime'
 
-async function notifyPopupRefresh() {
+async function notifyPopupRefresh(payload: Record<string, unknown> = {}) {
   try {
     await chrome.runtime.sendMessage({
       type: POPUP_REFRESH_MESSAGE_TYPE,
+      ...payload,
     })
   } catch {
     // Popup closed or no receiver registered.
@@ -86,7 +87,26 @@ export async function syncTabActionByTabId(tabId?: number | null) {
     license,
   })
 
-  await notifyPopupRefresh()
+  await notifyPopupRefresh({
+    tabId,
+    windowId: tab.windowId ?? null,
+    context: context?.context ?? (urlParams.isInLogin ? 'LOGIN' : urlParams.isInGame ? 'GAME' : null),
+    world,
+    t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
+    playerId,
+    playerName: context?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    features: context?.features ?? null,
+    points: context?.points ?? null,
+    rank: context?.rank ?? null,
+    villages: context?.villages ?? null,
+    dateStarted: context?.dateStarted ?? null,
+    updatedAt: context?.updatedAt ?? null,
+    enabledByUser,
+    isBotProtected: context?.isBotProtected === true,
+    isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
+    active: isActiveRunner,
+    license,
+  })
 }
 
 export async function syncRunnerActions(

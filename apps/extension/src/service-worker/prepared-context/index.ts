@@ -315,6 +315,64 @@ export function getTabIdsByWorldPlayer(world: string, playerId: number) {
     .map((tabContext) => tabContext.tabId)
 }
 
+export async function syncPreparedContextsByWorldPlayer({
+  world,
+  playerId,
+  playerName,
+  features,
+  points,
+  rank,
+  villages,
+  dateStarted,
+}: {
+  world?: string | null
+  playerId?: number | null
+  playerName?: unknown
+  features?: unknown
+  points?: unknown
+  rank?: unknown
+  villages?: unknown
+  dateStarted?: unknown
+}) {
+  await ensurePreparedContextLoaded()
+
+  if (!world || typeof playerId !== 'number' || !Number.isFinite(playerId)) {
+    return []
+  }
+
+  const normalizedPlayerName = normalizeString(playerName)
+  const normalizedFeatures = normalizeFeaturesMap(features)
+  const normalizedPoints = normalizeNumberish(points)
+  const normalizedRank = normalizeNumberish(rank)
+  const normalizedVillages = normalizeNumberish(villages)
+  const normalizedDateStarted = normalizeNumberish(dateStarted)
+  const now = new Date().toISOString()
+  const nextCache = Object.fromEntries(
+    Object.entries(tabContextByTabIdCache).map(([key, record]) => {
+      if (record.world !== world || record.playerId !== playerId) {
+        return [key, record]
+      }
+
+      return [key, {
+        ...record,
+        playerName: normalizedPlayerName ?? record.playerName ?? null,
+        features: normalizedFeatures ?? record.features ?? null,
+        points: normalizedPoints ?? record.points ?? null,
+        rank: normalizedRank ?? record.rank ?? null,
+        villages: normalizedVillages ?? record.villages ?? null,
+        dateStarted: normalizedDateStarted ?? record.dateStarted ?? null,
+        updatedAt: now,
+      }]
+    }),
+  ) as TabContextByTabId
+
+  const previousCache = tabContextByTabIdCache
+  tabContextByTabIdCache = nextCache
+  await persistTabContextByTabId(previousCache, nextCache)
+
+  return getTabIdsByWorldPlayer(world, playerId)
+}
+
 export function getPreparedContextTabIds() {
   return Object.keys(tabContextByTabIdCache)
     .map((value) => Number(value))

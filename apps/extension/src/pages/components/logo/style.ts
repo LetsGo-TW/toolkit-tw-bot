@@ -18,13 +18,27 @@ export const Container = styled.div<{ $isVisible: boolean, $compact?: boolean }>
     cursor: pointer;
   }
 
+  button:hover img {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 2px ${({ theme }) => `${theme.success}33`},
+      0 0 18px ${({ theme }) => `${theme.success}44`},
+      inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+
   img {
-    background: ${({ theme }) => theme.brand};
-    border: 0.15rem solid;
-    border-color: ${({ theme }) => theme.neutral};
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 38%),
+      ${({ theme }) => theme.successAura};
+    border: 1px solid ${({ theme }) => `${theme.success}55`};
     border-radius: 100%;
     width: ${({ $compact }) => ($compact ? '2.9rem' : '3.5rem')};
     height: auto;
+    box-shadow:
+      0 0 0 2px ${({ theme }) => `${theme.success}22`},
+      0 0 14px ${({ theme }) => `${theme.success}33`},
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
   }
 
   span {

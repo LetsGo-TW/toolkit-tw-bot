@@ -118,6 +118,7 @@
     "https://*.tribalwars.us/*",
     "https://*.hcaptcha.com/*",
     "wss://*/socket.io/*",
+    "http://localhost:5678/*",
     "http://localhost:4567/*",
     "https://api-controller-lets-go.herokuapp.com/*",
     "https://dsbr.innogamescdn.com/assets/*/js/game/*'",

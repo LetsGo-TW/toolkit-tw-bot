@@ -29,6 +29,7 @@ import {
   SET_ENABLED_BY_USER_MESSAGE_TYPE,
   START_MESSAGE_TYPE,
   STOP_MESSAGE_TYPE,
+  VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
 } from './message/types'
 import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from './world-players'
 import { runtimeAllowedByLicense } from './world-players/runtime'
@@ -174,6 +175,7 @@ function shouldRefreshRunnerCommandForReason(reason: string) {
   return (
     reason === 'startup'
     || reason === SET_ENABLED_BY_USER_MESSAGE_TYPE
+    || reason === VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE
     || reason === 'error-alarm-scheduled'
     || reason === 'error-alarm-cleared'
   )

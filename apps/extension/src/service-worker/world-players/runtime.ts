@@ -5,6 +5,7 @@ import type { SWMessage } from '../../types'
 import { GAME_STAGE_MESSAGE_TYPE } from '../message/types'
 import { normalizeBoolean, normalizeNumber, normalizeString } from '../normalize'
 import { upsertWorldPlayer, WorldPlayerLicenseRecord, WorldPlayerRecord } from './index'
+import { resolveRuntimeLicense } from './license'
 
 type GameStageRequest = Partial<SWMessage> & {
   world?: unknown
@@ -28,10 +29,15 @@ function createScopeKey(
   return `${world}:${t ?? 'main'}`
 }
 
-async function resolveWorldPlayerRuntimeLicense(_license: WorldPlayerLicenseRecord) {
+async function resolveWorldPlayerRuntimeLicense(license: WorldPlayerLicenseRecord) {
+  const {
+    isAllowedByLicense,
+    isLicenseExpiring,
+  } = resolveRuntimeLicense(license)
+
   return {
-    isAllowedByLicense: true,
-    isLicenseExpiring: false
+    isAllowedByLicense,
+    isLicenseExpiring,
   }
 }
 

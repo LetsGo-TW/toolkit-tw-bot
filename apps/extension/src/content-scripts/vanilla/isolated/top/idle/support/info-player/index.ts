@@ -6,7 +6,7 @@ import searchPlayerImageUrl from '@toolkit-tw-bot/document/searchPlayerImageUrl'
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { SET_PLAYER_AVATAR_MESSAGE_TYPE } from '../../../../../../../service-worker/message/types'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../message-types'
-import { CurrentGameData, getCurrentGameData, getCurrentUrl, isFinitePlayerId } from '../current'
+import { CurrentGameData, getCurrentGameData, getCurrentUrl, isFinitePlayerId, setCurrentGameData } from '../current'
 import { fetchCurrentDocument } from '../fetchCurrentDocument'
 
 function isCurrentPlayerInfoPlayerScreen(
@@ -41,7 +41,7 @@ async function persistAvatar({
     window.location.origin,
   )
 
-  return chrome.runtime.sendMessage({
+  const data = {
     extensionId: RELEASE_EXTENSION_ID,
     type: SET_PLAYER_AVATAR_MESSAGE_TYPE,
     world: gameData?.world,
@@ -54,18 +54,21 @@ async function persistAvatar({
     date_started: gameData?.player?.date_started ?? null,
     villages: gameData?.player?.villages ?? null,
     avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
+    points: gameData?.player?.points ?? null,
+    rank: gameData?.player?.rank ?? null,
     isBotProtected: isProtectBot,
-  })
+  }
+  console.log('[CS][Info_player] persist: ', data)
+  return chrome.runtime.sendMessage(data)
 }
 
 async function syncAvatarFromDocument(
   doc: Document,
 ) {
   const isProtectBot = ProtectingBot['bot-protect-all-in-game'].active(doc)
-  const currentGameData = getCurrentGameData()
-
+  const currentGameData = getCurrentGameData(doc)
+  setCurrentGameData(currentGameData)
   const avatarUrl = searchPlayerImageUrl(doc) || null
-
   return persistAvatar({
     gameData: currentGameData,
     avatarUrl,

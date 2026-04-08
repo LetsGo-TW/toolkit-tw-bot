@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
-import styled from 'styled-components'
+import styled, { css, keyframes } from 'styled-components'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
-import { POPUP_REFRESH_MESSAGE_TYPE } from '../../service-worker/message/types'
+import {
+  POPUP_REFRESH_MESSAGE_TYPE,
+  VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
+} from '../../service-worker/message/types'
 import type { ExtensionLicenseState, FeaturesMap, LicenseStatus } from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
@@ -38,8 +41,12 @@ type PopupState = {
   rank?: number | null
   villages?: number | null
   dateStarted?: number | null
+  updatedAt?: string | null
   avatarUrl?: string | null
   avatarUpdatedAt?: string | null
+  licenseDueAt?: number | null
+  tokenExpiresAt?: number | null
+  nextPostLicenseButtonAt?: number | null
   enabledByUser?: boolean | null
   isBotProtected?: boolean
   reconnectOnSessionExpired?: boolean | null
@@ -49,7 +56,46 @@ type PopupState = {
   license?: ExtensionLicenseState | null
 }
 
+type PopupRefreshMessage = {
+  type: typeof POPUP_REFRESH_MESSAGE_TYPE
+  tabId?: number | null
+  windowId?: number | null
+  context?: 'GAME' | 'LOGIN' | null
+  world?: string | null
+  t?: number | null
+  playerId?: number | null
+  playerName?: string | null
+  features?: FeaturesMap | null
+  points?: number | null
+  rank?: number | null
+  villages?: number | null
+  dateStarted?: number | null
+  updatedAt?: string | null
+  enabledByUser?: boolean | null
+  isBotProtected?: boolean
+  isTryConfirm?: boolean
+  active?: boolean
+  license?: ExtensionLicenseState | null
+}
+
 type IconProps = ComponentProps<'svg'>
+
+const syncPulse = keyframes`
+  0% {
+    opacity: 0.2;
+    transform: translateX(-22%) scaleX(0.42);
+  }
+
+  42% {
+    opacity: 0.9;
+    transform: translateX(0) scaleX(1);
+  }
+
+  100% {
+    opacity: 0.26;
+    transform: translateX(0) scaleX(1);
+  }
+`
 
 const Root = styled.main`
   width: 30rem;
@@ -219,6 +265,73 @@ const FeatureRow = styled.div`
   width: 100%;
 `
 
+const LicenseBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+`
+
+const LicenseRefreshButton = styled.button<{ $tone: 'success' | 'warn' | 'danger' | 'neutral' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid ${({ theme }) => theme.borderSoft};
+  background: ${({ $tone, theme }) => {
+    switch ($tone) {
+      case 'success':
+        return `${theme.success}18`
+      case 'warn':
+        return `${theme.warn}18`
+      case 'danger':
+        return `${theme.danger}18`
+      default:
+        return `${theme.neutral}18`
+    }
+  }};
+  color: ${({ $tone, theme }) => {
+    switch ($tone) {
+      case 'success':
+        return theme.success
+      case 'warn':
+        return theme.warn
+      case 'danger':
+        return theme.danger
+      default:
+        return theme.textPrimary
+    }
+  }};
+  transition: opacity 0.18s ease, transform 0.18s ease;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+    transform: none;
+  }
+
+  &:not(:disabled):hover {
+    transform: rotate(-18deg);
+  }
+`
+
+function RefreshIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  )
+}
+
+const RefreshSvg = styled(RefreshIcon)`
+  width: 0.92rem;
+  height: 0.92rem;
+`
+
 const FeaturePill = styled(Pill)`
   text-transform: none;
   letter-spacing: 0.03em;
@@ -229,6 +342,59 @@ const TwSection = styled.div`
   flex-direction: column;
   gap: 0.55rem;
   padding-top: 1rem;
+`
+
+const UpdateMark = styled.div`
+  display: inline-flex;
+  align-self: flex-end;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.08rem;
+  color: ${({ theme }) => theme.neutral};
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.76;
+`
+
+const UpdateDot = styled.span`
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.success};
+  box-shadow: 0 0 0.45rem ${({ theme }) => `${theme.success}66`};
+  flex-shrink: 0;
+`
+
+const UpdateTrack = styled.span<{ $animate?: boolean }>`
+  position: relative;
+  display: inline-flex;
+  width: 5.8rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    ${({ theme }) => `${theme.success}14`} 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: ${({ $animate }) => ($animate ? 1 : 0)};
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      ${({ theme }) => `${theme.success}88`} 48%,
+      transparent 100%
+    );
+    animation: ${({ $animate }) => ($animate ? css`${syncPulse} 900ms ease` : 'none')};
+    transform-origin: center;
+  }
 `
 
 const TechnicalMeta = styled.div`
@@ -486,13 +652,72 @@ function formatDateStarted(value?: number | null) {
   return new Intl.DateTimeFormat('pt-BR').format(date)
 }
 
+function formatUpdatedAt(value?: string | null) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date)
+}
+
+function formatDateTime(value?: number | string | null) {
+  if (value == null) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatRetryAt(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= Date.now()) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export default function App() {
   const rootRef = useRef<HTMLElement | null>(null)
   const avatarRefreshKeyRef = useRef<string | null>(null)
+  const lastSeenUpdatedAtRef = useRef<string | null>(null)
   const [state, setState] = useState<PopupState | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
   const [savingReconnectOnSessionExpired, setSavingReconnectOnSessionExpired] = useState(false)
+  const [checkingLicense, setCheckingLicense] = useState(false)
+  const [updatePulseTick, setUpdatePulseTick] = useState(0)
+  const [licenseRetryTick, setLicenseRetryTick] = useState(() => Date.now())
   const [error, setError] = useState<string | null>(null)
 
   const loadPopupState = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -577,7 +802,96 @@ export default function App() {
         return false
       }
 
-      void loadPopupState({ silent: true })
+      const refresh = received as PopupRefreshMessage
+
+      setState((previous) => {
+        if (!previous) {
+          return previous
+        }
+
+        if (
+          typeof refresh.tabId === 'number'
+          && previous.tabId !== refresh.tabId
+        ) {
+          return previous
+        }
+
+        if (
+          typeof refresh.windowId === 'number'
+          && previous.windowId !== refresh.windowId
+        ) {
+          return previous
+        }
+
+        const next = { ...previous }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'context')) {
+          next.context = refresh.context ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'world')) {
+          next.world = refresh.world ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 't')) {
+          next.t = refresh.t ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'playerId')) {
+          next.playerId = refresh.playerId ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'playerName')) {
+          next.playerName = refresh.playerName ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'features')) {
+          next.features = refresh.features ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'points')) {
+          next.points = refresh.points ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'rank')) {
+          next.rank = refresh.rank ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'villages')) {
+          next.villages = refresh.villages ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'dateStarted')) {
+          next.dateStarted = refresh.dateStarted ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'updatedAt')) {
+          next.updatedAt = refresh.updatedAt ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'enabledByUser')) {
+          next.enabledByUser = refresh.enabledByUser ?? null
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'isBotProtected')) {
+          next.isBotProtected = refresh.isBotProtected === true
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'isTryConfirm')) {
+          next.isTryConfirm = refresh.isTryConfirm === true
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'active')) {
+          next.active = refresh.active === true
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'license')) {
+          next.license = refresh.license ?? null
+        }
+
+        return next
+      })
+
       return false
     }
 
@@ -587,6 +901,41 @@ export default function App() {
       chrome.runtime.onMessage.removeListener(onRuntimeMessage)
     }
   }, [loadPopupState])
+
+  useEffect(() => {
+    const nextAt = state?.nextPostLicenseButtonAt
+
+    if (typeof nextAt !== 'number' || !Number.isFinite(nextAt) || nextAt <= Date.now()) {
+      return undefined
+    }
+
+    const timerId = window.setTimeout(() => {
+      setLicenseRetryTick(Date.now())
+    }, Math.max(0, nextAt - Date.now()) + 80)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
+  }, [state?.nextPostLicenseButtonAt, checkingLicense])
+
+  useEffect(() => {
+    const updatedAt = state?.updatedAt ?? null
+
+    if (!updatedAt) {
+      lastSeenUpdatedAtRef.current = null
+      return
+    }
+
+    if (lastSeenUpdatedAtRef.current === null) {
+      lastSeenUpdatedAtRef.current = updatedAt
+      return
+    }
+
+    if (lastSeenUpdatedAtRef.current !== updatedAt) {
+      lastSeenUpdatedAtRef.current = updatedAt
+      setUpdatePulseTick((current) => current + 1)
+    }
+  }, [state?.updatedAt])
 
   useEffect(() => {
     const tabId = state?.tabId
@@ -715,6 +1064,41 @@ export default function App() {
     }
   }, [savingReconnectOnSessionExpired, state])
 
+  const handleVerifyWorldPlayerLicense = useCallback(async () => {
+    if (
+      checkingLicense
+      || typeof state?.playerId !== 'number'
+      || !state?.world
+    ) {
+      return
+    }
+
+    setCheckingLicense(true)
+    setError(null)
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        extensionId: RELEASE_EXTENSION_ID,
+        type: VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
+        world: state.world,
+        playerId: state.playerId,
+        targetTabId: state.tabId ?? null,
+        targetWindowId: state.windowId ?? null,
+      }) as PopupState
+
+      if (!response?.ok) {
+        throw new Error(response?.reason || 'Unable to verify license')
+      }
+
+      setState(response)
+      setLicenseRetryTick(Date.now())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setCheckingLicense(false)
+    }
+  }, [checkingLicense, state])
+
   const isReady = state?.supported && state?.ready
   const hasPlayerIdentity = typeof state?.playerId === 'number'
   const playerEnabledByUserState = hasPlayerIdentity && typeof state?.enabledByUser === 'boolean'
@@ -734,6 +1118,21 @@ export default function App() {
   const canToggleEnabledByUser = hasPlayerIdentity && !savingEnabledByUser
   const isMdfScope = state?.t !== null
   const hasReconnectOption = hasPlayerIdentity && state?.license?.allowedByLicense === true
+  const nextPostLicenseButtonAt = state?.nextPostLicenseButtonAt ?? null
+  const canVerifyLicense = (
+    state?.license?.status === 'inactive'
+    && hasPlayerIdentity
+    && !checkingLicense
+    && (
+      typeof nextPostLicenseButtonAt !== 'number'
+      || nextPostLicenseButtonAt <= licenseRetryTick
+    )
+  )
+  const verifyLicenseTooltip = canVerifyLicense
+    ? 'Verify player license now'
+    : state?.license?.status === 'inactive'
+      ? `Available at ${formatRetryAt(nextPostLicenseButtonAt) || '--:--'}`
+      : 'Available only when the player has no active license'
   const showReconnectOption = hasPlayerIdentity
   const reconnectOnSessionExpiredState = showReconnectOption
     ? (isMdfScope ? false : state?.reconnectOnSessionExpired === true)
@@ -777,6 +1176,11 @@ export default function App() {
       value: formatDateStarted(state?.dateStarted),
     },
   ].filter((entry) => Boolean(entry.value))
+  const formattedUpdatedAt = formatUpdatedAt(state?.updatedAt)
+  const formattedLicenseDueAt = formatDateTime(state?.licenseDueAt)
+  const licenseTooltip = formattedLicenseDueAt
+    ? `License expires at ${formattedLicenseDueAt}`
+    : undefined
   const featureItems: FeatureItem[] = FEATURE_LABELS.flatMap(([featureKey, label]) => {
     const feature = state?.features?.[featureKey]
 
@@ -840,9 +1244,26 @@ export default function App() {
                         hCaptcha identified
                       </Pill>
                     ) : null}
-                    <Pill $tone={getLicenseTone(state?.license?.status)}>
-                      License {getLicenseText(state?.license?.status)}
-                    </Pill>
+                    <LicenseBadge>
+                      <Pill
+                        $tone={getLicenseTone(state?.license?.status)}
+                        data-popup-title={licenseTooltip}
+                      >
+                        License {getLicenseText(state?.license?.status)}
+                      </Pill>
+                      {state?.license?.status === 'inactive' ? (
+                        <LicenseRefreshButton
+                          type="button"
+                          $tone={getLicenseTone(state?.license?.status)}
+                          disabled={!canVerifyLicense}
+                          data-popup-title={verifyLicenseTooltip}
+                          aria-label="Verify player license"
+                          onClick={() => { void handleVerifyWorldPlayerLicense() }}
+                        >
+                          <RefreshSvg />
+                        </LicenseRefreshButton>
+                      ) : null}
+                    </LicenseBadge>
                     {state?.isTryConfirm ? (
                       <Pill $tone="danger">Try Confirm</Pill>
                     ) : null}
@@ -925,14 +1346,28 @@ export default function App() {
               ) : null}
 
               {playerMetrics.length ? (
-                <Grid>
-                  {playerMetrics.map((metric) => (
-                    <Cell key={metric.key}>
-                      <Label>{metric.label}</Label>
-                      <Value>{metric.value}</Value>
-                    </Cell>
-                  ))}
-                </Grid>
+                <>
+                  <Grid>
+                    {playerMetrics.map((metric) => (
+                      <Cell key={metric.key}>
+                        <Label>{metric.label}</Label>
+                        <Value>{metric.value}</Value>
+                      </Cell>
+                    ))}
+                  </Grid>
+
+                  {formattedUpdatedAt ? (
+                    <UpdateMark>
+                      <UpdateDot aria-hidden="true" />
+                      <span>Updated {formattedUpdatedAt}</span>
+                      <UpdateTrack
+                        key={updatePulseTick > 0 ? `pulse-${updatePulseTick}` : 'steady'}
+                        $animate={updatePulseTick > 0}
+                        aria-hidden="true"
+                      />
+                    </UpdateMark>
+                  ) : null}
+                </>
               ) : null}
             </TwSection>
 

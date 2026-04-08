@@ -1,7 +1,7 @@
 import { getRunnerByScope } from '../runner-tabs'
-import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from '../world-players'
+import { ensureWorldPlayersLoaded, getWorldPlayer, getWorldPlayerByScopeKey } from '../world-players'
 import { runtimeAllowedByLicense } from '../world-players/runtime'
-import { getTabContext } from '.'
+import { getTabContext, getTabContextKey, getTabContextsByScopeKey, getTabIdsByWorldPlayer } from '.'
 
 async function getScopedRunnerTarget(scopeKey: string) {
   const runner = getRunnerByScope(scopeKey)
@@ -68,4 +68,16 @@ async function getRecoverableTabCtxTarget(tabId: number) {
   }
 }
 
-export { getScopedRunnerTarget, getRecoverableTabCtxTarget }
+async function getWorldPlayerCtxTarget(world: string, playerId: number) {
+  await ensureWorldPlayersLoaded()
+  const worldPlayer = getWorldPlayer(world, playerId)
+  if (!worldPlayer) return null
+  const tabIds = getTabIdsByWorldPlayer(world, playerId)
+  if (!tabIds.length) return null
+  return {
+    worldPlayer,
+    tabIds
+  }
+}
+
+export { getScopedRunnerTarget, getRecoverableTabCtxTarget, getWorldPlayerCtxTarget }

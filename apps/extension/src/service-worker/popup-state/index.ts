@@ -8,6 +8,8 @@ import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by
 import { GET_POPUP_STATE_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber } from '../normalize'
 import {
+  ensurePreparedContextLoaded,
+  getTabContext,
   getTabUrl,
   getWorldFromUrl,
   isTribalWarsUrl,
@@ -22,6 +24,7 @@ import {
   getWorldPlayer,
   getWorldPlayerByScopeKey,
 } from '../world-players'
+import { getLicenseDueAt, getLicenseTokenExpiresAt } from '../world-players/license'
 import { runtimeLicenseState } from '../world-players/runtime'
 
 export type PopupStateRequest = Partial<SWMessage> & {
@@ -41,6 +44,7 @@ type PopupPageState = {
   rank?: number | null
   villages?: number | null
   dateStarted?: number | null
+  updatedAt?: string | null
   isBotProtected?: boolean
   isTryConfirm?: boolean
 }
@@ -109,6 +113,7 @@ async function getPopupPageState(tabId: number) {
 
 export async function getPopupState(request: PopupStateRequest = {}) {
   await ensureEnabledByUserLoaded()
+  await ensurePreparedContextLoaded()
   await ensureRunnerTabsLoaded()
   await ensureReconnectOnSessionExpiredLoaded()
   await ensureWorldPlayersLoaded()
@@ -130,6 +135,9 @@ export async function getPopupState(request: PopupStateRequest = {}) {
   const pageState = isSupported
     ? await getPopupPageState(tab.id)
     : null
+  const tabContext = isSupported
+    ? getTabContext(tab.id)
+    : null
   const urlParams = tabUrl ? getParamsUrl(tabUrl) : {}
   const fallbackContext = urlParams.isInLogin
     ? 'LOGIN'
@@ -139,11 +147,20 @@ export async function getPopupState(request: PopupStateRequest = {}) {
   const runnerWorldPlayer = currentRunner
     ? getWorldPlayerByScopeKey(currentRunner.scopeKey)
     : null
-  const world = pageState?.world ?? currentRunner?.world ?? getWorldFromUrl(tabUrl) ?? null
-  const t = pageState?.t ?? (currentRunner?.tabId === tab.id && currentRunner?.windowId === tab.windowId
-    ? currentRunner?.t ?? null
-    : urlParams.t ?? null)
-  const playerId = pageState?.playerId ?? runnerWorldPlayer?.playerId ?? null
+  const world = pageState?.world
+    ?? tabContext?.world
+    ?? currentRunner?.world
+    ?? getWorldFromUrl(tabUrl)
+    ?? null
+  const t = pageState?.t
+    ?? tabContext?.t
+    ?? (currentRunner?.tabId === tab.id && currentRunner?.windowId === tab.windowId
+      ? currentRunner?.t ?? null
+      : urlParams.t ?? null)
+  const playerId = pageState?.playerId
+    ?? tabContext?.playerId
+    ?? runnerWorldPlayer?.playerId
+    ?? null
   const worldPlayer = getWorldPlayer(
     world,
     playerId,
@@ -158,26 +175,30 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     windowId: tab.windowId,
     title: tab.title || null,
     url: tabUrl,
-    context: pageState?.context ?? fallbackContext,
+    context: pageState?.context ?? tabContext?.context ?? fallbackContext,
     world,
     t,
     playerId,
-    playerName: pageState?.playerName ?? runnerWorldPlayer?.playerName ?? null,
-    features: (pageState?.features ?? null) as FeaturesMap | null,
-    points: normalizeNumberish(pageState?.points),
-    rank: normalizeNumberish(pageState?.rank),
-    villages: normalizeNumberish(pageState?.villages),
-    dateStarted: normalizeNumberish(worldPlayer?.dateStarted ?? pageState?.dateStarted ?? null),
+    playerName: pageState?.playerName ?? tabContext?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    features: (pageState?.features ?? tabContext?.features ?? null) as FeaturesMap | null,
+    points: normalizeNumberish(tabContext?.points ?? pageState?.points),
+    rank: normalizeNumberish(tabContext?.rank ?? pageState?.rank),
+    villages: normalizeNumberish(tabContext?.villages ?? pageState?.villages),
+    dateStarted: normalizeNumberish(worldPlayer?.dateStarted ?? tabContext?.dateStarted ?? pageState?.dateStarted ?? null),
+    updatedAt: tabContext?.updatedAt ?? null,
     avatarUrl: worldPlayer?.avatarUrl ?? null,
     avatarUpdatedAt: worldPlayer?.avatarUpdatedAt ?? null,
+    licenseDueAt: worldPlayer?.license ? getLicenseDueAt(worldPlayer.license) : null,
+    tokenExpiresAt: worldPlayer?.license ? getLicenseTokenExpiresAt(worldPlayer.license) : null,
     enabledByUser: world && typeof playerId === 'number'
       ? getPlayerEnabledByUser(world, playerId)
       : null,
-    isBotProtected: pageState?.isBotProtected === true,
+    isBotProtected: pageState?.isBotProtected === true || tabContext?.isBotProtected === true,
     reconnectOnSessionExpired: world && typeof playerId === 'number'
       ? getPlayerReconnectOnSessionExpired(world, playerId)
       : null,
-    isTryConfirm: pageState?.isTryConfirm === true || urlParams.isTryConfirm === true,
+    nextPostLicenseButtonAt: worldPlayer?.license.nextPostLicenseButtonAt ?? null,
+    isTryConfirm: pageState?.isTryConfirm === true || tabContext?.isTryConfirm === true || urlParams.isTryConfirm === true,
     active: Boolean(
       currentRunner
       && currentRunner.tabId === tab.id

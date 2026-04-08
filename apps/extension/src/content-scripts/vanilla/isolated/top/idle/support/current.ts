@@ -5,17 +5,31 @@ import { GameData } from "../../../../../../types"
 
 type CurrentGameData = ParsedGameData & GameData
 type CurrentWindow = Window & {
-  game_data?: CurrentGameData
+  gameData?: CurrentGameData
+}
+
+function setCurrentGameData(gameData: GameData) {
+  const currentWindow = window as CurrentWindow
+
+  currentWindow.gameData = gameData
 }
 
 function getCurrentGameData(doc: Document = document) {
   const currentWindow = window as CurrentWindow
 
-  if (typeof currentWindow.game_data !== 'undefined' && currentWindow.game_data) {
-    return currentWindow.game_data
+  if (
+    doc === document
+    && typeof currentWindow.gameData !== 'undefined'
+    && currentWindow.gameData
+  ) {
+    return currentWindow.gameData
   }
 
-  return getGameData(doc) as CurrentGameData
+  const gameData = getGameData(doc) as CurrentGameData
+
+  setCurrentGameData(gameData)
+
+  return gameData
 }
 
 function getCurrentUrl() {
@@ -78,6 +92,7 @@ function isFinitePlayerId(value: unknown): value is number {
 }
 
 export {
+  setCurrentGameData,
   getCurrentGameData,
   getCurrentUrl,
   getCurrentWorldFromUrl,

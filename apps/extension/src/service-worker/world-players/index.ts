@@ -8,6 +8,10 @@ const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
 export type WorldPlayerLicenseRecord = {
   id: string | null
   token: string | null
+  nextPostLicenseButtonAt: number | null
+  nextPostLicenseRuntimeAt: number | null
+  lastPostLicenseStatus: number | null
+  lastPostLicenseAt: number | null
 }
 
 export type WorldPlayerRecord = {
@@ -34,6 +38,10 @@ function normalizeWorldPlayerLicenseRecord(value: unknown): WorldPlayerLicenseRe
     return {
       id: null,
       token: null,
+      nextPostLicenseButtonAt: null,
+      nextPostLicenseRuntimeAt: null,
+      lastPostLicenseStatus: null,
+      lastPostLicenseAt: null,
     }
   }
 
@@ -42,6 +50,21 @@ function normalizeWorldPlayerLicenseRecord(value: unknown): WorldPlayerLicenseRe
   return {
     id: normalizeString(candidate.id) ?? null,
     token: normalizeString(candidate.token) ?? null,
+    nextPostLicenseButtonAt: normalizeNumber(candidate.nextPostLicenseButtonAt),
+    nextPostLicenseRuntimeAt: normalizeNumber(candidate.nextPostLicenseRuntimeAt),
+    lastPostLicenseStatus: normalizeNumber(candidate.lastPostLicenseStatus),
+    lastPostLicenseAt: normalizeNumber(candidate.lastPostLicenseAt),
+  }
+}
+
+function createEmptyWorldPlayerLicenseRecord(): WorldPlayerLicenseRecord {
+  return {
+    id: null,
+    token: null,
+    nextPostLicenseButtonAt: null,
+    nextPostLicenseRuntimeAt: null,
+    lastPostLicenseStatus: null,
+    lastPostLicenseAt: null,
   }
 }
 
@@ -192,10 +215,7 @@ export async function setWorldPlayerEnabledByUser({
     enabledByUser,
     reconnectOnSessionExpired: previousRecord?.reconnectOnSessionExpired ?? false,
     scopeKey: previousRecord?.scopeKey ?? null,
-    license: previousRecord?.license ?? {
-      id: null,
-      token: null,
-    },
+    license: previousRecord?.license ?? createEmptyWorldPlayerLicenseRecord(),
     updatedAt: new Date().toISOString(),
   }
 
@@ -242,9 +262,84 @@ export async function setWorldPlayerReconnectOnSessionExpired({
     enabledByUser: previousRecord?.enabledByUser ?? false,
     reconnectOnSessionExpired,
     scopeKey: previousRecord?.scopeKey ?? null,
-    license: previousRecord?.license ?? {
-      id: null,
-      token: null,
+    license: previousRecord?.license ?? createEmptyWorldPlayerLicenseRecord(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const previousCache = worldPlayersCache
+  const nextCache = {
+    ...previousCache,
+    [worldPlayerKey]: nextRecord,
+  }
+
+  worldPlayersCache = nextCache
+  await persistWorldPlayers(previousCache, nextCache)
+  await syncWorldPlayerContextsSafely(nextRecord)
+
+  return nextRecord
+}
+
+export async function setWorldPlayerLicense(params: {
+  world?: string | null
+  playerId?: number | null
+  licenseId?: string | null
+  token?: string | null
+  nextPostLicenseButtonAt?: number | null
+  nextPostLicenseRuntimeAt?: number | null
+  lastPostLicenseStatus?: number | null
+  lastPostLicenseAt?: number | null
+}) {
+  const normalizedWorld = normalizeString(params.world)
+  const normalizedPlayerId = normalizeNumber(params.playerId)
+  const hasLicenseId = Object.prototype.hasOwnProperty.call(params, 'licenseId')
+  const hasToken = Object.prototype.hasOwnProperty.call(params, 'token')
+  const hasNextPostLicenseButtonAt = Object.prototype.hasOwnProperty.call(params, 'nextPostLicenseButtonAt')
+  const hasNextPostLicenseRuntimeAt = Object.prototype.hasOwnProperty.call(params, 'nextPostLicenseRuntimeAt')
+  const hasLastPostLicenseStatus = Object.prototype.hasOwnProperty.call(params, 'lastPostLicenseStatus')
+  const hasLastPostLicenseAt = Object.prototype.hasOwnProperty.call(params, 'lastPostLicenseAt')
+  const normalizedLicenseId = hasLicenseId
+    ? normalizeString(params.licenseId) ?? null
+    : null
+  const normalizedToken = hasToken
+    ? normalizeString(params.token) ?? null
+    : null
+  const normalizedNextPostLicenseButtonAt = hasNextPostLicenseButtonAt
+    ? normalizeNumber(params.nextPostLicenseButtonAt)
+    : null
+  const normalizedNextPostLicenseRuntimeAt = hasNextPostLicenseRuntimeAt
+    ? normalizeNumber(params.nextPostLicenseRuntimeAt)
+    : null
+  const normalizedLastPostLicenseStatus = hasLastPostLicenseStatus
+    ? normalizeNumber(params.lastPostLicenseStatus)
+    : null
+  const normalizedLastPostLicenseAt = hasLastPostLicenseAt
+    ? normalizeNumber(params.lastPostLicenseAt)
+    : null
+  const worldPlayerKey = getWorldPlayerKey(normalizedWorld, normalizedPlayerId)
+
+  if (!normalizedWorld || normalizedPlayerId === null || !worldPlayerKey) {
+    return null
+  }
+
+  await ensureWorldPlayersLoaded()
+
+  const previousRecord = worldPlayersCache[worldPlayerKey] || null
+
+  if (!previousRecord) {
+    return null
+  }
+
+  const previousLicense = previousRecord.license ?? createEmptyWorldPlayerLicenseRecord()
+
+  const nextRecord: WorldPlayerRecord = {
+    ...previousRecord,
+    license: {
+      id: hasLicenseId ? normalizedLicenseId : previousLicense.id,
+      token: hasToken ? normalizedToken : previousLicense.token,
+      nextPostLicenseButtonAt: hasNextPostLicenseButtonAt ? normalizedNextPostLicenseButtonAt : previousLicense.nextPostLicenseButtonAt,
+      nextPostLicenseRuntimeAt: hasNextPostLicenseRuntimeAt ? normalizedNextPostLicenseRuntimeAt : previousLicense.nextPostLicenseRuntimeAt,
+      lastPostLicenseStatus: hasLastPostLicenseStatus ? normalizedLastPostLicenseStatus : previousLicense.lastPostLicenseStatus,
+      lastPostLicenseAt: hasLastPostLicenseAt ? normalizedLastPostLicenseAt : previousLicense.lastPostLicenseAt,
     },
     updatedAt: new Date().toISOString(),
   }
@@ -305,10 +400,7 @@ export async function upsertWorldPlayer({
     enabledByUser: previousRecord?.enabledByUser ?? false,
     reconnectOnSessionExpired: previousRecord?.reconnectOnSessionExpired ?? false,
     scopeKey: normalizedScopeKey ?? previousRecord?.scopeKey ?? null,
-    license: previousRecord?.license ?? {
-      id: null,
-      token: null,
-    },
+    license: previousRecord?.license ?? createEmptyWorldPlayerLicenseRecord(),
     updatedAt: new Date().toISOString(),
   }
 
