@@ -1,3 +1,4 @@
+import type { LicenseStatus } from '../../../types'
 import type { WorldPlayerLicenseRecord } from '..'
 
 const HOUR_IN_MS = 3600 * 1000
@@ -6,6 +7,7 @@ const TOKEN_REFRESH_MARGIN_MS = 5 * MINUTE_IN_MS
 const LICENSE_EXPIRING_WINDOW_MS = 24 * HOUR_IN_MS
 const BUTTON_LICENSE_POST_COOLDOWN_MS = 2 * MINUTE_IN_MS
 const RUNTIME_LICENSE_POST_COOLDOWN_MS = 60 * MINUTE_IN_MS
+const ACTIVE_LICENSE_POST_STATUS = 200
 
 export type EnsureWorldPlayerLicenseSource = 'button' | 'runtime'
 
@@ -101,26 +103,62 @@ export function isAllowedByLicense(
   license: WorldPlayerLicenseRecord,
   now = Date.now(),
 ) {
-  const due = getLicenseDue(license)
+  const status = getLicenseStatus(license, now)
 
-  if (due === null) {
-    return false
-  }
-
-  return Math.trunc(now / HOUR_IN_MS) <= Math.trunc(due / 3600)
+  return status === 'active' || status === 'warning'
 }
 
 export function isLicenseExpiring(
   license: WorldPlayerLicenseRecord,
   now = Date.now(),
 ) {
-  if (!isAllowedByLicense(license, now)) {
-    return false
+  return getLicenseStatus(license, now) === 'warning'
+}
+
+function hasRecordedLicenseValidationFailure(
+  license: WorldPlayerLicenseRecord,
+) {
+  return (
+    typeof license.lastPostLicenseAt === 'number'
+    && Number.isFinite(license.lastPostLicenseAt)
+    && typeof license.lastPostLicenseStatus === 'number'
+    && Number.isFinite(license.lastPostLicenseStatus)
+    && license.lastPostLicenseStatus !== ACTIVE_LICENSE_POST_STATUS
+  )
+}
+
+export function getLicenseStatus(
+  license: WorldPlayerLicenseRecord,
+  now = Date.now(),
+): LicenseStatus {
+  const due = getLicenseDue(license)
+
+  if (due === null) {
+    return 'inactive'
+  }
+
+  if (isExpired(license, now)) {
+    return 'session-expired'
+  }
+
+  if (hasRecordedLicenseValidationFailure(license)) {
+    return (
+      license.lastPostLicenseStatus === 401
+      || license.lastPostLicenseStatus === 403
+    )
+      ? 'inactive'
+      : 'session-expired'
   }
 
   const dueAt = getLicenseDueAt(license)
 
-  return dueAt !== null && dueAt - now <= LICENSE_EXPIRING_WINDOW_MS
+  if (dueAt !== null && dueAt - now <= LICENSE_EXPIRING_WINDOW_MS) {
+    return 'warning'
+  }
+
+  return Math.trunc(now / HOUR_IN_MS) <= Math.trunc(due / 3600)
+    ? 'active'
+    : 'inactive'
 }
 
 export function getDelayInMinutes(
@@ -142,9 +180,12 @@ export function getDelayInMinutes(
 }
 
 export function resolveRuntimeLicense(license: WorldPlayerLicenseRecord) {
+  const status = getLicenseStatus(license)
+
   return {
-    isAllowedByLicense: isAllowedByLicense(license),
-    isLicenseExpiring: isLicenseExpiring(license),
+    status,
+    isAllowedByLicense: status === 'active' || status === 'warning',
+    isLicenseExpiring: status === 'warning',
     delayInMinutes: getDelayInMinutes(license),
     isExpired: isExpired(license),
   }
@@ -181,11 +222,11 @@ export function createLicensePostCooldownState(
   }
 }
 
-export function createActiveLicensePostState() {
+export function createActiveLicensePostState(now = Date.now()) {
   return {
     nextPostLicenseButtonAt: null,
     nextPostLicenseRuntimeAt: null,
-    lastPostLicenseStatus: null,
-    lastPostLicenseAt: null,
+    lastPostLicenseStatus: ACTIVE_LICENSE_POST_STATUS,
+    lastPostLicenseAt: now,
   }
 }

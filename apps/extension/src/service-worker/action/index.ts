@@ -1,6 +1,6 @@
 /// <reference types="chrome" />
 
-import type { ExtensionLicenseState } from '../../types'
+import { getRuntimeStatus, type ExtensionLicenseState } from '../../types'
 
 const DEFAULT_TITLE = "Let's GO! - Player Assistant"
 const DEFAULT_POPUP = 'popup.html'
@@ -17,6 +17,7 @@ export type TabActionState = {
   t: number | null
   playerName: string | null
   isTryConfirm: boolean
+  isConnectServerError?: boolean
   isNetError?: boolean
   license: ExtensionLicenseState
   botProtect?: boolean
@@ -36,6 +37,10 @@ function getIconFilename({
     return licenseStatus === 'error' ? 'ico.red.48.png' : 'ico.white-black.48.png'
   }
 
+  if (licenseStatus === 'session-expired') {
+    return 'ico.yellow-black.48.png'
+  }
+
   if (licenseStatus === 'warning') {
     return 'ico.yellow.48.png'
   }
@@ -53,10 +58,18 @@ function getActionTitle({
   playerName,
   license,
   botProtect = false,
+  isConnectServerError = false,
   isNetError = false,
 }: Omit<TabActionState, 'tabId' | 'isTryConfirm'>) {
   const licenseStatus = license.status
   const isRunning = active && enabledByUser === true && license.allowedByLicense
+  const runtimeStatus = getRuntimeStatus({
+    active: isRunning,
+    enabledByUser,
+    hasPlayerIdentity: true,
+    isNetError,
+    isConnectServerError,
+  })
 
   if (!enabled) {
     return DEFAULT_TITLE
@@ -72,7 +85,9 @@ function getActionTitle({
   if (licenseStatus === 'warning') {
     parts.push('License warning')
   } else if (licenseStatus === 'inactive') {
-    parts.push('License inactive')
+    parts.push('No license')
+  } else if (licenseStatus === 'session-expired') {
+    parts.push('Session expired')
   } else if (licenseStatus === 'error') {
     parts.push('License error')
   }
@@ -81,14 +96,22 @@ function getActionTitle({
     parts.push('hCaptcha identified')
   }
 
-  if (isNetError) {
-    parts.push('Connection error')
-  }
-
-  if (enabledByUser === false) {
-    parts.push('Off')
-  } else {
-    parts.push(isRunning ? 'Running' : 'Ready')
+  switch (runtimeStatus) {
+    case 'off':
+      parts.push('Off')
+      break
+    case 'net-error':
+      parts.push('NET:ERROR')
+      break
+    case 'connect-error':
+      parts.push('CONNECT:ERROR')
+      break
+    case 'running':
+      parts.push('Running')
+      break
+    default:
+      parts.push('Ready')
+      break
   }
 
   return `Let's GO! - ${parts.join(' • ')}`
@@ -106,6 +129,7 @@ export async function syncTabAction({
   isTryConfirm,
   license,
   botProtect = false,
+  isConnectServerError = false,
   isNetError = false,
 }: TabActionState) {
   if (typeof tabId !== 'number') {
@@ -134,6 +158,7 @@ export async function syncTabAction({
       playerName,
       license,
       botProtect,
+      isConnectServerError,
       isNetError,
     }),
   })
@@ -153,7 +178,20 @@ export async function syncTabAction({
 
   const isRunning = active && enabledByUser === true && license.allowedByLicense
 
-  if (isRunning) {
+  if (isConnectServerError) {
+    await chrome.action.setBadgeBackgroundColor({
+      color: '#6b7280',
+      tabId,
+    })
+    await chrome.action.setBadgeTextColor({
+      color: 'white',
+      tabId,
+    })
+    await chrome.action.setBadgeText({
+      tabId,
+      text: '⏹',
+    })
+  } else if (isRunning) {
     await chrome.action.setBadgeBackgroundColor({
       color: botProtect ? 'black' : (isNetError ? 'black' : (isTryConfirm ? '#deb017' : 'orangered')),
       tabId,

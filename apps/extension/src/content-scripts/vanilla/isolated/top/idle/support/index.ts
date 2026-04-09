@@ -4,6 +4,11 @@ import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { SUPPORT_SYNC_CTX_MESSAGE_TYPE } from "../../../../../../service-worker/message/types"
+import {
+  isPreparedConnectServerError,
+  STARTER_PREPARED_ERROR,
+  STARTER_PREPARED_READY,
+} from "../../../../shared/preparedBootstrap"
 import { setActiveTitle } from "../../../../shared/setActiveTitle"
 import { installChangeGlobalSupport } from "./changeGlobal"
 import { SUPPORT_GET_POPUP_STATE_MESSAGE_TYPE, SUPPORT_PROBE_MESSAGE_TYPE } from './message-types'
@@ -26,10 +31,28 @@ let probedBotProtectState: boolean | null = null
 let syncedBotProtectState: boolean | null = null
 let botProtectStateSyncTimer: ReturnType<typeof setTimeout> | null = null
 
+function getPageMessageData(event: MessageEvent<unknown>) {
+  if (event.source !== window) {
+    return null
+  }
+
+  if (event.origin !== window.location.origin) {
+    return null
+  }
+
+  if (!event.data || typeof event.data !== 'object') {
+    return null
+  }
+
+  return event.data as Record<string, unknown>
+}
+
 async function syncCtxAndTitle({
   isBotProtected,
+  isConnectServerError,
 }: {
   isBotProtected?: boolean | null
+  isConnectServerError?: boolean | null
 } = {}) {
   const gameData = getCurrentGameData();
 
@@ -56,6 +79,9 @@ async function syncCtxAndTitle({
     isBotProtected: typeof isBotProtected === 'boolean'
       ? isBotProtected
       : ProtectingBot['bot-protect-all-in-game'].active(document),
+    isConnectServerError: typeof isConnectServerError === 'boolean'
+      ? isConnectServerError
+      : isPreparedConnectServerError(document),
     isIntro: runtimeParams?.isIntro ?? null
   })
 
@@ -118,6 +144,7 @@ function installBotProtectObserver() {
 
 async function runSupportProbe() {
   const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active(document)
+  const isConnectServerError = isPreparedConnectServerError(document)
 
   probedBotProtectState = isBotProtected
   syncedBotProtectState = isBotProtected
@@ -148,12 +175,14 @@ async function runSupportProbe() {
     ok: true,
     type: SUPPORT_PROBE_MESSAGE_TYPE,
     isBotProtected,
+    isConnectServerError,
     networkError,
     error: avatarError,
     avatarResponse,
     ctxResponse,
     snapshot: getPopupPageSnapshot({
       isBotProtected,
+      isConnectServerError,
     }),
   }
 }
@@ -174,6 +203,7 @@ function onExtensionMessage(
   ) {
     const popupSnapshot = getPopupPageSnapshot({
       isBotProtected: probedBotProtectState,
+      isConnectServerError: isPreparedConnectServerError(document),
     })
 
     sendResponse({
@@ -228,6 +258,31 @@ function onStorageChanged(
   void maybeHandleLoginReconnect()
 }
 
+function onPreparedBootstrapStateMessage(event: MessageEvent<unknown>) {
+  const data = getPageMessageData(event)
+
+  if (!data) {
+    return
+  }
+
+  if (data.type === STARTER_PREPARED_READY) {
+    void syncCtxAndTitle({
+      isConnectServerError: false,
+    }).catch((error) => {
+      console.error('[CS][SUPPORT][PREPARED_READY]', error)
+    })
+    return
+  }
+
+  if (data.type === STARTER_PREPARED_ERROR && data.isConnectServerError === true) {
+    void syncCtxAndTitle({
+      isConnectServerError: true,
+    }).catch((error) => {
+      console.error('[CS][SUPPORT][PREPARED_ERROR]', error)
+    })
+  }
+}
+
 async function bootstrap() {
   const scope = window as ToolkitWindow
 
@@ -243,6 +298,7 @@ async function bootstrap() {
 
   chrome.runtime.onMessage.addListener(onExtensionMessage)
   chrome.storage.onChanged.addListener(onStorageChanged)
+  window.addEventListener('message', onPreparedBootstrapStateMessage, true)
 
   if (await maybeHandleLoginReconnect()) {
     return

@@ -2,7 +2,6 @@
 
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { syncTabAction } from '../action'
-import { getPlayerEnabledByUser } from '../enabled-by-user'
 import { POPUP_REFRESH_MESSAGE_TYPE } from '../message/types'
 import {
   getOpenTwTabIds,
@@ -15,13 +14,12 @@ import {
   getRunnerForTab,
   type RunnerByScope,
 } from '../runner-tabs'
+import { evaluateWorldPlayerState } from '../resolved-state'
 import {
   ensureWorldPlayersLoaded,
-  getWorldPlayer,
   getWorldPlayerByScopeKey,
 } from '../world-players'
 import { hasErrorAlarmForTab } from '../prepared-context/error-tabId'
-import { runtimeLicenseState } from '../world-players/runtime'
 
 async function notifyPopupRefresh(payload: Record<string, unknown> = {}) {
   try {
@@ -65,47 +63,54 @@ export async function syncTabActionByTabId(tabId?: number | null) {
   )
   const world = context?.world ?? (isActiveRunner ? currentRunner?.world ?? runnerWorldPlayer?.world ?? null : getWorldFromUrl(tabUrl))
   const playerId = context?.playerId ?? runnerWorldPlayer?.playerId ?? null
-  const worldPlayer = getWorldPlayer(world, playerId) ?? runnerWorldPlayer
-  const enabledByUser = world && typeof playerId === 'number'
-    ? getPlayerEnabledByUser(world, playerId)
-    : null
-  const license = await runtimeLicenseState(worldPlayer)
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey: currentRunner?.scopeKey ?? context?.scopeKey ?? null,
+    world,
+    t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
+    playerId,
+    playerName: context?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    worldPlayer: runnerWorldPlayer,
+  })
   const isNetError = await hasErrorAlarmForTab(tabId)
+  const isConnectServerError = context?.isConnectServerError === true
 
   await syncTabAction({
     tabId,
     enabled,
-    enabledByUser,
+    enabledByUser: evaluatedState.enabledByUser,
     active: isActiveRunner,
     context: context?.context ?? (urlParams.isInLogin ? 'LOGIN' : urlParams.isInGame ? 'GAME' : null),
-    world,
-    t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
-    playerName: context?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    world: evaluatedState.world,
+    t: evaluatedState.t,
+    playerName: evaluatedState.playerName,
     isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
     botProtect: context?.isBotProtected === true,
+    isConnectServerError,
     isNetError,
-    license,
+    license: evaluatedState.license,
   })
 
   await notifyPopupRefresh({
     tabId,
     windowId: tab.windowId ?? null,
     context: context?.context ?? (urlParams.isInLogin ? 'LOGIN' : urlParams.isInGame ? 'GAME' : null),
-    world,
-    t: context?.t ?? (isActiveRunner ? currentRunner?.t ?? null : urlParams.t ?? null),
-    playerId,
-    playerName: context?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    world: evaluatedState.world,
+    t: evaluatedState.t,
+    playerId: evaluatedState.playerId,
+    playerName: evaluatedState.playerName,
     features: context?.features ?? null,
     points: context?.points ?? null,
     rank: context?.rank ?? null,
     villages: context?.villages ?? null,
     dateStarted: context?.dateStarted ?? null,
     updatedAt: context?.updatedAt ?? null,
-    enabledByUser,
+    enabledByUser: evaluatedState.enabledByUser,
     isBotProtected: context?.isBotProtected === true,
+    isConnectServerError,
+    isNetError,
     isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
     active: isActiveRunner,
-    license,
+    license: evaluatedState.license,
   })
 }
 

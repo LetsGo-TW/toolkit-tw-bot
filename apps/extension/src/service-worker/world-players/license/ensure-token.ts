@@ -1,5 +1,5 @@
 import { ensureWorldPlayersLoaded, getWorldPlayer } from '..'
-import { isExpired } from '.'
+import { resolveRuntimeLicense } from '.'
 import { scheduleLicenseAlarm } from './alarm'
 import { refreshToken } from './refresh-token'
 
@@ -25,7 +25,9 @@ async function ensureToken(world: string, playerId: number) {
       return refreshed?.token ?? null
     }
 
-    if (isExpired(worldPlayer.license)) {
+    const runtimeLicense = resolveRuntimeLicense(worldPlayer.license)
+
+    if (!runtimeLicense.isAllowedByLicense || runtimeLicense.isExpired) {
       const refreshed = await refreshToken(world, playerId, {
         schedule: scheduleLicenseAlarm,
       })

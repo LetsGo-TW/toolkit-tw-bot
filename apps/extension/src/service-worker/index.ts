@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import { onReceived } from "./message/index";
+import { cleanupAttachedNativeDebuggers } from "./message/native";
 import { onCompletedWebRequest, onCompletedWebRequestFilter } from "./on-completed-web-request";
 import { onWebNavigationErrorOccurred } from "./on-navigation-error-ocurred";
 import { onInstalledExtension } from "./on-installed";
@@ -71,4 +72,7 @@ if (!chrome.webNavigation.onErrorOccurred.hasListener(onWebNavigationErrorOccurr
 }
 
 void ensurePreparedContextCleanupAlarm()
+void cleanupAttachedNativeDebuggers({
+  reason: 'sw-startup',
+})
 void initializeRuntime()

@@ -25,6 +25,7 @@ type SupportSyncCtxRequest = Partial<SWMessage> & {
   villages?: unknown
   dateStarted?: unknown
   isBotProtected?: unknown
+  isConnectServerError?: unknown
 }
 
 export async function registerPreparedCtx(
@@ -49,6 +50,7 @@ export async function registerPreparedCtx(
     villages: received.data?.villages,
     dateStarted: received.data?.dateStarted ?? received.data?.date_started ?? null,
     isBotProtected: received.data?.isBotProtected === true,
+    isConnectServerError: false,
     ensureWorldPlayerLicenseSource: 'runtime',
     reconcileRunner: true,
     cleanupLoginTabs: true,
@@ -116,6 +118,8 @@ export async function syncSupportCtx(
     villages: received.villages ?? null,
     dateStarted: received.dateStarted ?? null,
     isBotProtected,
+    isConnectServerError: received.isConnectServerError === true,
+    ensureWorldPlayerLicenseSource: 'runtime',
   })
 
   if (!result.ok) {

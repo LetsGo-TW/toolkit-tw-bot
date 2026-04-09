@@ -2,6 +2,7 @@ import getGameData from "@toolkit-tw-bot/document/getGameData"
 import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
 import { getParamsUrl, ParsedGameData } from "@toolkit-tw-bot/core"
 import { GameData } from "../../../../../../types"
+import { isPreparedConnectServerError } from "../../../../shared/preparedBootstrap"
 
 type CurrentGameData = ParsedGameData & GameData
 type CurrentWindow = Window & {
@@ -50,8 +51,10 @@ function getCurrentWorldFromUrl(urlString: string = window.location.href) {
 
 function getPopupPageSnapshot({
   isBotProtected,
+  isConnectServerError,
 }: {
   isBotProtected?: boolean | null
+  isConnectServerError?: boolean | null
 } = {}) {
   const gameData = getCurrentGameData()
   const runtimeParams = getParamsUrl(
@@ -82,6 +85,9 @@ function getPopupPageSnapshot({
       : runtimeParams.isInGame
         ? ProtectingBot['bot-protect-all-in-game'].active(document)
         : ProtectingBot['hCaptcha-in-popup'].active(document),
+    isConnectServerError: typeof isConnectServerError === 'boolean'
+      ? isConnectServerError
+      : isPreparedConnectServerError(document),
     isTryConfirm: runtimeParams.isTryConfirm === true,
     isIntro: runtimeParams.isIntro === true,
   }

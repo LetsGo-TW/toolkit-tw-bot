@@ -5,7 +5,6 @@ import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { syncTabActionByTabId } from './action-state'
 import {
   ensureEnabledByUserLoaded,
-  getPlayerEnabledByUser,
 } from './enabled-by-user'
 import { cleanupLoginTabsForScope } from './prepared-context/cleanup-login-tabs'
 import { hasErrorAlarmForTab } from './prepared-context/error-tabId'
@@ -17,10 +16,14 @@ import {
 } from './prepared-context'
 import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from './message/types'
 import { getRunnerByScope, type RunnerRecord } from './runner-tabs'
+import { evaluateWorldPlayerState } from './resolved-state'
 import { reconcileActiveRunner } from './runtime'
-import { getWorldPlayer, upsertWorldPlayer, type WorldPlayerRecord } from './world-players'
+import {
+  getWorldPlayerByScopeKey,
+  upsertWorldPlayer,
+  type WorldPlayerRecord,
+} from './world-players'
 import { ensureWorldPlayerLicense } from './world-players/license/ensure-world-player-license'
-import { runtimeAllowedByLicense } from './world-players/runtime'
 
 type RunnerCommandData = {
   isRunningTab: boolean
@@ -28,6 +31,7 @@ type RunnerCommandData = {
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
   isBotProtected: boolean
+  isConnectServerError: boolean
   isNetError: boolean
   isTryConfirm: boolean
   isIntro: boolean
@@ -48,6 +52,7 @@ type SyncSenderVisibleStateArgs = {
   villages?: unknown
   dateStarted?: unknown
   isBotProtected?: boolean
+  isConnectServerError?: boolean
   avatarUrl?: string | null
   avatarUpdatedAt?: string | null
   ensureWorldPlayerLicenseSource?: 'button' | 'runtime' | null
@@ -70,32 +75,41 @@ function isRunnerForSender(
 
 async function createRunnerCommandData({
   isRunningTab,
+  scopeKey = null,
   world = null,
   playerId = null,
   worldPlayer = null,
   isTryConfirm = false,
+  isConnectServerError = false,
   isNetError = false,
   isIntro = false,
   isMdfScope = false,
 }: {
   isRunningTab: boolean
+  scopeKey?: string | null
   world?: string | null
   playerId?: number | null
   worldPlayer?: WorldPlayerRecord | null
   isTryConfirm?: boolean
+  isConnectServerError?: boolean
   isNetError?: boolean
   isIntro?: boolean
   isMdfScope?: boolean
 }): Promise<RunnerCommandData> {
-  const currentWorldPlayer = worldPlayer ?? getWorldPlayer(world, playerId)
-  const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(currentWorldPlayer)
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey,
+    world,
+    playerId,
+    worldPlayer,
+  })
 
   return {
     isRunningTab,
-    enabledByUser: getPlayerEnabledByUser(world, playerId),
-    isAllowedByLicense,
-    isLicenseExpiring,
+    enabledByUser: evaluatedState.enabledByUser === true,
+    isAllowedByLicense: evaluatedState.isAllowedByLicense,
+    isLicenseExpiring: evaluatedState.isLicenseExpiring,
     isBotProtected: false,
+    isConnectServerError,
     isNetError,
     isTryConfirm,
     isIntro,
@@ -169,6 +183,7 @@ export async function syncSenderVisibleState({
   villages = null,
   dateStarted = null,
   isBotProtected = false,
+  isConnectServerError = false,
   avatarUrl = null,
   avatarUpdatedAt = null,
   ensureWorldPlayerLicenseSource = null,
@@ -182,6 +197,7 @@ export async function syncSenderVisibleState({
     world,
     t,
     isBotProtected,
+    isConnectServerError,
     playerId,
     playerName,
     features,
@@ -209,28 +225,59 @@ export async function syncSenderVisibleState({
       dateStarted: tabContext.dateStarted,
       scopeKey: tabContext.scopeKey,
     })
-    : null
+    : tabContext.scopeKey
+      ? getWorldPlayerByScopeKey(tabContext.scopeKey)
+      : null
+
+  const resolvedWorld = tabContext.world ?? worldPlayer?.world ?? null
+  const resolvedPlayerId = tabContext.playerId ?? worldPlayer?.playerId ?? null
 
   if (
     ensureWorldPlayerLicenseSource
-    && tabContext.world
-    && typeof tabContext.playerId === 'number'
+    && resolvedWorld
+    && typeof resolvedPlayerId === 'number'
   ) {
     const ensured = await ensureWorldPlayerLicense(
-      tabContext.world,
-      tabContext.playerId,
+      resolvedWorld,
+      resolvedPlayerId,
       ensureWorldPlayerLicenseSource,
     )
 
     worldPlayer = ensured?.worldPlayer ?? worldPlayer
   }
 
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey: tabContext.scopeKey,
+    world: tabContext.world,
+    t: tabContext.t,
+    playerId: tabContext.playerId,
+    playerName: tabContext.playerName,
+    worldPlayer,
+  })
+
+  const trackedRunnerBeforeReconcile = getRunnerByScope(tabContext.scopeKey)
+  const shouldPreserveTrackedRunner = (
+    trackedRunnerBeforeReconcile !== null
+    && !isRunnerForSender(trackedRunnerBeforeReconcile, sender)
+  )
+
   if (shouldReconcileRunner) {
-    await reconcileActiveRunner({
-      preferredWindowId: sender.tab?.windowId ?? null,
-      reason,
-      targetScopeKey: tabContext.scopeKey,
-    })
+    if (shouldPreserveTrackedRunner) {
+      console.log('[SW][CTX] skipping reconcile to preserve tracked runner', {
+        reason,
+        scopeKey: tabContext.scopeKey,
+        senderTabId: sender.tab?.id ?? null,
+        senderWindowId: sender.tab?.windowId ?? null,
+        trackedRunnerTabId: trackedRunnerBeforeReconcile.tabId,
+        trackedRunnerWindowId: trackedRunnerBeforeReconcile.windowId,
+      })
+    } else {
+      await reconcileActiveRunner({
+        preferredWindowId: sender.tab?.windowId ?? null,
+        reason,
+        targetScopeKey: tabContext.scopeKey,
+      })
+    }
   }
 
   const currentRunner = getRunnerByScope(tabContext.scopeKey)
@@ -238,9 +285,11 @@ export async function syncSenderVisibleState({
   const isNetError = await hasErrorAlarmForTab(tabContext.tabId)
   const data = await createRunnerCommandData({
     isRunningTab: isActive,
-    world: tabContext.world,
-    playerId: tabContext.playerId,
-    worldPlayer,
+    scopeKey: evaluatedState.scopeKey,
+    world: evaluatedState.world,
+    playerId: evaluatedState.playerId,
+    worldPlayer: evaluatedState.worldPlayer,
+    isConnectServerError: tabContext.isConnectServerError === true,
     isNetError,
     isTryConfirm: getParamsUrl(sender.tab?.url || '').isTryConfirm === true,
     isIntro: getParamsUrl(sender.tab?.url || '').isIntro === true,
@@ -258,20 +307,20 @@ export async function syncSenderVisibleState({
   })
 
   const relatedTabIds = (
-    tabContext.world
-    && typeof tabContext.playerId === 'number'
+    evaluatedState.world
+    && typeof evaluatedState.playerId === 'number'
   )
     ? await syncPreparedContextsByWorldPlayer({
-      world: tabContext.world,
-      playerId: tabContext.playerId,
-      playerName: tabContext.playerName,
+      world: evaluatedState.world,
+      playerId: evaluatedState.playerId,
+      playerName: evaluatedState.playerName,
       features: tabContext.features,
       points: tabContext.points,
       rank: tabContext.rank,
       villages: tabContext.villages,
       dateStarted: tabContext.dateStarted,
     })
-    : getTabIdsByWorldPlayer(tabContext.world || '', tabContext.playerId ?? -1)
+    : getTabIdsByWorldPlayer(evaluatedState.world || '', evaluatedState.playerId ?? -1)
 
   const tabIdsToRefresh = Array.from(
     new Set([
@@ -303,7 +352,7 @@ export async function syncSenderVisibleState({
     ok: true,
     type: reason,
     tabContext,
-    worldPlayer,
+    worldPlayer: evaluatedState.worldPlayer,
     currentRunner,
     isActive,
     data,

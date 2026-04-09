@@ -1,5 +1,6 @@
 import { assetBasePath } from '@toolkit-tw-bot/release'
 import {
+  PREPARED_CONNECT_SERVER_ERROR_ATTRIBUTE,
   PREPARED_READY_ATTRIBUTE,
   STARTER_PREPARED_ERROR,
   STARTER_PREPARED_READY,
@@ -19,15 +20,35 @@ const getPreparedScriptUrl = () => {
 
 function notifyPreparedReady() {
   document.documentElement?.setAttribute(PREPARED_READY_ATTRIBUTE, 'true')
+  document.documentElement?.removeAttribute(PREPARED_CONNECT_SERVER_ERROR_ATTRIBUTE)
   window.postMessage({ type: STARTER_PREPARED_READY }, window.location.origin)
+}
+
+function isConnectServerError(error: unknown) {
+  return (
+    error instanceof Error
+    && (
+      error.name === 'ConnectServerError'
+      || (error as Error & { isConnectServerError?: boolean }).isConnectServerError === true
+    )
+  )
 }
 
 function notifyPreparedError(error: unknown) {
   document.documentElement?.removeAttribute(PREPARED_READY_ATTRIBUTE)
+  const isPreparedConnectServerError = isConnectServerError(error)
+
+  if (isPreparedConnectServerError) {
+    document.documentElement?.setAttribute(PREPARED_CONNECT_SERVER_ERROR_ATTRIBUTE, 'true')
+  } else {
+    document.documentElement?.removeAttribute(PREPARED_CONNECT_SERVER_ERROR_ATTRIBUTE)
+  }
+
   window.postMessage(
     {
       type: STARTER_PREPARED_ERROR,
       error: error instanceof Error ? error.message : String(error),
+      isConnectServerError: isPreparedConnectServerError,
     },
     window.location.origin,
   )

@@ -1,8 +1,10 @@
 /// <reference types="chrome" />
 
+import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import {
   PREPARED_READY_ATTRIBUTE,
+  STARTER_PREPARED_ERROR,
   STARTER_PREPARED_READY,
 } from '../../../../shared/preparedBootstrap'
 import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
@@ -80,6 +82,12 @@ function isValidStarterReadyMessage(event: MessageEvent<unknown>) {
   return data?.type === STARTER_PREPARED_READY
 }
 
+function isValidStarterConnectServerErrorMessage(event: MessageEvent<unknown>) {
+  const data = getPageMessageData(event)
+
+  return data?.type === STARTER_PREPARED_ERROR && data?.isConnectServerError === true
+}
+
 function isPreparedReady() {
   return document.documentElement?.getAttribute(PREPARED_READY_ATTRIBUTE) === 'true'
 }
@@ -116,6 +124,23 @@ function onStarterPreparedReady(event: MessageEvent<unknown>) {
   void postConnectWhenPreparedReady()
 }
 
+function onStarterPreparedError(event: MessageEvent<unknown>) {
+  if (!isValidStarterConnectServerErrorMessage(event)) {
+    return
+  }
+
+  const runtimeParams = getParamsUrl(
+    window.location.href,
+    window.location.origin,
+  )
+
+  setActiveTitle({
+    isRunningTab: true,
+    isConnectServerError: true,
+    isMdfScope: runtimeParams.t !== null,
+  })
+}
+
 async function bootstrap() {
   const scope = window as ToolkitWindow
 
@@ -138,10 +163,12 @@ async function bootstrap() {
 
   try {
     window.addEventListener('message', onStarterPreparedReady, true)
+    window.addEventListener('message', onStarterPreparedError, true)
     await postConnectWhenPreparedReady()
   } catch (error) {
     chrome.runtime.onMessage.removeListener(onExtensionMessage)
     window.removeEventListener('message', onStarterPreparedReady, true)
+    window.removeEventListener('message', onStarterPreparedError, true)
     delete scope[BOOTSTRAP_KEY]
     delete scope[CONNECT_POSTED_KEY]
     console.error(`[CS][${CS}]`, error)

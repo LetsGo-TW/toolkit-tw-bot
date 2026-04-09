@@ -23,6 +23,12 @@ type RefreshTokenResult = {
 
 const pendingRefreshTokenByKey = new Map<string, Promise<RefreshTokenResult | null>>()
 
+function getLicenseFailureStatus(error: unknown) {
+  return error instanceof AuthRequestError
+    ? error.status
+    : 0
+}
+
 export async function refreshToken(
   world: string,
   playerId: number,
@@ -58,9 +64,9 @@ export async function refreshToken(
 
     if (worldPlayer.license.token && !isExpired(worldPlayer.license)) {
       try {
+        used = 'get'
         const result = await refreshTokenByGet(worldPlayer.license.token)
         nextToken = result.token
-        used = 'get'
       } catch (error) {
         if (error instanceof AuthRequestError && error.status === 403) {
           const nextWorldPlayer = await setWorldPlayerLicense({
@@ -85,7 +91,20 @@ export async function refreshToken(
           !(error instanceof AuthRequestError)
           || (error.status !== 401 && error.status !== 406)
         ) {
-          throw error
+          const nextWorldPlayer = await setWorldPlayerLicense({
+            world,
+            playerId,
+            ...createLicensePostCooldownState(getLicenseFailureStatus(error)),
+          })
+
+          return nextWorldPlayer
+            ? {
+              delayInMinutes: 0,
+              token: null,
+              used,
+              worldPlayer: nextWorldPlayer,
+            }
+            : null
         }
       }
     }
@@ -119,7 +138,20 @@ export async function refreshToken(
             : null
         }
 
-        throw error
+        const nextWorldPlayer = await setWorldPlayerLicense({
+          world,
+          playerId,
+          ...createLicensePostCooldownState(getLicenseFailureStatus(error)),
+        })
+
+        return nextWorldPlayer
+          ? {
+            delayInMinutes: 0,
+            token: null,
+            used: 'post',
+            worldPlayer: nextWorldPlayer,
+          }
+          : null
       }
     }
 

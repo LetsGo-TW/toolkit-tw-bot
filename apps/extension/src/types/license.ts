@@ -3,6 +3,7 @@ export type LicenseStatus =
   | 'active'
   | 'warning'
   | 'inactive'
+  | 'session-expired'
   | 'error'
   | null
 

@@ -10,6 +10,7 @@ export type SetActiveTitleParams = {
   isAllowedByLicense?: boolean
   isLicenseExpiring?: boolean
   isIntro?: boolean
+  isConnectServerError?: boolean
 }
 
 export function setActiveTitle({
@@ -24,8 +25,9 @@ export function setActiveTitle({
   isNetError = false,
   isTryConfirm = false,
   isMdfScope = false,
+  isConnectServerError = false,
 }: SetActiveTitleParams = {}) {
-  const emojis = ['🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '♻️', '📡', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[♻️]', '[📡]']
+  const emojis = ['⚪',  '🚫', '⛔', '🛑', '☢️', '🟢', '🟡', '♻️', '📡', '[🚫]', '[⛔]', '[🛑]', '[☢️]', '[🟢]', '[🟡]', '[♻️]', '[📡]']
   let emoji: string | undefined
   let title = document.title
 
@@ -37,6 +39,15 @@ export function setActiveTitle({
 
   if (!isRunningTab) {
     document.title = title
+    return
+  }
+
+  if (isConnectServerError) {
+    emoji = '⚪'
+    if (!enabledByUser || !isReconnectEnabled) emoji = '🛑'
+    if (!isAllowedByLicense) emoji = '⛔'
+    if (isMdfScope) emoji = `[${emoji}]`
+    document.title = `${emoji} ${title}`
     return
   }
 

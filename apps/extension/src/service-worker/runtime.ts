@@ -1,8 +1,9 @@
 /// <reference types="chrome" />
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
-import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from './enabled-by-user'
+import { ensureEnabledByUserLoaded } from './enabled-by-user'
 import { cleanupLegacyPlayerAvatarStorage } from './player-avatar'
+import { evaluateWorldPlayerState } from './resolved-state'
 import { syncKnownTabActions, syncRunnerActions } from './action-state'
 import {
   ensurePreparedContextLoaded,
@@ -31,8 +32,7 @@ import {
   STOP_MESSAGE_TYPE,
   VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
 } from './message/types'
-import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from './world-players'
-import { runtimeAllowedByLicense } from './world-players/runtime'
+import { ensureWorldPlayersLoaded } from './world-players'
 
 type ReconcileActiveRunnerOptions = {
   preferredWindowId?: number | null
@@ -153,21 +153,24 @@ async function createRunnerCommandData(
   },
 ): Promise<RunnerCommandData> {
   const tabContext = runner ? getTabContext(runner.tabId) : null
-  const worldPlayer = runner ? getWorldPlayerByScopeKey(runner.scopeKey) : null
-  const world = tabContext?.world ?? runner?.world ?? worldPlayer?.world ?? null
-  const playerId = tabContext?.playerId ?? worldPlayer?.playerId ?? null
-  const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(worldPlayer)
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey: runner?.scopeKey ?? null,
+    world: tabContext?.world ?? runner?.world ?? null,
+    t: tabContext?.t ?? runner?.t ?? null,
+    playerId: tabContext?.playerId ?? null,
+    playerName: tabContext?.playerName ?? null,
+  })
   const isNetError = runner ? await hasErrorAlarmForTab(runner.tabId) : false
 
   return {
     isRunningTab,
-    enabledByUser: getPlayerEnabledByUser(world, playerId),
-    isAllowedByLicense,
-    isLicenseExpiring,
+    enabledByUser: evaluatedState.enabledByUser === true,
+    isAllowedByLicense: evaluatedState.isAllowedByLicense,
+    isLicenseExpiring: evaluatedState.isLicenseExpiring,
     isBotProtected: tabContext?.isBotProtected === true,
     isNetError,
     isTryConfirm: tabContext?.isTryConfirm === true,
-    isMdfScope: tabContext?.t !== null,
+    isMdfScope: evaluatedState.isMdfScope,
   }
 }
 

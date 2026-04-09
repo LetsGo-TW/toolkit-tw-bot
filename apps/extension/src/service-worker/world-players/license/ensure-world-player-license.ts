@@ -18,6 +18,12 @@ type EnsureWorldPlayerLicenseResult = {
 
 const pendingEnsureWorldPlayerLicenseByKey = new Map<string, Promise<EnsureWorldPlayerLicenseResult | null>>()
 
+function getLicenseFailureStatus(error: unknown) {
+  return error instanceof AuthRequestError
+    ? error.status
+    : 0
+}
+
 export async function ensureWorldPlayerLicense(
   world: string,
   playerId: number,
@@ -81,26 +87,27 @@ export async function ensureWorldPlayerLicense(
         worldPlayer: nextWorldPlayer,
       }
     } catch (error) {
-      if (
+      const shouldClearToken = (
         error instanceof AuthRequestError
         && (error.status === 401 || error.status === 403)
-      ) {
-        const nextWorldPlayer = await setWorldPlayerLicense({
-          world,
-          playerId,
-          licenseId: null,
-          token: null,
-          ...createLicensePostCooldownState(error.status),
-        })
+      )
+      const nextWorldPlayer = await setWorldPlayerLicense({
+        world,
+        playerId,
+        ...(shouldClearToken
+          ? {
+            licenseId: null,
+            token: null,
+          }
+          : {}),
+        ...createLicensePostCooldownState(getLicenseFailureStatus(error)),
+      })
 
-        return {
-          attemptedPost: true,
-          blockedByCooldown: false,
-          worldPlayer: nextWorldPlayer,
-        }
+      return {
+        attemptedPost: true,
+        blockedByCooldown: false,
+        worldPlayer: nextWorldPlayer ?? worldPlayer,
       }
-
-      throw error
     }
   })()
 

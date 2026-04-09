@@ -185,6 +185,18 @@ export function getWorldPlayerByScopeKey(scopeKey?: string | null) {
     .find((record) => record.scopeKey === scopeKey) || null
 }
 
+export function resolveWorldPlayer({
+  scopeKey = null,
+  world = null,
+  playerId = null,
+}: {
+  scopeKey?: string | null
+  world?: string | null
+  playerId?: number | null
+}) {
+  return getWorldPlayerByScopeKey(scopeKey) ?? getWorldPlayer(world, playerId)
+}
+
 export async function setWorldPlayerEnabledByUser({
   world,
   playerId,

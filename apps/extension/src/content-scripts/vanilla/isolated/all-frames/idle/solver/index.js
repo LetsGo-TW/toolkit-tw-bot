@@ -1,4 +1,5 @@
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import { ARM_NATIVE_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
 
 async function injetarEClicar() {
   console.log('[CS] __GO_SC_INJECTED__')
@@ -92,6 +93,18 @@ async function injetarEClicar() {
     // O Content Script não tem acesso à API chrome.debugger.
     // Precisamos pedir para o Background Script (Service Worker) executar o clique.
     await Logger.add('Requesting NATIVE_CLICK to SW', { targetX, targetY });
+    const armResponse = await chrome.runtime.sendMessage({
+      extensionId: RELEASE_EXTENSION_ID,
+      type: ARM_NATIVE_MESSAGE_TYPE,
+      logKey: LOG_KEY,
+      source: 'solver-checkbox',
+    });
+
+    if (!armResponse?.ok) {
+      await Logger.add('Debugger click arm failed', { error: armResponse?.error || null });
+      return;
+    }
+
     chrome.runtime.sendMessage({
       extensionId: RELEASE_EXTENSION_ID,
       type: 'NATIVE_CLICK',

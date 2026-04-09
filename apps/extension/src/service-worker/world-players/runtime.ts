@@ -31,11 +31,13 @@ function createScopeKey(
 
 async function resolveWorldPlayerRuntimeLicense(license: WorldPlayerLicenseRecord) {
   const {
+    status,
     isAllowedByLicense,
     isLicenseExpiring,
   } = resolveRuntimeLicense(license)
 
   return {
+    status,
     isAllowedByLicense,
     isLicenseExpiring,
   }
@@ -53,14 +55,16 @@ export async function runtimeAllowedByLicense(worldPlayer: WorldPlayerRecord | n
 export async function runtimeLicenseState(
   worldPlayer: WorldPlayerRecord | null,
 ): Promise<ExtensionLicenseState> {
-  const { isAllowedByLicense, isLicenseExpiring } = await runtimeAllowedByLicense(worldPlayer)
+  if (!worldPlayer) {
+    return createLicenseState({
+      status: 'inactive',
+    })
+  }
+
+  const { status } = await resolveWorldPlayerRuntimeLicense(worldPlayer.license)
 
   return createLicenseState({
-    status: !isAllowedByLicense
-      ? 'inactive'
-      : isLicenseExpiring
-        ? 'warning'
-        : 'active',
+    status,
   })
 }
 

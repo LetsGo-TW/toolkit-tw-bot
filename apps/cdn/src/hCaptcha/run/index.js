@@ -349,6 +349,22 @@ export async function run(data) {
       const x = rect.left + (rect.width / 2) + randomOffsetX;
       const y = rect.top + (rect.height / 2) + randomOffsetY;
 
+      const armResponse = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+        extensionId: RELEASE_EXTENSION_ID,
+        type: 'ARM_NATIVE_CLICK',
+        source: `hcaptcha:${actionType}`
+      });
+
+      if (!armResponse?.ok) {
+        console.error('[Let\'s GO] Native click arm failed', {
+          actionType,
+          x,
+          y,
+          response: armResponse
+        });
+        return;
+      }
+
       chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
         extensionId: RELEASE_EXTENSION_ID,
         type: 'NATIVE_CLICK',

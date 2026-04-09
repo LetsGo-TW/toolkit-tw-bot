@@ -11,6 +11,7 @@ import { setReconnectOnSessionExpired } from "../reconnect-on-session-expired/ru
 import { handleScriptStorage } from "../indexdb/runtime";
 import { verifyWorldPlayerLicense } from "../world-players/license/runtime";
 import {
+  ARM_NATIVE_MESSAGE_TYPE,
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
@@ -26,7 +27,7 @@ import {
   NATIVE_MESSAGE_TYPE,
 } from "./types";
 import { windowForceFocus } from "../window-force-focus";
-import { onNativeClick } from "./native";
+import { armNativeClick, onNativeClick } from "./native";
 
 export async function handleMessage({ received, sender }: MessageEnvelope): Promise<any> {
   switch (received?.type) {
@@ -63,6 +64,8 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       return setReconnectOnSessionExpired(received);
     case SET_PLAYER_AVATAR_MESSAGE_TYPE:
       return updatePlayerAvatar(received, sender as chrome.runtime.MessageSender);
+    case ARM_NATIVE_MESSAGE_TYPE:
+      return armNativeClick(received, sender as chrome.runtime.MessageSender);
     case NATIVE_MESSAGE_TYPE:
       return onNativeClick(received, sender as chrome.runtime.MessageSender);
     default:

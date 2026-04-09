@@ -15,6 +15,7 @@ export type PreparedMessageData = {
   t?: unknown
   isTryConfirm?: unknown
   isBotProtected?: unknown
+  isConnectServerError?: unknown
   playerId?: unknown
   playerName?: unknown
   features?: unknown
@@ -34,6 +35,7 @@ export type TabContextRecord = {
   t: number | null
   isTryConfirm: boolean
   isBotProtected: boolean
+  isConnectServerError: boolean
   scopeKey: string | null
   playerId: number | null
   playerName: string | null
@@ -248,6 +250,7 @@ function createTabContextSeedFromTab(
       : urlScope?.t ?? null,
     isTryConfirm: urlParams.isTryConfirm === true,
     isBotProtected: false,
+    isConnectServerError: previousRecord?.isConnectServerError === true,
     scopeKey: urlParams.isInLogin
       ? previousRecord?.scopeKey ?? null
       : urlScope?.scopeKey ?? null,
@@ -465,6 +468,8 @@ function createTabContextRecord(
   const preparedIsTryConfirm = normalizeBoolean(data.isTryConfirm)
   const hasPreparedIsBotProtected = Object.prototype.hasOwnProperty.call(data, 'isBotProtected')
   const preparedIsBotProtected = normalizeBoolean(data.isBotProtected)
+  const hasPreparedIsConnectServerError = Object.prototype.hasOwnProperty.call(data, 'isConnectServerError')
+  const preparedIsConnectServerError = normalizeBoolean(data.isConnectServerError)
   const nextWorld = urlScope?.world ?? preparedWorld ?? previousRecord?.world ?? null
   const nextT = urlScope?.t ?? preparedT ?? previousRecord?.t ?? null
   const nextScopeKey = nextWorld ? `${nextWorld}:${nextT ?? 'main'}` : null
@@ -482,6 +487,9 @@ function createTabContextRecord(
     isBotProtected: hasPreparedIsBotProtected
       ? preparedIsBotProtected
       : previousRecord?.isBotProtected === true,
+    isConnectServerError: hasPreparedIsConnectServerError
+      ? preparedIsConnectServerError
+      : previousRecord?.isConnectServerError === true,
     scopeKey: nextScopeKey,
     playerId: normalizeNumber(data.playerId) ?? previousRecord?.playerId ?? null,
     playerName: normalizeString(data.playerName) ?? previousRecord?.playerName ?? null,
@@ -590,6 +598,7 @@ export async function updatePreparedContextFromUrl(
       dateStarted: null,
       isTryConfirm: urlParams.isTryConfirm === true,
       isBotProtected: false,
+      isConnectServerError: previousRecord.isConnectServerError === true,
       updatedAt: new Date().toISOString(),
     }
     : {
@@ -601,6 +610,7 @@ export async function updatePreparedContextFromUrl(
       t: null,
       isTryConfirm: false,
       isBotProtected: false,
+      isConnectServerError: false,
       scopeKey: null,
       playerId: null,
       playerName: null,

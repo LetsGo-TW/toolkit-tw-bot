@@ -3,21 +3,18 @@
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import type { SWMessage } from '../../types'
-import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by-user'
+import { ensureEnabledByUserLoaded } from '../enabled-by-user'
 import { LOGIN_MESSAGE_TYPE } from '../message/types'
 import { normalizeStrictBoolean } from '../normalize'
 import { ensurePreparedContextLoaded, getTabContext, getWorldFromUrl } from '../prepared-context'
-import {
-  ensureReconnectOnSessionExpiredLoaded,
-  getPlayerReconnectOnSessionExpired,
-} from '../reconnect-on-session-expired'
+import { ensureReconnectOnSessionExpiredLoaded } from '../reconnect-on-session-expired'
 import {
   ensureRunnerTabsLoaded,
   getRunnerByScope,
   getRunnerForTab,
 } from '../runner-tabs'
+import { evaluateWorldPlayerState } from '../resolved-state'
 import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from '../world-players'
-import { runtimeAllowedByLicense } from '../world-players/runtime'
 
 type LoginRequest = Partial<SWMessage> & {
   isReconnectable?: unknown
@@ -61,19 +58,25 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
   const currentRunner = scopeKey
     ? getRunnerByScope(scopeKey)
     : runnerForSenderTab
-  const worldPlayer = scopeKey
+  const urlParams = getParamsUrl(sender.tab?.url || '')
+  const scopedWorldPlayer = scopeKey
     ? getWorldPlayerByScopeKey(scopeKey)
     : null
-  const urlParams = getParamsUrl(sender.tab?.url || '')
-  const world = currentRunner?.world ?? worldPlayer?.world ?? tabContext?.world ?? getWorldFromUrl(sender.tab?.url) ?? null
-  const playerId = tabContext?.playerId ?? worldPlayer?.playerId ?? null
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey,
+    world: currentRunner?.world ?? scopedWorldPlayer?.world ?? tabContext?.world ?? getWorldFromUrl(sender.tab?.url) ?? null,
+    t: tabContext?.t ?? currentRunner?.t ?? null,
+    playerId: tabContext?.playerId ?? scopedWorldPlayer?.playerId ?? null,
+    playerName: tabContext?.playerName ?? scopedWorldPlayer?.playerName ?? null,
+    worldPlayer: scopedWorldPlayer,
+  })
   const isMdfScope = isMdfScopeKey(scopeKey)
-  const enabledByUser = getPlayerEnabledByUser(world, playerId)
-  const reconnectOnSessionExpired = getPlayerReconnectOnSessionExpired(world, playerId)
-  const {
-    isAllowedByLicense,
-    isLicenseExpiring,
-  } = await runtimeAllowedByLicense(worldPlayer)
+  const world = evaluatedState.world
+  const playerId = evaluatedState.playerId
+  const enabledByUser = evaluatedState.enabledByUser === true
+  const reconnectOnSessionExpired = evaluatedState.reconnectOnSessionExpired === true
+  const isAllowedByLicense = evaluatedState.isAllowedByLicense
+  const isLicenseExpiring = evaluatedState.isLicenseExpiring
   const isReconnectable = normalizeStrictBoolean(request.isReconnectable) === true
   const isRunningTab = Boolean(
     currentRunner

@@ -2,6 +2,13 @@
 
 import { normalizeNumber, normalizeString } from '../normalize'
 import type { SWMessage } from '../../types'
+import { ARM_NATIVE_MESSAGE_TYPE, NATIVE_MESSAGE_TYPE } from './types'
+
+const NATIVE_CLICK_ARM_TTL_MS = 4_000
+const nativeClickArmByTabId = new Map<number, {
+  expiresAt: number
+  source: string | null
+}>()
 
 type NativeClickRequest = Partial<SWMessage> & {
   coords?: {
@@ -11,10 +18,19 @@ type NativeClickRequest = Partial<SWMessage> & {
   logKey?: unknown
 }
 
+type NativeClickArmRequest = Partial<SWMessage> & {
+  source?: unknown
+}
+
 type NativeClickResult = {
   success: boolean
   error?: string
   message?: string
+}
+
+type CleanupAttachedNativeDebuggersOptions = {
+  reason?: string
+  tabId?: number | null
 }
 
 function getErrorMessage(error: unknown) {
@@ -25,32 +41,134 @@ function getErrorMessage(error: unknown) {
   return String(error || 'Unknown error')
 }
 
-export async function onNativeClick(
-  received: NativeClickRequest,
+function getArmState(tabId: number) {
+  const armed = nativeClickArmByTabId.get(tabId) || null
+
+  if (!armed) {
+    return null
+  }
+
+  if (armed.expiresAt < Date.now()) {
+    nativeClickArmByTabId.delete(tabId)
+    return null
+  }
+
+  return armed
+}
+
+function consumeArmState(tabId: number) {
+  const armed = getArmState(tabId)
+
+  if (!armed) {
+    return null
+  }
+
+  nativeClickArmByTabId.delete(tabId)
+  return armed
+}
+
+export async function cleanupAttachedNativeDebuggers(
+  {
+    reason = 'unknown',
+    tabId = null,
+  }: CleanupAttachedNativeDebuggersOptions = {},
+) {
+  try {
+    const targets = await chrome.debugger.getTargets()
+    const attachedTargets = targets.filter((target) => {
+      if (target.type !== 'page') {
+        return false
+      }
+
+      if (target.attached !== true) {
+        return false
+      }
+
+      if (typeof target.tabId !== 'number') {
+        return false
+      }
+
+      if (typeof tabId === 'number' && target.tabId !== tabId) {
+        return false
+      }
+
+      return true
+    })
+
+    for (const target of attachedTargets) {
+      try {
+        await chrome.debugger.detach({ tabId: target.tabId })
+        console.warn('[SW][NativeClick] cleaned attached debugger', {
+          reason,
+          tabId: target.tabId,
+          title: target.title,
+          url: target.url,
+        })
+      } catch (error) {
+        console.warn('[SW][NativeClick] cleanup detach failed', {
+          reason,
+          tabId: target.tabId,
+          error: getErrorMessage(error),
+        })
+      }
+    }
+
+    return attachedTargets.length
+  } catch (error) {
+    console.warn('[SW][NativeClick] cleanup getTargets failed', {
+      reason,
+      tabId,
+      error: getErrorMessage(error),
+    })
+    return 0
+  }
+}
+
+export async function armNativeClick(
+  received: NativeClickArmRequest,
   sender: chrome.runtime.MessageSender,
-): Promise<NativeClickResult> {
-  console.log('[SW][NativeClick] Recebido', received)
+) {
   const tabId = sender?.tab?.id
-  const rawX = normalizeNumber(received?.coords?.x)
-  const rawY = normalizeNumber(received?.coords?.y)
 
   if (typeof tabId !== 'number') {
     return {
-      success: false,
+      ok: false,
+      type: ARM_NATIVE_MESSAGE_TYPE,
       error: 'Missing sender tab id',
     }
   }
 
-  if (rawX === null || rawY === null) {
-    return {
-      success: false,
-      error: 'Missing native click coordinates',
-    }
-  }
+  const source = normalizeString(received?.source) ?? null
+  const expiresAt = Date.now() + NATIVE_CLICK_ARM_TTL_MS
 
-  const targetX = Math.round(rawX)
-  const targetY = Math.round(rawY)
+  nativeClickArmByTabId.set(tabId, {
+    expiresAt,
+    source,
+  })
+
+  console.log('[SW][NativeClick] armed', {
+    tabId,
+    source,
+    expiresAt,
+  })
+
+  return {
+    ok: true,
+    type: ARM_NATIVE_MESSAGE_TYPE,
+    tabId,
+    source,
+    expiresAt,
+  }
+}
+
+export async function onNativeClick(
+  received: NativeClickRequest,
+  sender: chrome.runtime.MessageSender,
+): Promise<NativeClickResult> {
+  const tabId = sender?.tab?.id
   const logKey = normalizeString(received?.logKey) ?? 'hcaptcha_logs'
+  const rawX = normalizeNumber(received?.coords?.x)
+  const rawY = normalizeNumber(received?.coords?.y)
 
   const addLogSW = async (step: string, details: Record<string, unknown> = {}) => {
     try {
@@ -68,10 +186,62 @@ export async function onNativeClick(
     }
   }
 
+  if (typeof tabId !== 'number') {
+    return {
+      success: false,
+      error: 'Missing sender tab id',
+    }
+  }
+
+  if (rawX === null || rawY === null) {
+    return {
+      success: false,
+      error: 'Missing native click coordinates',
+    }
+  }
+
+  const armed = consumeArmState(tabId)
+
+  if (!armed) {
+    console.warn('[SW][NativeClick] ignored unarmed request', {
+      type: NATIVE_MESSAGE_TYPE,
+      tabId,
+      senderUrl: sender?.url ?? null,
+      received,
+    })
+    void addLogSW('Ignored unarmed native click', {
+      tabId,
+      senderUrl: sender?.url ?? null,
+    })
+    return {
+      success: false,
+      error: 'Native click request was not armed',
+    }
+  }
+
+  console.log('[SW][NativeClick] received', {
+    tabId,
+    senderUrl: sender?.url ?? null,
+    source: armed.source,
+    received,
+  })
+
+  const targetX = Math.round(rawX)
+  const targetY = Math.round(rawY)
   const debuggee: chrome.debugger.Debuggee = { tabId }
 
+  await cleanupAttachedNativeDebuggers({
+    reason: 'before-native-click',
+    tabId,
+  })
+
   console.log(`[Debugger] Anexando aba ${tabId} para clique em X:${targetX}, Y:${targetY}`)
-  void addLogSW('Attaching debugger', { tabId, x: targetX, y: targetY })
+  void addLogSW('Attaching debugger', {
+    tabId,
+    x: targetX,
+    y: targetY,
+    source: armed.source,
+  })
 
   const attachDebugger = () => new Promise<void>((resolve, reject) => {
     chrome.debugger.attach(debuggee, '1.3', () => {
@@ -200,5 +370,10 @@ export async function onNativeClick(
       void addLogSW('Native click done, detaching')
       await detachDebugger()
     }
+
+    await cleanupAttachedNativeDebuggers({
+      reason: 'after-native-click',
+      tabId,
+    })
   }
 }

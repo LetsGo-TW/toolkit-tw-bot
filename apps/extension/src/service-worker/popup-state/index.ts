@@ -4,7 +4,7 @@ import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { type FeaturesMap, type SWMessage } from '../../types'
 import { SUPPORT_GET_POPUP_STATE_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
-import { ensureEnabledByUserLoaded, getPlayerEnabledByUser } from '../enabled-by-user'
+import { ensureEnabledByUserLoaded } from '../enabled-by-user'
 import { GET_POPUP_STATE_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber } from '../normalize'
 import {
@@ -16,16 +16,15 @@ import {
 } from '../prepared-context'
 import {
   ensureReconnectOnSessionExpiredLoaded,
-  getPlayerReconnectOnSessionExpired,
 } from '../reconnect-on-session-expired'
 import { ensureRunnerTabsLoaded, getRunnerForTab } from '../runner-tabs'
+import { evaluateWorldPlayerState } from '../resolved-state'
 import {
   ensureWorldPlayersLoaded,
-  getWorldPlayer,
   getWorldPlayerByScopeKey,
 } from '../world-players'
 import { getLicenseDueAt, getLicenseTokenExpiresAt } from '../world-players/license'
-import { runtimeLicenseState } from '../world-players/runtime'
+import { hasErrorAlarmForTab } from '../prepared-context/error-tabId'
 
 export type PopupStateRequest = Partial<SWMessage> & {
   targetTabId?: unknown
@@ -46,6 +45,8 @@ type PopupPageState = {
   dateStarted?: number | null
   updatedAt?: string | null
   isBotProtected?: boolean
+  isConnectServerError?: boolean
+  isNetError?: boolean
   isTryConfirm?: boolean
 }
 
@@ -161,11 +162,16 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     ?? tabContext?.playerId
     ?? runnerWorldPlayer?.playerId
     ?? null
-  const worldPlayer = getWorldPlayer(
+  const evaluatedState = await evaluateWorldPlayerState({
+    scopeKey: currentRunner?.scopeKey ?? tabContext?.scopeKey ?? null,
     world,
+    t,
     playerId,
-  )
-  const license = await runtimeLicenseState(worldPlayer)
+    playerName: pageState?.playerName ?? tabContext?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    worldPlayer: runnerWorldPlayer,
+  })
+  const worldPlayer = evaluatedState.worldPlayer
+  const isNetError = await hasErrorAlarmForTab(tab.id)
 
   return {
     ok: true,
@@ -176,10 +182,10 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     title: tab.title || null,
     url: tabUrl,
     context: pageState?.context ?? tabContext?.context ?? fallbackContext,
-    world,
-    t,
-    playerId,
-    playerName: pageState?.playerName ?? tabContext?.playerName ?? runnerWorldPlayer?.playerName ?? null,
+    world: evaluatedState.world,
+    t: evaluatedState.t,
+    playerId: evaluatedState.playerId,
+    playerName: evaluatedState.playerName,
     features: (pageState?.features ?? tabContext?.features ?? null) as FeaturesMap | null,
     points: normalizeNumberish(tabContext?.points ?? pageState?.points),
     rank: normalizeNumberish(tabContext?.rank ?? pageState?.rank),
@@ -190,14 +196,12 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     avatarUpdatedAt: worldPlayer?.avatarUpdatedAt ?? null,
     licenseDueAt: worldPlayer?.license ? getLicenseDueAt(worldPlayer.license) : null,
     tokenExpiresAt: worldPlayer?.license ? getLicenseTokenExpiresAt(worldPlayer.license) : null,
-    enabledByUser: world && typeof playerId === 'number'
-      ? getPlayerEnabledByUser(world, playerId)
-      : null,
+    enabledByUser: evaluatedState.enabledByUser,
     isBotProtected: pageState?.isBotProtected === true || tabContext?.isBotProtected === true,
-    reconnectOnSessionExpired: world && typeof playerId === 'number'
-      ? getPlayerReconnectOnSessionExpired(world, playerId)
-      : null,
+    isConnectServerError: pageState?.isConnectServerError === true || tabContext?.isConnectServerError === true,
+    reconnectOnSessionExpired: evaluatedState.reconnectOnSessionExpired,
     nextPostLicenseButtonAt: worldPlayer?.license.nextPostLicenseButtonAt ?? null,
+    isNetError,
     isTryConfirm: pageState?.isTryConfirm === true || tabContext?.isTryConfirm === true || urlParams.isTryConfirm === true,
     active: Boolean(
       currentRunner
@@ -205,6 +209,6 @@ export async function getPopupState(request: PopupStateRequest = {}) {
       && currentRunner.windowId === tab.windowId
     ),
     ready: isSupported,
-    license,
+    license: evaluatedState.license,
   }
 }

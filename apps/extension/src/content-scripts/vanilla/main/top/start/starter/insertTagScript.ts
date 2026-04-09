@@ -12,10 +12,15 @@ const insertScript = (src: string) =>
 
     script.onerror = () => {
       script.remove();
-      reject(new Error(`Failed to load script: ${src}`));
+      const error = new Error(`Failed to load script: ${src}`) as Error & {
+        isConnectServerError?: boolean
+      };
+      error.name = 'ConnectServerError';
+      error.isConnectServerError = true;
+      reject(error);
     };
 
-    (document.documentElement || document.head).appendChild(script);
+    (document.documentElement || document.head)?.appendChild(script);
   });
 
 export default insertScript;

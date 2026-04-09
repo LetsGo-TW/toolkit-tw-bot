@@ -7,7 +7,7 @@ import {
   POPUP_REFRESH_MESSAGE_TYPE,
   VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
 } from '../../service-worker/message/types'
-import type { ExtensionLicenseState, FeaturesMap, LicenseStatus } from '../../types'
+import { getRuntimeStatus, type ExtensionLicenseState, type FeaturesMap, type LicenseStatus, type RuntimeStatus } from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
 import Loading from '../components/loading'
@@ -47,6 +47,8 @@ type PopupState = {
   licenseDueAt?: number | null
   tokenExpiresAt?: number | null
   nextPostLicenseButtonAt?: number | null
+  isConnectServerError?: boolean
+  isNetError?: boolean
   enabledByUser?: boolean | null
   isBotProtected?: boolean
   reconnectOnSessionExpired?: boolean | null
@@ -71,6 +73,8 @@ type PopupRefreshMessage = {
   villages?: number | null
   dateStarted?: number | null
   updatedAt?: string | null
+  isConnectServerError?: boolean
+  isNetError?: boolean
   enabledByUser?: boolean | null
   isBotProtected?: boolean
   isTryConfirm?: boolean
@@ -535,15 +539,17 @@ const EmptyText = styled.p`
 function getLicenseText(licenseStatus: LicenseStatus | undefined) {
   switch (licenseStatus) {
     case 'active':
-      return 'Active'
+      return 'LICENSE ACTIVE'
     case 'warning':
-      return 'Near expiry'
+      return 'LICENSE WARNING'
     case 'inactive':
-      return 'Inactive'
+      return 'NO LICENSE'
+    case 'session-expired':
+      return 'SESSION EXPIRED'
     case 'error':
-      return 'Unavailable'
+      return 'LICENSE ERROR'
     default:
-      return 'Pending'
+      return 'LICENSE PENDING'
   }
 }
 
@@ -552,6 +558,7 @@ function getLicenseTone(licenseStatus: LicenseStatus | undefined) {
     case 'active':
       return 'success' as const
     case 'warning':
+    case 'session-expired':
       return 'warn' as const
     case 'inactive':
     case 'error':
@@ -569,44 +576,93 @@ function getScopeLabel(world?: string | null, t?: number | null) {
   return `${world}:${t ?? 'main'}`
 }
 
-function getRuntimeLabel({
-  active,
-  enabledByUser,
-  hasPlayerIdentity,
-}: {
-  active?: boolean
-  enabledByUser?: boolean | null
-  hasPlayerIdentity: boolean
-}) {
-  if (hasPlayerIdentity && enabledByUser === false) {
-    return 'Off'
+function getRuntimeLabel(runtimeStatus: RuntimeStatus) {
+  switch (runtimeStatus) {
+    case 'off':
+      return 'OFF'
+    case 'net-error':
+      return 'NET:ERROR'
+    case 'connect-error':
+      return 'CONNECT:ERROR'
+    case 'running':
+      return 'RUNNING'
+    default:
+      return 'READY'
   }
-
-  if (active) {
-    return 'Running'
-  }
-
-  return 'Ready'
 }
 
-function getRuntimeTone({
-  active,
-  enabledByUser,
-  hasPlayerIdentity,
+function getRuntimeTone(runtimeStatus: RuntimeStatus) {
+  switch (runtimeStatus) {
+    case 'off':
+      return 'danger' as const
+    case 'net-error':
+    case 'connect-error':
+      return 'warn' as const
+    case 'running':
+      return 'success' as const
+    default:
+      return 'neutral' as const
+  }
+}
+
+function getRuntimeTooltip(runtimeStatus: RuntimeStatus) {
+  switch (runtimeStatus) {
+    case 'off':
+      return 'Execution is turned off by the user for this player.'
+    case 'net-error':
+      return 'The user internet connection appears to be unavailable. The bot cannot keep running until connectivity returns.'
+    case 'connect-error':
+      return "The Let's GO server or CDN could not be reached. The extension will retry automatically."
+    case 'running':
+      return 'The bot is currently allowed to run on this tab.'
+    default:
+      return 'This tab is recognized, but it is not the one currently executing the bot.'
+  }
+}
+
+function getLicenseTooltip({
+  licenseStatus,
+  formattedLicenseDueAt,
+  formattedTokenExpiresAt,
+  nextRetryAt,
 }: {
-  active?: boolean
-  enabledByUser?: boolean | null
-  hasPlayerIdentity: boolean
+  licenseStatus: LicenseStatus | undefined
+  formattedLicenseDueAt?: string | null
+  formattedTokenExpiresAt?: string | null
+  nextRetryAt?: string | null
 }) {
-  if (hasPlayerIdentity && enabledByUser === false) {
-    return 'danger' as const
-  }
+  switch (licenseStatus) {
+    case 'active':
+      if (formattedLicenseDueAt && formattedTokenExpiresAt) {
+        return `The license is active until ${formattedLicenseDueAt}. Session expires: ${formattedTokenExpiresAt}.`
+      }
 
-  if (active) {
-    return 'success' as const
-  }
+      return formattedLicenseDueAt
+        ? `The license is active until ${formattedLicenseDueAt}.`
+        : formattedTokenExpiresAt
+          ? `The license is active for this player. Session expires: ${formattedTokenExpiresAt}.`
+          : 'The license is active for this player.'
+    case 'warning':
+      if (formattedLicenseDueAt && formattedTokenExpiresAt) {
+        return `The license is active and close to expiry. It expires at ${formattedLicenseDueAt}. Session expires: ${formattedTokenExpiresAt}.`
+      }
 
-  return 'neutral' as const
+      return formattedLicenseDueAt
+        ? `The license is active and close to expiry. It expires at ${formattedLicenseDueAt}.`
+        : formattedTokenExpiresAt
+          ? `The license is active and close to expiry. Session expires: ${formattedTokenExpiresAt}.`
+          : 'The license is active and close to expiry.'
+    case 'inactive':
+      return 'No active license was found for this player.'
+    case 'session-expired':
+      return nextRetryAt
+        ? `The token could not be validated. The bot stays stopped until the session is validated again. Next automatic retry after ${nextRetryAt}.`
+        : 'The token could not be validated. The bot stays stopped until the session is validated again.'
+    case 'error':
+      return 'The license state could not be resolved due to an unexpected error.'
+    default:
+      return 'The license state has not been determined yet.'
+  }
 }
 
 function escapeHtml(value: string) {
@@ -921,6 +977,14 @@ export default function App() {
           next.updatedAt = refresh.updatedAt ?? null
         }
 
+        if (Object.prototype.hasOwnProperty.call(refresh, 'isConnectServerError')) {
+          next.isConnectServerError = refresh.isConnectServerError === true
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'isNetError')) {
+          next.isNetError = refresh.isNetError === true
+        }
+
         if (Object.prototype.hasOwnProperty.call(refresh, 'enabledByUser')) {
           next.enabledByUser = refresh.enabledByUser ?? null
         }
@@ -1165,22 +1229,27 @@ export default function App() {
     ? state.enabledByUser
     : null
   const isPlayerEnabledByUser = playerEnabledByUserState === true
-  const runtimeLabel = getRuntimeLabel({
-    active: state?.active,
+  const isRuntimeRunning = (
+    state?.active === true
+    && state?.enabledByUser === true
+    && state?.license?.allowedByLicense === true
+  )
+  const runtimeStatus = getRuntimeStatus({
+    active: isRuntimeRunning,
     enabledByUser: state?.enabledByUser,
     hasPlayerIdentity,
+    isNetError: state?.isNetError === true,
+    isConnectServerError: state?.isConnectServerError === true,
   })
-  const runtimeTone = getRuntimeTone({
-    active: state?.active,
-    enabledByUser: state?.enabledByUser,
-    hasPlayerIdentity,
-  })
+  const runtimeLabel = getRuntimeLabel(runtimeStatus)
+  const runtimeTone = getRuntimeTone(runtimeStatus)
+  const runtimeTooltip = getRuntimeTooltip(runtimeStatus)
   const canToggleEnabledByUser = hasPlayerIdentity && !savingEnabledByUser
   const isMdfScope = state?.t !== null
   const hasReconnectOption = hasPlayerIdentity && state?.license?.allowedByLicense === true
   const nextPostLicenseButtonAt = state?.nextPostLicenseButtonAt ?? null
   const canVerifyLicense = (
-    state?.license?.status === 'inactive'
+    (state?.license?.status === 'inactive' || state?.license?.status === 'session-expired')
     && hasPlayerIdentity
     && !checkingLicense
     && (
@@ -1189,10 +1258,12 @@ export default function App() {
     )
   )
   const verifyLicenseTooltip = canVerifyLicense
-    ? 'Verify player license now'
-    : state?.license?.status === 'inactive'
+    ? state?.license?.status === 'session-expired'
+      ? 'Try to validate the session again now'
+      : 'Check whether this player has an active license now'
+    : state?.license?.status === 'inactive' || state?.license?.status === 'session-expired'
       ? `Available at ${formatRetryAt(nextPostLicenseButtonAt) || '--:--'}`
-      : 'Available only when the player has no active license'
+      : 'Available only when the player has no active license or an expired session'
   const showReconnectOption = hasPlayerIdentity
   const reconnectOnSessionExpiredState = showReconnectOption
     ? (isMdfScope ? false : state?.reconnectOnSessionExpired === true)
@@ -1239,11 +1310,13 @@ export default function App() {
   const formattedUpdatedAt = formatUpdatedAt(state?.updatedAt)
   const formattedLicenseDueAt = formatDateTime(state?.licenseDueAt)
   const formattedTokenExpiresAt = formatDateTime(state?.tokenExpiresAt)
-  const licenseTooltip = formattedLicenseDueAt
-    ? `License expires at ${formattedLicenseDueAt}`
-    : formattedTokenExpiresAt
-      ? `Session expires at ${formattedTokenExpiresAt}`
-    : undefined
+  const formattedLicenseRetryAt = formatRetryAt(nextPostLicenseButtonAt)
+  const licenseTooltip = getLicenseTooltip({
+    licenseStatus: state?.license?.status,
+    formattedLicenseDueAt,
+    formattedTokenExpiresAt,
+    nextRetryAt: formattedLicenseRetryAt,
+  })
   const licenseTooltipHtml = getLicenseTooltipHtml({
     licenseStatus: state?.license?.status,
     formattedLicenseDueAt,
@@ -1304,7 +1377,7 @@ export default function App() {
                         : 'Waiting for prepared context'}
                   </SubLine>
                   <Pills>
-                    <Pill $tone={runtimeTone}>
+                    <Pill $tone={runtimeTone} data-popup-title={runtimeTooltip}>
                       {runtimeLabel}
                     </Pill>
                     {state?.isBotProtected ? (
@@ -1318,9 +1391,9 @@ export default function App() {
                         data-popup-title={licenseTooltip}
                         data-popup-html={licenseTooltipHtml || undefined}
                       >
-                        License {getLicenseText(state?.license?.status)}
+                        {getLicenseText(state?.license?.status)}
                       </Pill>
-                      {state?.license?.status === 'inactive' ? (
+                      {state?.license?.status === 'inactive' || state?.license?.status === 'session-expired' ? (
                         <LicenseRefreshButton
                           type="button"
                           $tone={getLicenseTone(state?.license?.status)}
@@ -1469,9 +1542,15 @@ export default function App() {
             </FooterMailLink>
           </FooterLinkItens>
           <Hint>
-            {hasPlayerIdentity && state?.enabledByUser === false
+            {runtimeStatus === 'off'
               ? 'The bot is turned off for this player.'
-              : state?.active
+              : runtimeStatus === 'net-error'
+              ? 'The bot is blocked because the user internet connection appears to be unavailable.'
+              : runtimeStatus === 'connect-error'
+              ? "The bot is blocked because the Let's GO server or CDN could not be reached."
+              : state?.license?.status === 'session-expired'
+              ? 'The bot is stopped until the session can be validated again.'
+              : isRuntimeRunning
               ? 'The bot is marked to run on this tab.'
               : 'The popup follows the active Tribal Wars tab, even when it is not executing there.'}
           </Hint>
