@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const modulesMap = require('../entries/dynamic-modules')
+const runtimeMap = require('../entries/dynamic-runtime')
 
 function generateMethod(moduleKey, config) {
   const exportName = config.exportName || 'default'
@@ -14,31 +15,55 @@ function generateMethod(moduleKey, config) {
   }`
 }
 
-function generateFileContent() {
-  const methods = Object.entries(modulesMap)
+function generateFileContent({
+  exportName,
+  registry,
+}) {
+  const methods = Object.entries(registry)
     .map(([moduleKey, config]) => generateMethod(moduleKey, config))
     .join('\n\n')
 
   return `// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
 
-export class DynamicImports {
+export class ${exportName} {
 ${methods}
 }
 `
 }
 
-function main() {
+function writeGeneratedFile({
+  outputFileName,
+  exportName,
+  registry,
+}) {
   const outputPath = path.resolve(
     __dirname,
-    '../src/dynamic-import.js',
+    `../src/${outputFileName}`,
   )
 
-  const content = generateFileContent()
+  const content = generateFileContent({
+    exportName,
+    registry,
+  })
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true })
   fs.writeFileSync(outputPath, content, 'utf8')
 
   console.log(`DynamicImports generated at: ${outputPath}`)
+}
+
+function main() {
+  writeGeneratedFile({
+    outputFileName: 'dynamic-modules.js',
+    exportName: 'DynamicModules',
+    registry: modulesMap,
+  })
+
+  writeGeneratedFile({
+    outputFileName: 'dynamic-runtime.js',
+    exportName: 'DynamicRuntime',
+    registry: runtimeMap,
+  })
 }
 
 main()

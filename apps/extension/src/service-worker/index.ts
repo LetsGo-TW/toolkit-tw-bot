@@ -1,5 +1,9 @@
 /// <reference types="chrome" />
 
+import {
+  createServiceWorkerController,
+  SERVICE_WORKER_CONTROLLER_EVENTS,
+} from "./controller";
 import { onReceived } from "./message/index";
 import { cleanupAttachedNativeDebuggers } from "./message/native";
 import { onCompletedWebRequest, onCompletedWebRequestFilter } from "./on-completed-web-request";
@@ -32,47 +36,50 @@ const onTabRemoved = createOnTabRemovedListener({
 const onTabUpdated = createOnTabUpdatedListener()
 const onPreparedContextCleanupAlarm = createOnPreparedContextCleanupAlarmListener()
 
-// listeners com guard (evita duplicados ao recarregar o SW)
-if (!chrome.runtime.onMessage.hasListener(onReceived)) {
-  chrome.runtime.onMessage.addListener(onReceived);
-}
-if (!chrome.runtime.onMessageExternal.hasListener(onReceived)) {
-  chrome.runtime.onMessageExternal.addListener(onReceived);
-}
-if (!chrome.runtime.onInstalled.hasListener(onInstalledExtension)) {
-  chrome.runtime.onInstalled.addListener(onInstalledExtension);
-}
-if (!chrome.alarms.onAlarm.hasListener(onPreparedContextCleanupAlarm)) {
-  chrome.alarms.onAlarm.addListener(onPreparedContextCleanupAlarm);
-}
+// O index do SW só declara o wiring do bootstrap.
+// O controller registra os listeners "simples" e roda as tasks de startup.
+const controller = createServiceWorkerController({
+  listeners: [
+    { label: 'runtime.onMessage', event: chrome.runtime.onMessage, handler: onReceived },
+    { label: 'runtime.onMessageExternal', event: chrome.runtime.onMessageExternal, handler: onReceived },
+    { label: 'runtime.onInstalled', event: chrome.runtime.onInstalled, handler: onInstalledExtension },
+    { label: 'alarms.onAlarm', event: chrome.alarms.onAlarm, handler: onPreparedContextCleanupAlarm },
+    { label: 'tabs.onActivated', event: chrome.tabs.onActivated, handler: onTabActivated },
+    { label: 'tabs.onRemoved', event: chrome.tabs.onRemoved, handler: onTabRemoved },
+    { label: 'tabs.onAttached', event: chrome.tabs.onAttached, handler: onTabAttached },
+    { label: 'tabs.onDetached', event: chrome.tabs.onDetached, handler: onTabDetached },
+    { label: 'tabs.onUpdated', event: chrome.tabs.onUpdated, handler: onTabUpdated },
+    { label: 'webNavigation.onErrorOccurred', event: chrome.webNavigation.onErrorOccurred, handler: onWebNavigationErrorOccurred },
+  ],
+  startupTasks: [
+    {
+      label: 'prepared-context.cleanup-alarm.ensure',
+      run: () => ensurePreparedContextCleanupAlarm(),
+    },
+    {
+      label: 'native-debugger.cleanup',
+      run: () => cleanupAttachedNativeDebuggers({
+        reason: 'sw-startup',
+      }),
+    },
+    {
+      label: 'runtime.initialize',
+      run: () => initializeRuntime(),
+    },
+  ],
+})
 
-if (!chrome.tabs.onActivated.hasListener(onTabActivated)) {
-  chrome.tabs.onActivated.addListener(onTabActivated);
-}
-if (!chrome.tabs.onRemoved.hasListener(onTabRemoved)) {
-  chrome.tabs.onRemoved.addListener(onTabRemoved);
-}
-if (!chrome.tabs.onAttached.hasListener(onTabAttached)) {
-  chrome.tabs.onAttached.addListener(onTabAttached);
-}
-if (!chrome.tabs.onDetached.hasListener(onTabDetached)) {
-  chrome.tabs.onDetached.addListener(onTabDetached);
-}
-if (!chrome.tabs.onUpdated.hasListener(onTabUpdated)) {
-  chrome.tabs.onUpdated.addListener(onTabUpdated);
-}
+// Tratamento mínimo centralizado para tasks assíncronas do boot.
+controller.on(SERVICE_WORKER_CONTROLLER_EVENTS.TASK_ERROR, (event) => {
+  console.error('[SW][CONTROLLER][TASK_ERROR]', event.detail?.label, event.detail?.error)
+})
+
+// webRequest usa assinatura com filter, então fica fora do controller por enquanto.
 if (!chrome.webRequest.onCompleted.hasListener(onCompletedWebRequest)) {
   chrome.webRequest.onCompleted.addListener(
-    onCompletedWebRequest, 
+    onCompletedWebRequest,
     onCompletedWebRequestFilter
   )
 }
-if (!chrome.webNavigation.onErrorOccurred.hasListener(onWebNavigationErrorOccurred)) {
-  chrome.webNavigation.onErrorOccurred.addListener(onWebNavigationErrorOccurred);
-}
 
-void ensurePreparedContextCleanupAlarm()
-void cleanupAttachedNativeDebuggers({
-  reason: 'sw-startup',
-})
-void initializeRuntime()
+controller.start()

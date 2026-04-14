@@ -8,8 +8,9 @@ const CONNECT = 'CONNECT'
 const CTX = 'CTX'
 const START = 'BOT_RUNNER_START'
 const STOP = 'BOT_RUNNER_STOP'
-const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
-const RUNNER_BOT_PROTECT_EVENT = 'toolkit:runner-bot-protect'
+const GAME_RUNTIME_KEY = '__toolkitTwBotGameRuntime__'
+const GAME_START_EVENT = 'toolkit:game:start'
+const GAME_STOP_EVENT = 'toolkit:game:stop'
 const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 
 /**
@@ -83,7 +84,7 @@ function isValidRunnerMessage(event) {
     return false
   }
 
-  return data?.type === START || data?.type === STOP || data?.type === RUNNER_BOT_PROTECT
+  return data?.type === START || data?.type === STOP
 }
 
 function setConnectionState(data) {
@@ -156,13 +157,34 @@ function removeStageScript() {
   runnerState.stagedScriptUrl = null
 }
 
+function getGameRuntime() {
+  return window[GAME_RUNTIME_KEY] || null
+}
+
+function hasGameRuntime() {
+  const runtime = getGameRuntime()
+
+  return Boolean(
+    runtime
+    && typeof runtime.start === 'function'
+    && typeof runtime.stop === 'function'
+  )
+}
+
+function dispatchGameLifecycleEvent(type, detail = {}) {
+  window.dispatchEvent(new CustomEvent(type, {
+    detail: {
+      extensionId: runnerState.extensionId,
+      scopeKey: runnerState.scopeKey,
+      ...detail,
+    },
+  }))
+}
+
 async function injectStageScript(filename) {
   const scriptUrl = getStageScriptUrl(filename)
 
-  if (
-    runnerState.stagedScriptUrl === scriptUrl
-    && runnerState.stagedScriptEl?.isConnected
-  ) {
+  if (hasGameRuntime()) {
     return
   }
 
@@ -212,6 +234,28 @@ async function injectStageScript(filename) {
 
   runnerState.stagedScriptUrl = scriptUrl
   runnerState.stagedScriptEl = script
+}
+
+async function ensureGameRuntime() {
+  if (hasGameRuntime()) {
+    return getGameRuntime()
+  }
+
+  const stageEntry = getStageEntry()
+
+  if (!stageEntry?.filename) {
+    return null
+  }
+
+  await injectStageScript(stageEntry.filename)
+
+  const runtime = getGameRuntime()
+
+  if (!runtime) {
+    throw new Error('GAME runtime was not installed.')
+  }
+
+  return runtime
 }
 
 function getPreparedContext() {
@@ -267,16 +311,17 @@ async function startRunner() {
       throw new Error('Extension Id is required.')
     }
 
-    const stageEntry = getStageEntry()
-
-    if (stageEntry?.filename) {
-      await injectStageScript(stageEntry.filename)
-    }
-
+    const runtime = await ensureGameRuntime()
     runnerState.running = true
+    document.querySelector("html")?.setAttribute('data-activetab', 'true')
+
+    if (runtime) {
+      dispatchGameLifecycleEvent(GAME_START_EVENT)
+    }
   })()
     .catch((error) => {
       removeStageScript()
+      runnerState.running = false
       throw error
     })
     .finally(() => {
@@ -300,10 +345,14 @@ async function stopRunner() {
     return
   }
 
-  removeStageScript()
   runnerState.running = false
-  // desativa CS listen
   document.querySelector("html")?.setAttribute('data-activetab', 'false')
+
+  if (!hasGameRuntime()) {
+    return
+  }
+
+  dispatchGameLifecycleEvent(GAME_STOP_EVENT)
 }
 
 async function onConnectMessage(data) {
@@ -330,14 +379,6 @@ async function onStopMessage(data) {
 
   console.log('[PREPARED] STOP received', data)
   await stopRunner()
-}
-
-async function onRunnerBotProtectMessage(data) {
-  console.warn('[PREPARED] BOT_PROTECT received', data)
-
-  window.dispatchEvent(new CustomEvent(RUNNER_BOT_PROTECT_EVENT, {
-    detail: data,
-  }))
 }
 
 async function onPageMessage(event) {
@@ -371,9 +412,6 @@ async function onRunnerMessage(event) {
         return
       case STOP:
         await onStopMessage(data)
-        return
-      case RUNNER_BOT_PROTECT:
-        await onRunnerBotProtectMessage(data)
         return
       default:
         return
