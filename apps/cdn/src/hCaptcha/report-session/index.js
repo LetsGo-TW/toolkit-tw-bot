@@ -236,7 +236,7 @@ export const ReportSession = {
 
   // Liga o "ouvido" da página pai para receber os status do iframe do Captcha
   listenMessages() {
-    window.addEventListener("message", (event) => {
+    const onMessage = (event) => {
       const data = event.data
       if (!data || typeof data !== "object") return
 
@@ -245,6 +245,12 @@ export const ReportSession = {
       } else if (data.type === "GO_HCAPTCHA_FINISH") {
         ReportSession.finish(data.payload.result, data.payload.message)
       }
-    })
+    }
+
+    window.addEventListener("message", onMessage)
+
+    return () => {
+      window.removeEventListener("message", onMessage)
+    }
   }
 }

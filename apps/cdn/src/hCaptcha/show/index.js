@@ -9,7 +9,6 @@ import { ReportSession } from "../report-session/index.js"
 import { useGoTiming } from "../../hooks/useGoTiming";
 import { random } from "@toolkit-tw-bot/core"
 import { nDateTime } from "../../stable-compat/date-parse"
-import { sleep } from "../../stable-compat/utils"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 
 const MSG_SOLVER_DISABLED = 'Resolve-auto: Desligado. Somente ação do usuário.'
@@ -27,7 +26,9 @@ export const getCaptchaNowMs = () => {
   return Number(nDateTime(dateServer(), timeServer()))
 }
 
-export default async function show() {
+export default async function show({ data, context, control }) {
+  control?.throwIfAborted?.()
+
   const gameData = getGameData();
 
   const isCaptchaActive = ProtectingBot['bot-protect-all-in-game'].active();
@@ -56,13 +57,19 @@ export default async function show() {
   printTimer(-1)
 
   await ConfigSolver.init()
+  control?.throwIfAborted?.()
 
   const configSolverNode = document.querySelector("#config-solver")
 
   Sounds.use("solver")
   Sounds.listner("#sound-solver")
 
-  configSolverNode.addEventListener('change', onChangeConfig)
+  if (configSolverNode) {
+    configSolverNode.addEventListener('change', onChangeConfig)
+    control?.onAbort?.(() => {
+      configSolverNode.removeEventListener('change', onChangeConfig)
+    })
+  }
 
   const soundInteractive = () => {
     if (ConfigSolver.sound) {
@@ -90,10 +97,17 @@ export default async function show() {
 
     printMsg(`Resolve-auto: ${new Date(getCaptchaNowMs() + ( time * 1000 )).toLocaleString("pt-BR")}`)
 
-    await sleep(time)
+    await control?.sleepSeconds?.(time)
+    control?.throwIfAborted?.()
 
     if (ConfigSolver.active) {
-      run({ sendNotify: null, soundInteractive, Report })
+      await run({
+        sendNotify: null,
+        soundInteractive,
+        Report,
+        reportState: context?.reportState,
+        control,
+      })
     }
   }
 
@@ -104,7 +118,8 @@ export default async function show() {
 
   async function onChangeConfig(e) {
     const { id } = e.target
-    await sleep(0.25)
+    await control?.sleepMs?.(250)
+    control?.throwIfAborted?.()
     if (id === 'active-solver') {
       if (ConfigSolver.active) {
         await optionEnableSolver()

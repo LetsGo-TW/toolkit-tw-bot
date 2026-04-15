@@ -5,10 +5,96 @@ import { printMessage } from "../../components/printMessage/index.js";
 import { getCaptchaNowMs } from "../show/index.js";
 import StorageLocalCompat from "../../shared/indexdb/storage-local-compat.js";
 
+function createAbortError(reason = 'Solver aborted') {
+  const error = new Error(reason);
+  error.name = 'AbortError';
+  return error;
+}
+
 export async function run(data) {
-  const { sendNotify, soundInteractive } = data || {};
+  const {
+    control = null,
+    reportState = null,
+    sendNotify,
+    soundInteractive,
+  } = data || {};
 
   const gameData = getGameData();
+  const trackedTimeouts = new Set();
+  const trackedIntervals = new Set();
+  let removeReportSessionMessages = null;
+  let disposeAbort = null;
+
+  const isAborted = () => control?.isAborted?.() === true;
+  const throwIfAborted = () => {
+    if (isAborted()) {
+      throw createAbortError();
+    }
+  };
+  const clearTrackedTimeout = (timeoutId) => {
+    if (!timeoutId) return;
+    clearTimeout(timeoutId);
+    trackedTimeouts.delete(timeoutId);
+  };
+  const clearTrackedInterval = (intervalId) => {
+    if (!intervalId) return;
+    clearInterval(intervalId);
+    trackedIntervals.delete(intervalId);
+  };
+  const setTrackedTimeout = (callback, ms) => {
+    const timeoutId = setTimeout(() => {
+      trackedTimeouts.delete(timeoutId);
+      callback();
+    }, ms);
+    trackedTimeouts.add(timeoutId);
+    return timeoutId;
+  };
+  const setTrackedInterval = (callback, ms) => {
+    const intervalId = setInterval(callback, ms);
+    trackedIntervals.add(intervalId);
+    return intervalId;
+  };
+  const clearTrackedScheduled = () => {
+    for (const timeoutId of Array.from(trackedTimeouts)) {
+      clearTrackedTimeout(timeoutId);
+    }
+
+    for (const intervalId of Array.from(trackedIntervals)) {
+      clearTrackedInterval(intervalId);
+    }
+  };
+  const cleanup = () => {
+    clearTrackedScheduled();
+
+    if (validateButtonClickTimeout) {
+      clearTrackedTimeout(validateButtonClickTimeout);
+      validateButtonClickTimeout = null;
+    }
+
+    if (secureTimeout) {
+      clearTrackedTimeout(secureTimeout);
+      secureTimeout = null;
+    }
+
+    if (checkResolvedInterval) {
+      clearTrackedInterval(checkResolvedInterval);
+      checkResolvedInterval = null;
+    }
+
+    if (removeReportSessionMessages) {
+      removeReportSessionMessages();
+      removeReportSessionMessages = null;
+    }
+
+    window.removeEventListener('message', messageReceived, false);
+  };
+  const sleep = async (ms) => {
+    if (control?.sleepMs) {
+      return await control.sleepMs(ms);
+    }
+
+    return await new Promise(resolve => setTimeout(resolve, ms));
+  };
 
   // Instancia o StorageLocal com ofuscação automática da chave e do valor
   const storageFailureBlocks = StorageLocalCompat.create({
@@ -32,9 +118,11 @@ export async function run(data) {
     ReportSession.addAttempt();
   }
 
-  ReportSession.listenMessages();
-
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  removeReportSessionMessages = ReportSession.listenMessages();
+  disposeAbort = control?.onAbort?.(() => {
+    cleanup();
+  }) ?? null;
+  throwIfAborted();
 
   // Função auxiliar para verificar se o elemento existe e está visível na tela (não está com display: none)
   const isVisible = (el) => el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0);
@@ -69,11 +157,14 @@ export async function run(data) {
   }
 
   const reload = async(message=null, time=5000 ) => {
+    if (isAborted()) return;
+
     if (message) {
       printMessage.error(message, time)
     }
 
     await sleep(time);
+    if (isAborted()) return;
 
     window.self.location.reload();
   }
@@ -83,6 +174,8 @@ export async function run(data) {
   let checkResolvedInterval = null;
 
   const handleSuccess = async (message = "Resolvido pelo Let's GO") => {
+    if (isAborted()) return;
+
     // O Captcha foi resolvido com sucesso! Limpamos o histórico de pausas progressivas.
     // Colocamos antes do return para garantir que a trava limpe caso o usuário resolva manualmente ouvindo o alarme!
     await storageFailureBlocks.remove();
@@ -91,20 +184,25 @@ export async function run(data) {
     if (isFinished) return;
     isFinished = true;
 
-    if (secureTimeout) clearTimeout(secureTimeout);
-    if (checkResolvedInterval) clearInterval(checkResolvedInterval);
+    cleanup();
 
     await ReportSession.finish('success', message);
+    await reportState?.({
+      status: 'completed',
+      detail: {
+        message,
+      },
+    });
 
-    await reload();
+    void reload();
   };
 
   const handleFailure = async (customMessage = null, customReloadTime = 5000) => {
+    if (isAborted()) return;
     if (isFinished) return;
     isFinished = true;
 
-    if (secureTimeout) clearTimeout(secureTimeout);
-    if (checkResolvedInterval) clearInterval(checkResolvedInterval);
+    cleanup();
 
     let attempts = parseInt(sessionStorage.getItem('_attemps_h') || '0', 10);
     attempts += 1;
@@ -143,10 +241,18 @@ export async function run(data) {
       await storageBackoffUntil.set(backoffUntil);
 
       printMessage.error(`hCaptcha não resolvido após 3 tentativas! Pausa de segurança de ~${Math.round(waitTimeSec / 60)} min.`, 10000);
+      await reportState?.({
+        status: 'failed',
+        detail: {
+          attempts,
+          message: finalMessage,
+          waitTimeSec,
+        },
+      });
 
       sessionStorage.removeItem('_attemps_h');
 
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         window.self.location.reload();
       }, waitTimeSec * 1000);
 
@@ -163,7 +269,7 @@ export async function run(data) {
 
   // Valida o resultado visual do clique de acordo com o comportamento esperado de cada botão
   const validateButtonClickResult = (forcedOk = null) => {
-    if (validateButtonClickTimeout) clearTimeout(validateButtonClickTimeout);
+    if (validateButtonClickTimeout) clearTrackedTimeout(validateButtonClickTimeout);
     validateButtonClickTimeout = null;
 
     let ok = false;
@@ -199,7 +305,7 @@ export async function run(data) {
 
   const validateButtonClickExecute = (btnType) => {
     clickedButtonType = btnType;
-    validateButtonClickTimeout = setTimeout(() => {
+    validateButtonClickTimeout = setTrackedTimeout(() => {
       validateButtonClickResult(null);
     }, 15000)
   };
@@ -207,6 +313,8 @@ export async function run(data) {
   // Trava para impedir que mensagens repetidas do iframe reiniciem a animação de scroll
   let isHandlingActive = false;
   const messageReceived = async (event) => {
+    if (isAborted()) return;
+
     // Caminho 2: Mensagem nativa do hCaptcha de que as imagens foram vencidas
     if (typeof event.data === 'string') {
       try {
@@ -258,8 +366,8 @@ export async function run(data) {
       }, event.origin);
 
       // NOVO: Timeout de segurança caso o clique nativo no checkbox falhe ou erre o alvo
-      if (secureTimeout) clearTimeout(secureTimeout);
-      secureTimeout = setTimeout(() => {
+      if (secureTimeout) clearTrackedTimeout(secureTimeout);
+      secureTimeout = setTrackedTimeout(() => {
         console.log('❌ Timeout aguardando o clique no checkbox do hCaptcha. Forçando reload...');
         ReportSession.updateError('Falha no clique do checkbox (errou o alvo)');
         handleFailure();
@@ -268,7 +376,7 @@ export async function run(data) {
     if (event.data.execute) {
       console.log('📥 Main received execute', event.data.execute);
 
-      if (secureTimeout) clearTimeout(secureTimeout); // Limpa o timeout do clique
+      if (secureTimeout) clearTrackedTimeout(secureTimeout); // Limpa o timeout do clique
 
       if (event.data.isChecked) {
         console.log('Captcha passou direto sem desafio! Aguardando 5s para recarregar a página...');
@@ -279,7 +387,7 @@ export async function run(data) {
       console.log('Desafio de imagens renderizado. Aguardando resolução...');
 
       // Caminho 1 e 3: Radar monitorando o DOM (Token ou esvaziamento)
-      checkResolvedInterval = setInterval(() => {
+      checkResolvedInterval = setTrackedInterval(() => {
         const textarea = document.querySelector('[name="h-captcha-response"]');
         if (textarea && textarea.value.trim() !== '') {
           console.log('✅ hCaptcha token gerado (detectado no textarea)!');
@@ -293,7 +401,7 @@ export async function run(data) {
       }, 500);
 
       // Inicia um timer de segurança de 15 segundos. Se não for resolvido, força o erro e reavalia
-      secureTimeout = setTimeout(() => {
+      secureTimeout = setTrackedTimeout(() => {
         if (divCaptcha() && divCaptcha()?.innerHTML) {
           console.log('❌ Timeout aguardando resolução. Forçando reload...');
           ReportSession.updateError('Timeout aguardando resolução das imagens');
@@ -303,10 +411,12 @@ export async function run(data) {
     }
   }
   const execute = async() => {
+    throwIfAborted();
     window.addEventListener('message', messageReceived, false);
 
     // Verifica se estamos em um período de pausa (backoff) por excesso de falhas
     const backoffUntil = parseInt(await storageBackoffUntil.get() || '0', 10);
+    throwIfAborted();
     if (backoffUntil && soundInteractive) soundInteractive();
     if (backoffUntil > Date.now()) {
       const remainingMin = Math.ceil((backoffUntil - Date.now()) / 60000);
@@ -314,7 +424,7 @@ export async function run(data) {
       printMessage.error(`hCaptcha pausado por segurança. Retentando em ${remainingMin} min...`, 10000);
 
       // Timer para recarregar a página e tentar de novo apenas quando o backoff expirar
-      setTimeout(() => {
+      setTrackedTimeout(() => {
         window.self.location.reload();
       }, (backoffUntil - Date.now()) + 2000);
 
@@ -354,6 +464,7 @@ export async function run(data) {
         type: 'ARM_NATIVE_CLICK',
         source: `hcaptcha:${actionType}`
       });
+      if (isAborted()) return;
 
       if (!armResponse?.ok) {
         console.error('[Let\'s GO] Native click arm failed', {
@@ -370,6 +481,8 @@ export async function run(data) {
         type: 'NATIVE_CLICK',
         coords: { x, y }
       }, (response) => {
+        if (isAborted()) return;
+
         const runtimeError = chrome.runtime.lastError?.message || null;
 
         if (runtimeError) {
@@ -471,5 +584,23 @@ export async function run(data) {
     const reloadTime = Math.floor(Math.random() * 5000) + 5000; // Tempo aleatório entre 5000ms e 10000ms
     handleFailure('Captcha não identificado na página. Aguarde o reload...', reloadTime);
   }
-  execute()
+  try {
+    await execute()
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      cleanup();
+      return;
+    }
+
+    cleanup();
+    await reportState?.({
+      status: 'failed',
+      error,
+    });
+    throw error;
+  } finally {
+    if (disposeAbort) {
+      disposeAbort();
+    }
+  }
 }
