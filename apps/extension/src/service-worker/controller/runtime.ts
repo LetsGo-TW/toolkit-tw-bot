@@ -32,14 +32,28 @@ import {
   removeControllerExecutionDocument,
 } from './storage'
 import { normalizeNumber, normalizeString } from '../normalize'
-import { SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE } from '../message/types'
+import {
+  RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
+  SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE,
+} from '../message/types'
 
 type ScriptExecutionSyncAction = 'upsert' | 'delete' | 'disable'
+type RunnerExecutionReportStatus = 'running' | 'paused' | 'stopped' | 'completed' | 'failed'
 
 type ScriptExecutionSyncRequest = Partial<SWMessage> & {
   action?: unknown
   compose?: unknown
   execution?: unknown
+}
+
+type RunnerExecutionReportRequest = Partial<SWMessage> & {
+  action?: unknown
+  status?: unknown
+  source?: unknown
+  detail?: unknown
+  execution?: unknown
+  snapshot?: unknown
+  error?: unknown
 }
 
 type ScriptExecutionPayload = {
@@ -59,6 +73,22 @@ type ScriptExecutionPayload = {
 }
 
 const executionControllerBus = createEventBus()
+
+function normalizeRunnerExecutionReportStatus(value: unknown): RunnerExecutionReportStatus | null {
+  const status = normalizeString(value)?.toLowerCase() ?? null
+
+  if (
+    status === 'running'
+    || status === 'paused'
+    || status === 'stopped'
+    || status === 'completed'
+    || status === 'failed'
+  ) {
+    return status
+  }
+
+  return null
+}
 
 function normalizeExecutionSyncAction(value: unknown): ScriptExecutionSyncAction | null {
   const action = normalizeString(value)?.toLowerCase() ?? null
@@ -335,6 +365,61 @@ function emitControllerExecutionEvent(type: string, detail: EventBusEventDetail 
 
 export function onControllerExecutionEvent(type: string, handler: EventBusHandler) {
   return executionControllerBus.on(type, handler)
+}
+
+export async function handleRunnerExecutionReport(
+  request: RunnerExecutionReportRequest = {},
+  sender?: chrome.runtime.MessageSender,
+) {
+  const status = normalizeRunnerExecutionReportStatus(request.status)
+
+  if (!status) {
+    return {
+      ok: false,
+      type: RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
+      error: 'Invalid runner execution report status',
+    }
+  }
+
+  const eventType = ({
+    running: EXECUTION_CONTROLLER_EVENTS.EXECUTION_STARTED,
+    paused: EXECUTION_CONTROLLER_EVENTS.EXECUTION_PAUSED,
+    stopped: EXECUTION_CONTROLLER_EVENTS.EXECUTION_STOPPED,
+    completed: EXECUTION_CONTROLLER_EVENTS.EXECUTION_COMPLETED,
+    failed: EXECUTION_CONTROLLER_EVENTS.EXECUTION_FAILED,
+  } as const)[status]
+
+  const detail = {
+    action: normalizeString(request.action) ?? null,
+    status,
+    source: normalizeString(request.source) ?? null,
+    detail: request.detail && typeof request.detail === 'object'
+      ? request.detail as Record<string, unknown>
+      : request.detail ?? null,
+    execution: request.execution && typeof request.execution === 'object'
+      ? request.execution as Record<string, unknown>
+      : request.execution ?? null,
+    snapshot: request.snapshot && typeof request.snapshot === 'object'
+      ? request.snapshot as Record<string, unknown>
+      : request.snapshot ?? null,
+    error: request.error && typeof request.error === 'object'
+      ? request.error as Record<string, unknown>
+      : request.error ?? null,
+    senderTabId: sender?.tab?.id ?? null,
+    senderWindowId: sender?.tab?.windowId ?? null,
+    reportedAt: Date.now(),
+  }
+
+  emitControllerExecutionEvent(eventType, detail)
+
+  return {
+    ok: true,
+    type: RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
+    status,
+    controller: {
+      eventType,
+    },
+  }
 }
 
 export async function handleScriptExecutionSync(

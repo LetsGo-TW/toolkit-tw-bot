@@ -38,6 +38,7 @@ export const EXECUTION_CONTROLLER_EVENTS = Object.freeze({
   EXECUTION_IDLE: 'execution:idle',
   EXECUTION_STARTED: 'execution:started',
   EXECUTION_PAUSED: 'execution:paused',
+  EXECUTION_STOPPED: 'execution:stopped',
   EXECUTION_COMPLETED: 'execution:completed',
   EXECUTION_FAILED: 'execution:failed',
   EXECUTION_RESCHEDULED: 'execution:rescheduled',

@@ -4,7 +4,7 @@ import { MessageEnvelope } from "../../types";
 import { getConnectState } from "../connect-state";
 import { setEnabledByUser } from "../enabled-by-user/runtime";
 import { handleLogin } from "../login/runtime";
-import { handleScriptExecutionSync } from "../controller/runtime";
+import { handleRunnerExecutionReport, handleScriptExecutionSync } from "../controller/runtime";
 import { getPopupState } from "../popup-state";
 import { registerPreparedCtx, syncGameStage, syncSupportCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
@@ -16,8 +16,9 @@ import {
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
-    GET_POPUP_STATE_MESSAGE_TYPE,
+  GET_POPUP_STATE_MESSAGE_TYPE,
     LOGIN_MESSAGE_TYPE,
+    RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
     SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE,
     SCRIPT_STORAGE_MESSAGE_TYPE,
     SET_ENABLED_BY_USER_MESSAGE_TYPE,
@@ -60,6 +61,11 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       return handleScriptStorage(received);
     case SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE:
       return handleScriptExecutionSync(received);
+    case RUNNER_EXECUTION_REPORT_MESSAGE_TYPE:
+      return handleRunnerExecutionReport(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
     case VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE:
       return verifyWorldPlayerLicense(received);
     case SET_ENABLED_BY_USER_MESSAGE_TYPE:

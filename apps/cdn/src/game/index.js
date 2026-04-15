@@ -8,6 +8,7 @@ import ConfigSolver from "../hCaptcha/config"
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
 const RUNNER_CONTROLLER = 'BOT_RUNNER_CONTROLLER'
+const RUNNER_EXECUTION_REPORT = 'BOT_RUNNER_EXECUTION_REPORT'
 const GAME_RUNTIME_KEY = '__toolkitTwBotGameRuntime__'
 const GAME_START_EVENT = 'toolkit:game:start'
 const GAME_STOP_EVENT = 'toolkit:game:stop'
@@ -20,6 +21,7 @@ const GAME_STOP_HANDLER_KEY = '__toolkitTwBotGameStageStopHandlerInstalled__'
 const RUNNER_HANDLE_STOP_KEYS = ['stop', 'stopExecution', 'destroy', 'dispose', 'cleanup', 'unbind', 'teardown']
 const RUNNER_HANDLE_DESTROY_KEYS = ['destroy', 'dispose', 'cleanup', 'unbind', 'teardown', 'stop', 'stopExecution']
 const RUNNER_HANDLE_PAUSE_KEYS = ['pause', 'pauseExecution']
+const RUNNER_REPORT_STATUSES = ['running', 'paused', 'stopped', 'completed', 'failed']
 
 function createNoopRunnerMethod() {
   return async () => {}
@@ -45,6 +47,16 @@ function pickRunnerMethod(candidate, keys = []) {
   }
 
   return null
+}
+
+function hasOwn(value, key) {
+  return Boolean(value) && Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function normalizeNonEmptyString(value) {
+  return typeof value === 'string' && value.trim()
+    ? value.trim()
+    : null
 }
 
 function normalizeRunnerHandle(
@@ -193,11 +205,64 @@ function getGameStateSnapshot() {
   }
 }
 
+function normalizeExecutionReportError(error) {
+  if (!error) {
+    return null
+  }
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+    }
+  }
+
+  return {
+    message: String(error),
+    name: 'Error',
+  }
+}
+
 async function sendMessageToExtension(payload = {}) {
   return await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
     extensionId: RELEASE_EXTENSION_ID,
     ...payload,
   })
+}
+
+async function reportExecutionState({
+  status,
+  action = null,
+  detail = null,
+  error = null,
+  source = 'game',
+} = {}) {
+  const normalizedStatus = normalizeNonEmptyString(status)?.toLowerCase()
+
+  if (!RUNNER_REPORT_STATUSES.includes(normalizedStatus)) {
+    return null
+  }
+
+  try {
+    return await sendMessageToExtension({
+      type: RUNNER_EXECUTION_REPORT,
+      action: normalizeNonEmptyString(action) ?? gameState.currentControllerAction,
+      status: normalizedStatus,
+      source,
+      detail,
+      error: normalizeExecutionReportError(error),
+      execution: {
+        active: gameState.active,
+        currentPageName: gameState.currentPageName,
+        currentRuntimeName: gameState.currentRuntimeName,
+        currentRunId: gameState.currentRunId,
+      },
+      snapshot: getGameStateSnapshot(),
+    })
+  } catch (reportError) {
+    console.error(`[${RUNNER_EXECUTION_REPORT}]`, reportError)
+    return null
+  }
 }
 
 const getCurrentGameData = () => {
@@ -206,6 +271,34 @@ const getCurrentGameData = () => {
   }
 
   return getGameData()
+}
+
+function normalizeExecutionInstruction(value, {
+  fallbackSource = 'controller',
+} = {}) {
+  const root = value && typeof value === 'object'
+    ? value
+    : {}
+  const nested = root.data && typeof root.data === 'object'
+    && (hasOwn(root.data, 'machine') || hasOwn(root.data, 'module') || hasOwn(root.data, 'data'))
+    ? root.data
+    : null
+  const candidate = nested ?? root
+  const moduleProvided = hasOwn(candidate, 'module')
+  const machineProvided = hasOwn(candidate, 'machine')
+  const runtimeData = candidate.data && typeof candidate.data === 'object'
+    ? candidate.data
+    : null
+
+  return {
+    data: runtimeData,
+    machine: machineProvided ? normalizeNonEmptyString(candidate.machine) : undefined,
+    machineProvided,
+    module: moduleProvided ? normalizeNonEmptyString(candidate.module) : undefined,
+    moduleProvided,
+    reason: normalizeNonEmptyString(candidate.reason) ?? null,
+    source: normalizeNonEmptyString(candidate.source) ?? fallbackSource,
+  }
 }
 
 const isValidPageMessage = ({ data, origin, source }) => {
@@ -286,6 +379,7 @@ const installRunnerControllerListener = () => {
     switch (action) {
       case 'run':
         dispatchControllerLifecycleEvent(GAME_CONTROLLER_RUN_EVENT, event.data)
+        void runFromController(event.data)
         if (typeof window.toolkitTwBotOnControllerRun === 'function') {
           void window.toolkitTwBotOnControllerRun(event.data)
         }
@@ -381,6 +475,22 @@ function createRunnerContext({
     extension: {
       sendMessage: sendMessageToExtension,
     },
+    reportState(input = {}) {
+      if (typeof input === 'string') {
+        return reportExecutionState({
+          status: input,
+          source: 'runner',
+        })
+      }
+
+      return reportExecutionState({
+        action: input.action ?? null,
+        detail: input.detail ?? null,
+        error: input.error ?? null,
+        source: 'runner',
+        status: input.status ?? null,
+      })
+    },
     registerHandle(handle) {
       return registerNormalizedHandle(handle)
     },
@@ -391,6 +501,9 @@ function createRunnerContext({
       return registerNormalizedHandle({
         destroy: method,
       })
+    },
+    requestServer(payload = {}) {
+      return sendMessageToExtension(payload)
     },
     getRegisteredHandle() {
       return controllerState.handle
@@ -433,13 +546,22 @@ async function callRunnerHandle(handle, method, detail = {}) {
   }
 }
 
-async function pauseCurrentExecution(detail = {}) {
+async function pauseCurrentExecution(detail = {}, { skipReport = false } = {}) {
   setGameStatus('pausing')
   await callRunnerHandle(gameState.currentRuntimeHandle, 'pause', detail)
   setGameStatus('paused')
+
+  if (!skipReport) {
+    await reportExecutionState({
+      action: normalizeNonEmptyString(detail?.action) ?? 'pause',
+      detail,
+      source: 'game',
+      status: 'paused',
+    })
+  }
 }
 
-async function stopCurrentExecution(detail = {}) {
+async function stopCurrentExecution(detail = {}, { skipReport = false } = {}) {
   setGameStatus('stopping')
   await callRunnerHandle(gameState.currentRuntimeHandle, 'stop', detail)
   await callRunnerHandle(gameState.currentRuntimeHandle, 'destroy', detail)
@@ -447,15 +569,31 @@ async function stopCurrentExecution(detail = {}) {
   gameState.currentRuntimeName = null
   gameState.currentData = null
   setGameStatus('stopped')
+
+  if (!skipReport) {
+    await reportExecutionState({
+      action: normalizeNonEmptyString(detail?.action) ?? 'stop',
+      detail,
+      source: 'game',
+      status: 'stopped',
+    })
+  }
 }
 
-async function destroyGameExecution(detail = {}) {
-  await stopCurrentExecution(detail)
+async function destroyCurrentPage(detail = {}) {
   await callRunnerHandle(gameState.currentPageHandle, 'destroy', detail)
+  gameState.currentPageHandle = null
+  gameState.currentPageName = null
+  touchGameState()
+}
+
+async function destroyGameExecution(detail = {}, { skipReport = false } = {}) {
+  await stopCurrentExecution(detail, { skipReport })
+  await destroyCurrentPage(detail)
   clearCurrentExecutionState()
 }
 
-async function run(detail = {}) {
+async function requestStageInstruction(detail = {}) {
   const runId = `game:${Date.now()}:${Math.random().toString(16).slice(2)}`
   const gameData = getCurrentGameData()
   const runtimeParams = getParamsUrl(
@@ -477,68 +615,130 @@ async function run(detail = {}) {
 
   if (!response || response.ok !== true) {
     setGameStatus('idle')
-    return
+    return null
   }
 
   document.querySelector("html")?.setAttribute('data-activetab', 'true')
 
-  const data = response.data ?? null
-  const machineName = typeof response.machine === 'string'
-    ? response.machine.trim()
-    : ''
-  const pageName = typeof response.module === 'string'
-    ? response.module.trim()
-    : ''
+  gameState.currentData = response.data ?? null
+  gameState.currentRunId = runId
+  gameState.currentStageResponse = response
+  clearGameError()
+  setGameStatus('running')
+
+  return {
+    instruction: normalizeExecutionInstruction(response, {
+      fallbackSource: 'stage',
+    }),
+    raw: response,
+    runId,
+  }
+}
+
+async function ensurePageRunner({
+  data,
+  moduleName,
+  moduleProvided,
+  runId,
+}) {
+  if (!moduleProvided) {
+    return gameState.currentPageHandle
+  }
+
+  if (!moduleName) {
+    await destroyCurrentPage({
+      action: 'page-destroy',
+      reason: 'module-cleared',
+    })
+    return null
+  }
+
+  if (gameState.currentPageHandle && gameState.currentPageName === moduleName) {
+    return gameState.currentPageHandle
+  }
+
+  await destroyCurrentPage({
+    action: 'page-destroy',
+    nextModule: moduleName,
+    reason: 'module-replaced',
+  })
+
+  const pageRunner = await getDynamicModule(moduleName)
+
+  if (!pageRunner) {
+    gameState.currentPageName = moduleName
+    touchGameState()
+    return null
+  }
+
+  gameState.currentPageName = moduleName
+  touchGameState()
+
+  return await executeRunner({
+    data,
+    kind: 'page',
+    name: moduleName,
+    runner: pageRunner,
+    runId,
+  })
+}
+
+async function runInstruction(
+  instruction,
+  {
+    raw = null,
+    runId = `game:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+  } = {},
+) {
+  if (!instruction) {
+    return
+  }
+
+  const data = instruction.data ?? gameState.currentData ?? null
+  const machineName = instruction.machineProvided
+    ? instruction.machine
+    : gameState.currentRuntimeName
+  const moduleName = instruction.moduleProvided
+    ? instruction.module
+    : gameState.currentPageName
 
   gameState.currentData = data
-  gameState.currentPageHandle = null
-  gameState.currentPageName = pageName || null
   gameState.currentRunId = runId
-  gameState.currentRuntimeHandle = null
-  gameState.currentRuntimeName = machineName || null
-  gameState.currentStageResponse = response
+  gameState.currentStageResponse = raw
   clearGameError()
   setGameStatus('running')
 
   await ConfigSolver.init()
 
-  if (machineName === 'solver') {
-    const solver = await getDynamicRuntime(machineName)
+  await ensurePageRunner({
+    data,
+    moduleName,
+    moduleProvided: instruction.moduleProvided,
+    runId,
+  })
 
-    if (!solver) {
-      setGameStatus('idle')
-      return
-    }
+  console.log({
+    page: moduleName || null,
+    machine: machineName || null,
+    hasPageRunner: Boolean(gameState.currentPageHandle),
+  })
 
-    await executeRunner({
-      data,
-      kind: 'runtime',
-      name: machineName,
-      runner: solver,
-      runId,
-    })
+  if (gameState.currentRuntimeHandle) {
+    await stopCurrentExecution({
+      action: 'stop',
+      reason: 'runtime-replaced',
+    }, { skipReport: true })
+  }
+
+  gameState.currentRuntimeName = machineName || null
+  touchGameState()
+
+  if (!machineName) {
+    setGameStatus('idle')
     return
   }
 
-  const pageRunner = await getDynamicModule(pageName)
   const executionRunner = await getDynamicRuntime(machineName)
-
-  console.log({
-    page: pageName || null,
-    machine: machineName || null,
-    hasPageRunner: Boolean(pageRunner),
-    hasExecutionRunner: Boolean(executionRunner),
-  })
-
-  if (pageRunner) {
-    await executeRunner({
-      data,
-      kind: 'page',
-      name: pageName,
-      runner: pageRunner,
-      runId,
-    })
-  }
 
   if (!executionRunner) {
     setGameStatus('idle')
@@ -552,6 +752,45 @@ async function run(detail = {}) {
     runner: executionRunner,
     runId,
   })
+}
+
+async function run(detail = {}) {
+  const staged = await requestStageInstruction(detail)
+
+  if (!staged?.instruction) {
+    return
+  }
+
+  await runInstruction(staged.instruction, {
+    raw: staged.raw,
+    runId: staged.runId,
+  })
+}
+
+async function runFromController(detail = {}) {
+  const instruction = normalizeExecutionInstruction(detail, {
+    fallbackSource: 'controller',
+  })
+
+  if (!instruction.machineProvided && !instruction.moduleProvided) {
+    return
+  }
+
+  try {
+    await runInstruction(instruction, {
+      raw: detail,
+    })
+  } catch (error) {
+    setGameError(error)
+    setGameStatus('error')
+    await reportExecutionState({
+      action: 'run',
+      detail,
+      error,
+      source: 'game',
+      status: 'failed',
+    })
+  }
 }
 
 async function startGame(detail = {}) {
@@ -606,9 +845,15 @@ async function stopGame(detail = {}) {
     await window.toolkitTwBotOnRunnerStop(detail)
   }
 
-  await destroyGameExecution(detail)
+  await destroyGameExecution(detail, { skipReport: true })
   gameState.runnerControllerCleanup?.()
   setGameStatus('inactive')
+  await reportExecutionState({
+    action: 'deactivate',
+    detail,
+    source: 'game',
+    status: 'stopped',
+  })
 
   console.log(`[${GAME_STOP_EVENT}]: `, detail)
 }
