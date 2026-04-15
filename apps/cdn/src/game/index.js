@@ -123,6 +123,8 @@ const gameState = {
   runnerControllerReady: false,
   startPromise: null,
   status: 'idle',
+  transitionChain: Promise.resolve(),
+  transitionLabel: null,
   updatedAt: null,
 }
 
@@ -198,11 +200,39 @@ function getGameStateSnapshot() {
     currentRunId: gameState.currentRunId,
     hasPageHandle: Boolean(gameState.currentPageHandle),
     hasRuntimeHandle: Boolean(gameState.currentRuntimeHandle),
+    hasPendingTransition: gameState.transitionLabel !== null,
     lastError: gameState.lastError,
     runnerControllerReady: gameState.runnerControllerReady,
     status: gameState.status,
+    transitionLabel: gameState.transitionLabel,
     updatedAt: gameState.updatedAt,
   }
+}
+
+function setTransitionLabel(label = null) {
+  gameState.transitionLabel = label
+  touchGameState()
+}
+
+async function runGameTransition(label, task) {
+  const previous = gameState.transitionChain
+
+  const current = previous
+    .catch(() => {})
+    .then(async () => {
+      setTransitionLabel(label)
+      try {
+        return await task()
+      } finally {
+        if (gameState.transitionChain === current) {
+          setTransitionLabel(null)
+        }
+      }
+    })
+
+  gameState.transitionChain = current
+
+  return await current
 }
 
 function normalizeExecutionReportError(error) {
@@ -379,21 +409,21 @@ const installRunnerControllerListener = () => {
     switch (action) {
       case 'run':
         dispatchControllerLifecycleEvent(GAME_CONTROLLER_RUN_EVENT, event.data)
-        void runFromController(event.data)
+        void requestControllerRun(event.data)
         if (typeof window.toolkitTwBotOnControllerRun === 'function') {
           void window.toolkitTwBotOnControllerRun(event.data)
         }
         return
       case 'pause':
         dispatchControllerLifecycleEvent(GAME_CONTROLLER_PAUSE_EVENT, event.data)
-        void pauseCurrentExecution(event.data)
+        void requestControllerPause(event.data)
         if (typeof window.toolkitTwBotOnControllerPause === 'function') {
           void window.toolkitTwBotOnControllerPause(event.data)
         }
         return
       case 'stop':
         dispatchControllerLifecycleEvent(GAME_CONTROLLER_STOP_EVENT, event.data)
-        void stopCurrentExecution(event.data)
+        void requestControllerStop(event.data)
         if (typeof window.toolkitTwBotOnControllerStop === 'function') {
           void window.toolkitTwBotOnControllerStop(event.data)
         }
@@ -754,20 +784,7 @@ async function runInstruction(
   })
 }
 
-async function run(detail = {}) {
-  const staged = await requestStageInstruction(detail)
-
-  if (!staged?.instruction) {
-    return
-  }
-
-  await runInstruction(staged.instruction, {
-    raw: staged.raw,
-    runId: staged.runId,
-  })
-}
-
-async function runFromController(detail = {}) {
+async function executeControllerRun(detail = {}) {
   const instruction = normalizeExecutionInstruction(detail, {
     fallbackSource: 'controller',
   })
@@ -791,6 +808,45 @@ async function runFromController(detail = {}) {
       status: 'failed',
     })
   }
+}
+
+async function executeControllerPause(detail = {}) {
+  await pauseCurrentExecution(detail)
+}
+
+async function executeControllerStop(detail = {}) {
+  await stopCurrentExecution(detail)
+}
+
+async function requestControllerRun(detail = {}) {
+  return await runGameTransition('controller:run', async () => {
+    await executeControllerRun(detail)
+  })
+}
+
+async function requestControllerPause(detail = {}) {
+  return await runGameTransition('controller:pause', async () => {
+    await executeControllerPause(detail)
+  })
+}
+
+async function requestControllerStop(detail = {}) {
+  return await runGameTransition('controller:stop', async () => {
+    await executeControllerStop(detail)
+  })
+}
+
+async function run(detail = {}) {
+  const staged = await requestStageInstruction(detail)
+
+  if (!staged?.instruction) {
+    return
+  }
+
+  await runInstruction(staged.instruction, {
+    raw: staged.raw,
+    runId: staged.runId,
+  })
 }
 
 async function startGame(detail = {}) {
@@ -878,9 +934,15 @@ function installLifecycleListeners() {
 
 function installRuntime() {
   window[GAME_RUNTIME_KEY] = {
+    executeControllerPause,
+    executeControllerRun,
+    executeControllerStop,
     getState: getGameStateSnapshot,
     isActive: () => gameState.active,
     normalizeRunnerHandle,
+    requestControllerPause,
+    requestControllerRun,
+    requestControllerStop,
     sendMessageToExtension,
     pauseCurrentExecution,
     start: startGame,
