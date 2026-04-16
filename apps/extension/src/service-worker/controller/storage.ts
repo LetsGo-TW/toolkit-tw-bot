@@ -60,6 +60,20 @@ export async function getControllerExecutionDocument(composeValue: unknown) {
   return await controllerExecutionStore.get(_id)
 }
 
+export async function getAllControllerExecutionDocuments() {
+  return await controllerExecutionStore.getAll()
+}
+
+export async function getControllerExecutionDocumentsByScope(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return []
+  }
+
+  const documents = await getAllControllerExecutionDocuments()
+
+  return documents.filter((document) => document.compose.scopeKey === scopeKey)
+}
+
 export async function putControllerExecutionDocument({
   compose: composeValue,
   execution,

@@ -4,6 +4,7 @@ import {
   createServiceWorkerController,
   SERVICE_WORKER_CONTROLLER_EVENTS,
 } from "./controller";
+import { ensureRunnerControllerInitialized } from "./controller/runner-controller";
 import { onReceived } from "./message/index";
 import { cleanupAttachedNativeDebuggers } from "./message/native";
 import { onCompletedWebRequest, onCompletedWebRequestFilter } from "./on-completed-web-request";
@@ -65,6 +66,10 @@ const controller = createServiceWorkerController({
     {
       label: 'runtime.initialize',
       run: () => initializeRuntime(),
+    },
+    {
+      label: 'controller.execution.initialize',
+      run: () => ensureRunnerControllerInitialized(),
     },
   ],
 })

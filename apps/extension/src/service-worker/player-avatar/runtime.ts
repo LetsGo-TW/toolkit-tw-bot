@@ -1,12 +1,9 @@
 /// <reference types="chrome" />
 
-import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import type { SWMessage } from '../../types'
+import { dispatchControllerForScope } from '../controller/runner-controller'
 import { getTabContext } from '../prepared-context'
-import {
-  RUNNER_BOT_PROTECT_MESSAGE_TYPE,
-  SET_PLAYER_AVATAR_MESSAGE_TYPE,
-} from '../message/types'
+import { SET_PLAYER_AVATAR_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber, normalizeString } from '../normalize'
 import { getRunnerByScope } from '../runner-tabs'
 import { syncSenderVisibleState } from '../sync-visible-state'
@@ -45,42 +42,46 @@ export async function relayRunningTabBotProtect({
 }) {
   const runner = getRunnerByScope(scopeKey)
 
-  if (!runner) {
+  if (!scopeKey) {
     return {
       forwarded: false,
       runnerTabId: null,
       runnerWindowId: null,
-      scopeKey: scopeKey ?? null,
+      scopeKey: null,
     }
   }
 
   try {
-    await chrome.tabs.sendMessage(runner.tabId, {
-      extensionId: RELEASE_EXTENSION_ID,
-      type: RUNNER_BOT_PROTECT_MESSAGE_TYPE,
-      scopeKey: runner.scopeKey,
-      data: {
-        world: world ?? runner.world,
+    const instruction = await dispatchControllerForScope(scopeKey, {
+      reason: 'bot-protect-detected:set-player-avatar',
+      source: SET_PLAYER_AVATAR_MESSAGE_TYPE,
+      allowFallback: false,
+      executeNow: true,
+      isBotProtected: true,
+    })
+
+    return {
+      forwarded: Boolean(runner && instruction),
+      queued: Boolean(instruction),
+      runnerTabId: runner?.tabId ?? null,
+      runnerWindowId: runner?.windowId ?? null,
+      scopeKey,
+      meta: {
+        world: world ?? runner?.world ?? null,
         playerId: typeof playerId === 'number' ? playerId : null,
         playerName: playerName ?? null,
         detectedAt,
         detectedInTabId,
         detectedInWindowId,
       },
-    })
-
-    return {
-      forwarded: true,
-      runnerTabId: runner.tabId,
-      runnerWindowId: runner.windowId,
-      scopeKey: runner.scopeKey,
     }
   } catch (error) {
     return {
       forwarded: false,
-      runnerTabId: runner.tabId,
-      runnerWindowId: runner.windowId,
-      scopeKey: runner.scopeKey,
+      queued: false,
+      runnerTabId: runner?.tabId ?? null,
+      runnerWindowId: runner?.windowId ?? null,
+      scopeKey,
       error: error instanceof Error ? error.message : String(error),
     }
   }
@@ -155,6 +156,7 @@ export async function updatePlayerAvatar(
     })
     : {
       forwarded: false,
+      queued: false,
       runnerTabId: null,
       runnerWindowId: null,
       scopeKey: fallbackTabContext?.scopeKey ?? null,

@@ -2,6 +2,11 @@
 
 import type { SWMessage } from '../../types'
 import {
+  dispatchControllerForScope,
+  getRunnerControllerScopeState,
+  resolveGameStageInstruction,
+} from '../controller/runner-controller'
+import {
   CTX_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
   SUPPORT_SYNC_CTX_MESSAGE_TYPE,
@@ -26,6 +31,18 @@ type SupportSyncCtxRequest = Partial<SWMessage> & {
   dateStarted?: unknown
   isBotProtected?: unknown
   isConnectServerError?: unknown
+}
+
+function getScreenFromSenderUrl(sender?: chrome.runtime.MessageSender) {
+  if (typeof sender?.url !== 'string' || !sender.url.trim()) {
+    return null
+  }
+
+  try {
+    return new URL(sender.url).searchParams.get('screen')
+  } catch {
+    return null
+  }
 }
 
 export async function registerPreparedCtx(
@@ -128,6 +145,35 @@ export async function syncSupportCtx(
 
   const { tabContext, data } = result
 
+  if (tabContext?.scopeKey) {
+    try {
+      const controllerScopeState = getRunnerControllerScopeState(tabContext.scopeKey)
+
+      if (isBotProtected) {
+        await dispatchControllerForScope(tabContext.scopeKey, {
+          reason: 'bot-protect-detected:support-sync',
+          source: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+          allowFallback: false,
+          executeNow: true,
+          screen: getScreenFromSenderUrl(sender),
+          isBotProtected: true,
+        })
+      } else if (controllerScopeState?.botProtectActive === true) {
+        await dispatchControllerForScope(tabContext.scopeKey, {
+          reason: 'bot-protect-cleared:support-sync',
+          source: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+          allowFallback: false,
+          executeNow: true,
+          clearBotProtect: true,
+          screen: getScreenFromSenderUrl(sender),
+          isBotProtected: false,
+        })
+      }
+    } catch (error) {
+      console.error('[SW][SUPPORT_SYNC_CTX][BOT_PROTECT_DISPATCH]', error)
+    }
+  }
+
   return {
     ok: true,
     type: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
@@ -181,23 +227,27 @@ export async function syncGameStage(
     return result
   }
 
-  let screen: string | null = null
+  const { tabContext, isActive, data } = result
+  const screen = getScreenFromSenderUrl(sender)
 
-  if (typeof sender.url === 'string' && sender.url.trim()) {
-    try {
-      screen = new URL(sender.url).searchParams.get('screen')
-    } catch {
-      screen = null
-    }
-  }
-
-  const machine = isBotProtected ? 'solver' : 'game'
-  const module = isBotProtected ? null : screen
+  const instruction = await resolveGameStageInstruction({
+    scopeKey: tabContext?.scopeKey ?? null,
+    shouldStart: isActive && data?.enabledByUser === true && data?.isAllowedByLicense === true,
+    screen,
+    isBotProtected,
+    senderTabId: sender.tab?.id ?? null,
+    senderWindowId: sender.tab?.windowId ?? null,
+  })
 
   return {
     ok: result?.data?.isAllowedByLicense === true,
     type: GAME_STAGE_MESSAGE_TYPE,
-    module,
-    machine,
+    scopeKey: tabContext?.scopeKey ?? null,
+    machine: instruction?.machine ?? null,
+    module: instruction?.module ?? null,
+    data: instruction?.data ?? null,
+    reason: instruction?.reason ?? null,
+    source: instruction?.source ?? 'game-stage',
+    dispatchId: instruction?.dispatchId ?? null,
   }
 }

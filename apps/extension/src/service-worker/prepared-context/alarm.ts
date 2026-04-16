@@ -1,6 +1,8 @@
 /// <reference types="chrome" />
 
 import { syncPreparedContextWithOpenTwTabs } from '.'
+import { isControllerAlarmName } from '../controller/alarm'
+import { handleControllerAlarm } from '../controller/runner-controller'
 import { handleLicenseAlarm } from '../world-players/license/alarm'
 import { handleErrorAlarm } from './error-tabId'
 import { handleProbeAlarm } from './probe-scoped'
@@ -22,6 +24,13 @@ export async function ensurePreparedContextCleanupAlarm() {
 
 export function createOnPreparedContextCleanupAlarmListener() {
   return (alarm: chrome.alarms.Alarm) => {
+    if (isControllerAlarmName(alarm.name)) {
+      void handleControllerAlarm(alarm).catch((error) => {
+        console.error('[controller alarm]', error)
+      })
+      return
+    }
+
     if (alarm.name.startsWith('probe:')) {
       void handleProbeAlarm(alarm).catch((error) => {
         console.error('[probe alarm]', error)
@@ -50,4 +59,3 @@ export function createOnPreparedContextCleanupAlarmListener() {
     }
   }
 }
-
