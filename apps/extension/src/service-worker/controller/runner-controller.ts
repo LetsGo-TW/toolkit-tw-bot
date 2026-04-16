@@ -350,7 +350,7 @@ function createFallbackInstruction(
   } = {},
 ): ControllerRunInstruction {
   const module = normalizeString(screen) ?? scopeState.lastKnownScreen
-  const machine = isBotProtected ? 'solver' : 'game'
+  const machine = isBotProtected ? 'solver' : null
 
   return {
     machine,
