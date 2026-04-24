@@ -121,6 +121,7 @@
     "http://localhost:5678/*",
     "http://localhost:4567/*",
     "https://api-controller-lets-go.herokuapp.com/*",
+    "https://ntfy.sh/*",
     "https://dsbr.innogamescdn.com/assets/*/js/game/*'",
     "https://*.tribalwars.cash/*"
   ],
