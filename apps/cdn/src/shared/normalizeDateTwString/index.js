@@ -46,38 +46,65 @@ const i18n = {
   },
 }
 
-const strDateTwToNumber = strDate => {
-  const twServer = window?.location.host.split(".")[0].match(/^[a-z]{2}/ig)[0]
-  strDate = strDate.trim().toLowerCase()
-  if (strDate.indexOf(i18n[twServer].today.toLowerCase()) !== -1)
-    return dateServer()
-  if (strDate.indexOf(i18n[twServer].tomorrow.toLowerCase()) !== -1)
+const normalizeDateTwString = (value = "") => {
+  const twServer = window?.location?.host?.split(".")?.[0]?.match(/^[a-z]{2}/i)?.[0]?.toLowerCase() || null
+  const locale = twServer ? i18n[twServer] : null
+  const strDate = String(value || "").trim().toLowerCase()
+
+  if (!locale || !strDate) return null
+
+  if (strDate.indexOf(locale.today.toLowerCase()) !== -1) {
+    return dateServer() || null
+  }
+
+  if (strDate.indexOf(locale.tomorrow.toLowerCase()) !== -1) {
     return new Date(nDateTime(dateServer()) + (1000 * 60 * 60 * 24)).toLocaleDateString("pt-BR")
-  if (strDate.indexOf(i18n[twServer].yesterday.toLowerCase()) !== -1)
+  }
+
+  if (strDate.indexOf(locale.yesterday.toLowerCase()) !== -1) {
     return new Date(nDateTime(dateServer()) - (1000 * 60 * 60 * 24)).toLocaleDateString("pt-BR")
-  if (strDate.match(/[0-9]{1,2}[.|/][0-9]{1,2}[.|/][0-9]{0,4}/ig)) {
-    const arrDate = strDate.match(/[0-9]{1,2}[.|/][0-9]{1,2}[.|/][0-9]{0,4}/ig)[0].split(/[.|/]/)
+  }
+
+  const numericMatch = strDate.match(/[0-9]{1,2}[.|/][0-9]{1,2}[.|/][0-9]{0,4}/i)
+
+  if (numericMatch) {
+    const arrDate = numericMatch[0].split(/[.|/]/)
     const monthNow = new Date(nDateTime(dateServer())).getMonth()
     const yearNow = new Date(nDateTime(dateServer())).getFullYear()
-    if (!arrDate[2])
+
+    if (!arrDate[2]) {
       arrDate[2] = Number(arrDate[1]) < monthNow ? yearNow + 1 : yearNow
-    return new Date(`${arrDate[1]}.${arrDate[0]}.${arrDate[2]}`).toLocaleDateString("pt-BR")
-  }
-  const ind = i18n[twServer].monthLiteral.indexOf(strDate.match(/[a-z]{3}/ig)[0])
-  if (ind !== -1) {
-    if (
-      new Date(strDate.replace(i18n[twServer].monthLiteral[ind].toLowerCase(),
-      i18n["en"].monthLiteral[ind])).toLocaleDateString("pt-BR") != "Invalid Date"
-    ) {
-      return new Date(
-        strDate.replace(i18n[twServer].monthLiteral[ind].toLowerCase(),
-        i18n["en"].monthLiteral[ind])).toLocaleDateString("pt-BR")
-    } else {
-      return new Date(`${String(ind + 1).length > 1
-        ? String(ind + 1)
-        : `0${String(ind + 1)}`}.${strDate.match(/[0-9]{1,2}/ig)[0]}.${strDate.match(/[0-9]{2,4}$/ig)[0]}`).toLocaleDateString("pt-BR")
     }
+
+    const normalized = new Date(`${arrDate[1]}.${arrDate[0]}.${arrDate[2]}`).toLocaleDateString("pt-BR")
+
+    return normalized !== "Invalid Date"
+      ? normalized
+      : null
   }
+
+  const monthMatch = strDate.match(/[a-z]{3}/i)
+  if (!monthMatch) return null
+
+  const ind = locale.monthLiteral.indexOf(monthMatch[0])
+  if (ind === -1) return null
+
+  const translatedDate = new Date(
+    strDate.replace(locale.monthLiteral[ind].toLowerCase(), i18n.en.monthLiteral[ind])
+  ).toLocaleDateString("pt-BR")
+
+  if (translatedDate !== "Invalid Date") {
+    return translatedDate
+  }
+
+  const dayMatch = strDate.match(/[0-9]{1,2}/i)
+  const yearMatch = strDate.match(/[0-9]{2,4}$/i)
+
+  if (!dayMatch || !yearMatch) return null
+
+  return new Date(`${String(ind + 1).length > 1
+    ? String(ind + 1)
+    : `0${String(ind + 1)}`}.${dayMatch[0]}.${yearMatch[0]}`).toLocaleDateString("pt-BR")
 }
 
-export { strDateTwToNumber }
+export { normalizeDateTwString }
