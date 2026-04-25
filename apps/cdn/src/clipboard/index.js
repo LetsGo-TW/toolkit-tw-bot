@@ -1,5 +1,5 @@
 import { copyToClipboardConfigInit } from "./config";
-import { strDateTwToNumber } from "../shared/strDateTwNumber";
+import { normalizeDateTwString } from "../shared/normalizeDateTwString";
 import { printMessage } from "../components/printMessage";
 
 const RE_TIME = /(?<= )(?<hh>(?:0\d|1\d|2[0-3])):(?<mm>[0-5]\d)(?::(?<ss>[0-5]\d)(?:(?:[.:])(?<ms>\d{3}))?)?$/;
@@ -127,7 +127,7 @@ export async function copyToClipboardInit () {
     if (text.match(RE_DATE_TIME_TW) && copyToClipboardConfig.datetime.active) {
       let date
       try {
-        date = strDateTwToNumber(text);
+        date = normalizeDateTwString(text);
       } catch {}
       const parsed = parseTime(text);
       if (!parsed && !date) {

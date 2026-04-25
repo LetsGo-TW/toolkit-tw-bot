@@ -1,37 +1,9 @@
+import { assertNoGameUpdateOrBlockedRequest as assertNoGameUpdateOrBlockedRequestBase } from '@toolkit-tw-bot/document'
 import { printMessage } from "../components/printMessage"
-import { blockedRequestActive, gameUpdateActive } from "./twNotRunning"
 
 const RELOAD_DELAY_MS = 5000
 const RELOAD_COOLDOWN_MS = 30000
 const SESSION_RELOAD_KEY = "GO#tw-special:last-reload-at"
-
-const normalizeText = (value = "") => String(value || "").replace(/\s+/g, " ").trim()
-
-const extractTwSpecialMessage = (html = document) => {
-  const selectors = [
-    "#error > div.center > div.content.box-border.red > div.inner > div.full-content",
-    "#error .full-content",
-    "#error .inner",
-    "#content_value div.error_box",
-    "div.error_box"
-  ]
-
-  for (const selector of selectors) {
-    const text = normalizeText(html?.querySelector?.(selector)?.textContent || "")
-
-    if (text) return text
-  }
-
-  const fallback = normalizeText(
-    html?.querySelector?.("#error")?.textContent
-    || html?.body?.textContent
-    || ""
-  )
-
-  if (!fallback) return null
-
-  return fallback.slice(0, 240)
-}
 
 const canScheduleReload = () => {
   try {
@@ -71,28 +43,19 @@ export function assertNoGameUpdateOrBlockedRequest(
     delayMs = RELOAD_DELAY_MS
   } = {}
 ) {
-  const isGameUpdate = gameUpdateActive(html)
-  const isBlockedRequest = blockedRequestActive(html)
+  try {
+    assertNoGameUpdateOrBlockedRequestBase(html, { context })
+  } catch (error) {
+    const shouldReload = reload === true
+    const message = error?.message || "Tribal Wars retornou uma tela de erro."
 
-  if (!isGameUpdate && !isBlockedRequest) return
+    printMessage.warn(message, delayMs)
 
-  const fallbackMessage = isGameUpdate
-    ? "Tribal Wars retornou uma tela de atualização do jogo."
-    : "Tribal Wars retornou uma tela de solicitação bloqueada."
+    if (shouldReload) {
+      scheduleReload(delayMs)
+    }
 
-  const message = extractTwSpecialMessage(html) || fallbackMessage
-  const shouldReload = reload === true
-
-  printMessage.warn(message, delayMs)
-
-  if (shouldReload) {
-    scheduleReload(delayMs)
+    error.goShouldReload = shouldReload
+    throw error
   }
-
-  const error = new Error(message)
-  error.cause = isGameUpdate ? "GameUpdate" : "BlockedRequest"
-  error.goContext = context
-  error.goShouldReload = shouldReload
-
-  throw error
 }

@@ -4,7 +4,7 @@ import inputDateTimeTextHtml from "./index.html";
 import { storageInputDateTime } from "./config";
 import { dropdownDateTime } from "./dropdown";
 import { copyToClipboard, parseTime } from "../../clipboard";
-import { strDateTwToNumber } from "../../shared/strDateTwNumber";
+import { normalizeDateTwString } from "../../shared/normalizeDateTwString";
 import { useGoTiming } from "../../hooks/useGoTiming";
 
 const DEFAULT_ADDITION_SECOND = 3600;
@@ -270,7 +270,7 @@ async function onClickPaste(e) {
   // tenta pegar data TW (silencioso se não for)
   let dateDMY = null;
   try {
-    dateDMY = strDateTwToNumber(raw);
+    dateDMY = normalizeDateTwString(raw);
   } catch {}
 
   const dateYMD = dmyToYmd(dateDMY);
