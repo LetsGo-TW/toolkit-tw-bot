@@ -55,4 +55,22 @@ export declare function parseGameData(
   htmlText?: string,
 ): ParsedGameData | undefined
 
+export declare function setInputDateTime(
+  cDate: string,
+  cTime: string,
+  cMs?: string | number | null,
+): string
+
+export declare function nDateTime(
+  date: string,
+  time?: string,
+  ms?: string | number | null,
+): number
+
+export declare function nSecStrTime(s?: number): string
+
+export declare function cTimeToSeg(cHora: string): number
+
+export declare function strTimeToSec(string: string): number | null
+
 export declare function random(min: number, max: number): number

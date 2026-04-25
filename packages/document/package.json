@@ -56,6 +56,7 @@
     "node": ">=20 <23"
   },
   "dependencies": {
+    "@toolkit-tw-bot/browser": "workspace:*",
     "@toolkit-tw-bot/core": "workspace:*"
   }
 }

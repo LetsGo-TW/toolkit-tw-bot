@@ -43,6 +43,9 @@
       ]
     }
   },
+  "dependencies": {
+    "@toolkit-tw-bot/release": "workspace:*"
+  },
   "engines": {
     "node": ">=20 <23"
   }
