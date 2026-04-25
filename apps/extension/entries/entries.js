@@ -124,6 +124,21 @@ module.exports = {
         obfuscationLevel: 'lowCompact',
       },
     },
+    'incomingWatch': {
+      entry: 'content-scripts/vanilla/isolated/top/idle/incomingWatch/index.ts',
+      matches: TRIBAL_WARS_MATCHES,
+      excludeMatches: DEFAULT_EXCLUDE_MATCHES,
+      world: 'ISOLATED',
+      injection: 'vanilla',
+      scope: 'top',
+      runAt: 'document_idle',
+      allFrames: false,
+      target: 'web',
+      build: {
+        profile: 'incoming-watch',
+        obfuscationLevel: 'lowCompact',
+      },
+    },
     'worldDatabaseApi': {
       entry: 'content-scripts/vanilla/isolated/all-frames/idle/worldDatabaseApi/index.js',
       matches: TRIBAL_WARS_MATCHES,

@@ -3,6 +3,7 @@
 import { MessageEnvelope } from "../../types";
 import { getConnectState } from "../connect-state";
 import { setEnabledByUser } from "../enabled-by-user/runtime";
+import { handleIncomingWatch } from "../incoming/runtime";
 import { handleLogin } from "../login/runtime";
 import { handleRunnerExecutionReport, handleScriptExecutionSync } from "../controller/runtime";
 import { getPopupState } from "../popup-state";
@@ -18,6 +19,7 @@ import {
   CONNECT_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
   GET_POPUP_STATE_MESSAGE_TYPE,
+  INCOMING_WATCH_MESSAGE_TYPE,
     LOGIN_MESSAGE_TYPE,
     NOTIFY_MESSAGE_TYPE,
     RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
@@ -47,6 +49,11 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       );
     case SUPPORT_SYNC_CTX_MESSAGE_TYPE:
       return syncSupportCtx(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
+    case INCOMING_WATCH_MESSAGE_TYPE:
+      return handleIncomingWatch(
         received,
         sender as chrome.runtime.MessageSender,
       );

@@ -689,6 +689,11 @@ async function dispatchControllerForScopeInternal(
   }
 
   scopeState.pending = instruction
+
+  if (instruction.kind === EXECUTION_KINDS.INCOMING_APPLY) {
+    return instruction
+  }
+
   await requestPauseCurrentInstruction(scopeState, {
     reason: 'controller-preempt',
     source,
