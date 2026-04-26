@@ -220,7 +220,7 @@ async function syncIncomingApplyExecution({
       status: EXECUTION_STATUSES.QUEUED,
       nextAt: Date.now(),
       payload: {
-        module: 'incomingApply',
+        machine: 'incomingApply',
       },
       reason: 'incoming-watch-pending-tags',
     },
