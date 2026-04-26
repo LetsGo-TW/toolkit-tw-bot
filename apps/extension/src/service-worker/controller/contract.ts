@@ -44,7 +44,7 @@ export const EXECUTION_CONTROLLER_EVENTS = Object.freeze({
   EXECUTION_RESCHEDULED: 'execution:rescheduled',
   BOT_PROTECT_DETECTED: 'bot-protect:detected',
   BOT_PROTECT_CLEARED: 'bot-protect:cleared',
-  INCOMING_READ_DIFF_DETECTED: 'incoming:read-diff-detected',
+  INCOMING_OBSERVED: 'incoming:observed',
   INCOMING_APPLY_PENDING: 'incoming:apply-pending',
   COMMAND_DUE: 'command:due',
   COMMAND_BATCH_READY: 'command:batch-ready',
@@ -63,7 +63,6 @@ export const EXECUTION_KINDS = Object.freeze({
   BOT_PROTECT: 'botProtect',
   COMMAND: 'command',
   MINT: 'mint',
-  INCOMING_READ: 'incomingRead',
   INCOMING_APPLY: 'incomingApply',
   SCHEDULED: 'scheduled',
   MAIN: 'main',
@@ -160,19 +159,10 @@ export const EXECUTION_RULES: Record<ExecutionKind, ExecutionRule> = {
     shortWakeupMaxMs: EXECUTION_TIMING.MINT_SHORT_LOOP_MAX_MS,
     minimumAlarmDelayMs: null,
   },
-  [EXECUTION_KINDS.INCOMING_READ]: {
-    kind: EXECUTION_KINDS.INCOMING_READ,
-    lane: EXECUTION_LANES.PARALLEL,
-    priority: 100,
-    usesPage: false,
-    allowsShortWakeup: true,
-    shortWakeupMaxMs: null,
-    minimumAlarmDelayMs: null,
-  },
   [EXECUTION_KINDS.INCOMING_APPLY]: {
     kind: EXECUTION_KINDS.INCOMING_APPLY,
     lane: EXECUTION_LANES.PAGE,
-    priority: 200,
+    priority: 700,
     usesPage: true,
     allowsShortWakeup: false,
     shortWakeupMaxMs: null,
@@ -267,14 +257,26 @@ export type ControllerBotProtectState = {
   requiresReload: boolean
 }
 
+export type ControllerIncomingObserved = {
+  observedAt: number
+  previousCount: number | null
+  currentCount: number
+  diffCount: number
+  source: string | null
+  tabId: number | null
+  windowId: number | null
+}
+
 export type ControllerIncomingState = {
-  readActive: boolean
-  lastReadAt: number | null
+  lastObservedAt: number | null
+  lastObservedCount: number | null
+  lastObservedPreviousCount: number | null
+  lastObservedDiffCount: number
   diffPending: boolean
   diffCount: number
   applyQueuedAt: number | null
-  tabId: number | null
-  windowId: number | null
+  observedInTabId: number | null
+  observedInWindowId: number | null
 }
 
 export type ControllerCommandState = {

@@ -363,6 +363,10 @@ function emitControllerExecutionEvent(type: string, detail: EventBusEventDetail 
   executionControllerBus.emit(type, detail)
 }
 
+export function emitControllerEvent(type: string, detail: EventBusEventDetail = null) {
+  emitControllerExecutionEvent(type, detail)
+}
+
 export function onControllerExecutionEvent(type: string, handler: EventBusHandler) {
   return executionControllerBus.on(type, handler)
 }
