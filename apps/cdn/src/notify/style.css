@@ -38,7 +38,7 @@
 .go-notify-bot-avatar {
   width: 46px;
   height: 46px;
-  border-radius: 0.8rem;
+  border-radius: 46px;
   border: 1px solid #d3b173;
   background: linear-gradient(180deg, #f6e6bf 0%, #edd7a6 100%);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 45%);
@@ -166,6 +166,57 @@
 .go-notify-toggle-wrap {
   display: inline-flex;
   align-items: center;
+}
+
+.go-notify-toggle-wrap > input.toggle {
+  display: none;
+}
+
+.go-notify-toggle-wrap > input.toggle + label {
+  display: inline-block;
+  position: relative;
+  width: 24px;
+  height: 12px;
+  margin-top: 5px;
+  margin-left: 1px;
+  cursor: pointer;
+  border-radius: 6px;
+  background-color: red;
+  box-shadow: inset 0 0 0 0.1px black;
+}
+
+.go-notify-toggle-wrap > input.toggle + label::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgb(191 87 17 / 0%);
+  transition: 0.2s ease-in-out;
+}
+
+.go-notify-toggle-wrap > input.toggle + label::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgb(82 73 73);
+  box-shadow: inset 0 0 0 2px red, 2px 4px rgb(59 55 55 / 30%);
+  transition: 0.2s ease-in-out;
+}
+
+.go-notify-toggle-wrap > input.toggle:checked + label::before {
+  width: 24px;
+  background: #13bf11;
+  box-shadow: inset 0 0 0 0.1px black;
+}
+
+.go-notify-toggle-wrap > input.toggle:checked + label::after {
+  left: 12px;
+  box-shadow: inset 0 0 0 2px #13bf11, 2px 4px rgb(59 55 55 / 30%);
 }
 
 .go-notify-section-label {

@@ -1,7 +1,6 @@
 import "./style.css"
 import { v4 as uuidv4 } from "uuid"
 import { extensionId as RELEASE_EXTENSION_ID } from "@toolkit-tw-bot/release"
-import { insert_toggle } from "../components/legacy"
 import { printMessage } from "../components/printMessage"
 import { getGameData } from "@toolkit-tw-bot/document"
 import { useGoTiming } from "../hooks/useGoTiming"
@@ -15,6 +14,7 @@ const NOTIFY_MESSAGE_TYPE = "NOTIFY"
 const TELEGRAM_LINK_CACHE_SAFETY_MS = 30 * 1000
 const TELEGRAM_REFRESH_QR_COOLDOWN_MS = 30 * 1000
 const TELEGRAM_BOT_USERNAME = "LetsGONotifyBot"
+const DEFAULT_NOTIFY_BOT_AVATAR_URL = `chrome-extension://${RELEASE_EXTENSION_ID}/icons/ico.green.128.png`
 const TELEGRAM_BOT_AVATAR_FALLBACK = `data:image/svg+xml;utf8,${encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 92 92">
     <defs>
@@ -44,7 +44,6 @@ const notifyRuntime = {
   playerId: null,
   storage: null,
   config: null,
-  rootBase: null,
   telegram: createTelegramUiState(),
   telegramRefreshTickUnsub: null,
 }
@@ -203,26 +202,6 @@ function normalizeNotifyStorage(raw = {}) {
         : 0,
     },
   }
-}
-
-function normalizeRootBaseValue(value = null) {
-  if (!value) return null
-
-  if (typeof value === "object") {
-    return String(value?.base || value?.url || "").trim() || null
-  }
-
-  return String(value || "").trim() || null
-}
-
-function resolveRootBase(preferred = null) {
-  const windowRoot = typeof window !== "undefined"
-    ? normalizeRootBaseValue(window.__GO_WORKER_ROOT)
-    : null
-  const preferredRoot = normalizeRootBaseValue(preferred)
-  const rootBase = preferredRoot || notifyRuntime.rootBase || windowRoot
-  notifyRuntime.rootBase = rootBase || null
-  return notifyRuntime.rootBase
 }
 
 function resolveCurrentPlayerId() {
@@ -419,7 +398,7 @@ function renderTopicControls(channelKey, entry = {}) {
   if (entry.app !== APP_NOTIFY) {
     return `
       <div class="go-notify-helper">
-        As notificacoes deste evento serao enviadas para os chats vinculados no Telegram.
+        As notificações deste evento serao enviadas para os chats vinculados no Telegram.
       </div>
     `
   }
@@ -470,7 +449,7 @@ function renderChannelCard(channelKey, entry = {}) {
       </div>
 
       <div class="go-notify-toggle-line">
-        <label class="go-notify-section-label" for="${activeId}">Ativar notificacoes</label>
+        <label class="go-notify-section-label" for="${activeId}">Ativar notificações</label>
         <div class="go-notify-toggle-wrap">
           <input
             id="${activeId}"
@@ -654,8 +633,6 @@ function renderNotifyPanel() {
       ${renderTelegramInfo()}
     `
   }
-
-  insert_toggle()
 }
 
 function createNotifyContainer() {
@@ -677,14 +654,14 @@ function createNotifyContainer() {
           >
           <div class="go-notify-title">
             <strong>Notify</strong>
-            <small>Telegram e ntfy no mesmo painel</small>
+            <small>Telegram e ntfy</small>
           </div>
         </div>
         <div id="go-notify-summary" class="go-notify-summary"></div>
       </div>
 
       <div id="go-config-notify" class="go-notify-config">
-        <a id="go-config-notify-menu" class="go-notify-config-menu">» Configurar notificacoes</a>
+        <a id="go-config-notify-menu" class="go-notify-config-menu">» Configurar notificações</a>
         <div id="go-config-notify-content"></div>
       </div>
     </div>
@@ -696,14 +673,8 @@ function createNotifyContainer() {
 }
 
 function resolveTelegramBotAvatarUrl() {
-  const rootBase = resolveRootBase()
-
-  if (!rootBase) {
-    return TELEGRAM_BOT_AVATAR_FALLBACK
-  }
-
   try {
-    return new URL("128.png", rootBase).toString()
+    return DEFAULT_NOTIFY_BOT_AVATAR_URL
   } catch {
     return TELEGRAM_BOT_AVATAR_FALLBACK
   }
@@ -959,18 +930,39 @@ function bindNotifyEvents(node) {
   node.dataset.notifyBound = "1"
 }
 
-async function insertNotify(data = null) {
-  if (document.querySelector("#go_contairner")) return
+function unbindNotifyEvents(node) {
+  if (!node || node.dataset.notifyBound !== "1") return
 
-  resolveRootBase(data?.rootBase || data?.root || data?.base || null)
+  node.removeEventListener("click", onNotifyClick, true)
+  node.removeEventListener("change", onNotifyChange, true)
+  delete node.dataset.notifyBound
+}
+
+function destroyNotifyContainer() {
+  const node = notifyRuntime.node || document.querySelector("#go_contairner")
+
+  stopTelegramRefreshCooldownTick()
+
+  if (node instanceof HTMLElement) {
+    unbindNotifyEvents(node)
+    node.remove()
+  }
+
+  notifyRuntime.node = null
+}
+
+async function insertNotify() {
+  if (document.querySelector("#go_contairner")) {
+    return destroyNotifyContainer
+  }
 
   const playerId = resolveCurrentPlayerId()
-  if (!playerId) return
+  if (!playerId) return () => {}
 
   await loadNotifyConfig(playerId)
   syncTelegramRefreshCooldownTick()
   const node = createNotifyContainer()
-  if (!node) return
+  if (!node) return () => {}
 
   bindNotifyEvents(node)
   node.querySelectorAll("[data-notify-bot-avatar]").forEach((imageNode) => {
@@ -979,6 +971,8 @@ async function insertNotify(data = null) {
     }, { once: true })
   })
   renderNotifyPanel()
+
+  return destroyNotifyContainer
 }
 
 function canDispatch(entry = {}) {
