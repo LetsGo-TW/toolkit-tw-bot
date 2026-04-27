@@ -1,13 +1,13 @@
-import './style.css'
-import copyToClipboardTextHtml from './index.html'
 import { copyToClipboardConfigInit } from '../config'
-import { inputDateTimeView } from '../../components/input-date-time'
+import { mountClipboardShadowRoot } from './shadowDom'
 
 const onChange = async (e) => {
-  const { copyToClipboardStorageLocal } = await copyToClipboardConfigInit()
-  const { name, checked } = e.target;
+  const target = e?.target instanceof HTMLInputElement ? e.target : null
+  const name = String(target?.name || '').trim()
+  const checked = target?.checked
   e.stopPropagation();
   if (!name || typeof checked === 'undefined') return;
+  const { copyToClipboardStorageLocal } = await copyToClipboardConfigInit()
   const [ id, item ] = name.split(':');
   const copyToClipboardConfig = await copyToClipboardStorageLocal.get();
   copyToClipboardConfig[id][item] = checked;
@@ -26,22 +26,41 @@ const initCopyConfigInputs = async (copyConfigNode) => {
 }
 
 export function insertConfigCopyToClipboard() {
+  const existingRoot = document.querySelector('#go-config-copy-to-clipboard-shadow-host');
+  if (existingRoot instanceof HTMLElement) {
+    return () => {
+      existingRoot.remove()
+    };
+  }
+
   const goContainer = document.querySelector('#go_contairner');
-  if (!goContainer) return;
-  goContainer.insertAdjacentHTML('beforeend', copyToClipboardTextHtml);
-  const copyConfigNode = document.querySelector("#go-config-copy-to-clipboard-content");
-  const menuOnClick = () => {
-    const content = document.querySelector('#go-config-copy-to-clipboard-content');
-    if (content.className) {
-      content.removeAttribute('class');
+  if (!goContainer) return () => {};
+
+  const mounted = mountClipboardShadowRoot(goContainer)
+  const rootNode = mounted?.host || null
+  const copyConfigNode = mounted?.content || null
+  const menu = mounted?.menu || null
+
+  if (!(rootNode instanceof HTMLElement) || !(copyConfigNode instanceof HTMLElement) || !(menu instanceof HTMLElement)) {
+    return () => {};
+  }
+
+  const menuOnClick = (event) => {
+    event.preventDefault();
+    if (copyConfigNode.classList.contains('show')) {
+      copyConfigNode.classList.remove('show');
       copyConfigNode.removeEventListener('change', onChange, true);
     } else {
-      content.setAttribute('class', 'show');
+      copyConfigNode.classList.add('show');
       copyConfigNode.addEventListener('change', onChange, true);
     }
   }
-  const menu = document.querySelector('#go-config-copy-to-clipboard-menu');
+
   menu.addEventListener('click', menuOnClick);
   initCopyConfigInputs(copyConfigNode);
-  inputDateTimeView(document.querySelector('#go-dtgrp-content'))
+
+  return () => {
+    copyConfigNode.removeEventListener('change', onChange, true);
+    mounted?.destroy?.();
+  }
 }

@@ -4,7 +4,17 @@ div#go-config-copy-to-clipboard {
   display: inline-block;
   background-color: #f4e4bc;
   color: chocolate;
+  padding: 0.5rem;
   margin-top: 0.3rem;
+  font-family: Verdana, Arial, sans-serif;
+  font-size: 13px;
+}
+
+#go-config-copy-to-clipboard-menu {
+  cursor: pointer;
+  color: #603000;
+  text-decoration: none;
+  font-weight: 700;
 }
 
 div#go-config-copy-to-clipboard-content {
@@ -31,11 +41,11 @@ div#go-config-copy-to-clipboard-content.show {
   border: solid 0.01rem darkgrey;
   border-radius: 0.5rem;
   gap: 0.5rem;
+}
 
-  h4 {
-    color: saddlebrown;
-    margin: 0;
-  }
+.go-config-copy-itens h4 {
+  color: saddlebrown;
+  margin: 0;
 }
 .go-config-copy-subitens {
   align-items: baseline;
