@@ -16,7 +16,7 @@ import {
   putScriptStorageDocument,
 } from '../indexdb/script-storage'
 import { INCOMING_WATCH_MESSAGE_TYPE } from '../message/types'
-import { normalizeNumber, normalizeString } from '../normalize'
+import { normalizeBoolean, normalizeNumber, normalizeString } from '../normalize'
 import {
   ensurePreparedContextLoaded,
   getTabContext,
@@ -34,6 +34,7 @@ type IncomingWatchRequest = Partial<SWMessage> & {
   world?: unknown
   t?: unknown
   playerId?: unknown
+  premiumActive?: unknown
   previousCount?: unknown
   currentCount?: unknown
   diffCount?: unknown
@@ -323,7 +324,11 @@ async function handleQueueApplyAction(
     }
   }
 
-  const pendingTagCount = normalizeCount(request.pendingTagCount) ?? 0
+  const requestedPendingTagCount = normalizeCount(request.pendingTagCount) ?? 0
+  const premiumActive = normalizeBoolean(request.premiumActive)
+  const pendingTagCount = premiumActive === true
+    ? requestedPendingTagCount
+    : 0
   const queuedAt = pendingTagCount > 0 ? Date.now() : null
   const { compose, state: previousState } = await readIncomingStateDocument(context)
   const nextState: ControllerIncomingState = {
@@ -341,7 +346,10 @@ async function handleQueueApplyAction(
   })
 
   const executionPermission = await resolveExecutionPermission(context)
-  const shouldQueue = pendingTagCount > 0 && executionPermission.execute
+  const shouldQueue = premiumActive === true
+    && pendingTagCount > 0
+    && executionPermission.execute
+
   const syncResponse = await syncIncomingApplyExecution({
     context,
     shouldQueue,
@@ -378,9 +386,13 @@ async function handleQueueApplyAction(
     execute: executionPermission.execute,
     reason: shouldQueue
       ? 'incoming-apply-queued'
-      : executionPermission.execute
-        ? 'incoming-apply-cleared'
-        : 'license-required',
+      : premiumActive === false
+        ? 'premium-inactive'
+      : premiumActive === true
+        ? executionPermission.execute
+          ? 'incoming-apply-cleared'
+          : 'license-required'
+        : 'premium-missing',
     license: executionPermission.license,
   }
 }

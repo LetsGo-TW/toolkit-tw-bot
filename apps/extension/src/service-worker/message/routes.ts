@@ -5,6 +5,7 @@ import { getConnectState } from "../connect-state";
 import { setEnabledByUser } from "../enabled-by-user/runtime";
 import { handleIncomingWatch } from "../incoming/runtime";
 import { handleLogin } from "../login/runtime";
+import { getBotViewStatus } from "../controller/bot-view-status";
 import { handleRunnerExecutionReport, handleScriptExecutionSync } from "../controller/runtime";
 import { getPopupState } from "../popup-state";
 import { registerPreparedCtx, syncGameStage, syncSupportCtx } from "../prepared-context/runtime";
@@ -18,6 +19,7 @@ import {
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
+  GET_BOT_VIEW_STATUS_MESSAGE_TYPE,
   GET_POPUP_STATE_MESSAGE_TYPE,
   INCOMING_WATCH_MESSAGE_TYPE,
     LOGIN_MESSAGE_TYPE,
@@ -59,6 +61,11 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       );
     case GAME_STAGE_MESSAGE_TYPE:
       return syncGameStage(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
+    case GET_BOT_VIEW_STATUS_MESSAGE_TYPE:
+      return getBotViewStatus(
         received,
         sender as chrome.runtime.MessageSender,
       );

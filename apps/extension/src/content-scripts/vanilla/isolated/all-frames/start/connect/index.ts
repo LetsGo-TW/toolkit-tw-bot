@@ -7,7 +7,6 @@ import {
   STARTER_PREPARED_ERROR,
   STARTER_PREPARED_READY,
 } from '../../../../shared/preparedBootstrap'
-import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
 import { setActiveTitle } from '../../../../shared/setActiveTitle'
 import { removeShit } from "./removeShit"
 
@@ -43,15 +42,7 @@ function onExtensionMessage(
   if (sender.id === chrome.runtime.id) {
     console.log('[CS][CONNECT] from SW', received)
 
-    if (
-      window.top === window.self
-      && received
-      && typeof received === 'object'
-      && (
-        (received as { type?: string }).type === START_MESSAGE_TYPE
-        || (received as { type?: string }).type === STOP_MESSAGE_TYPE
-      )
-    ) {
+    if (window.top === window.self && received && typeof received === 'object') {
       setActiveTitle((received as { data?: Record<string, unknown> }).data || {})
     }
 

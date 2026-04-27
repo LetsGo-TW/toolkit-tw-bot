@@ -14,6 +14,7 @@ import {
 import { type PreparedMessageData } from './index'
 import { syncSenderVisibleState } from '../sync-visible-state'
 import { runtimeAllowedByLicense } from '../world-players/runtime'
+import { ensureInjectedGameBotView } from './view'
 
 type PreparedContextRequest = SWMessage & {
   data?: PreparedMessageData
@@ -238,6 +239,20 @@ export async function syncGameStage(
     senderTabId: sender.tab?.id ?? null,
     senderWindowId: sender.tab?.windowId ?? null,
   })
+
+  if (instruction) {
+    const hasBotView = await ensureInjectedGameBotView(sender, 'running')
+
+    if (!hasBotView) {
+      return {
+        ok: false,
+        type: GAME_STAGE_MESSAGE_TYPE,
+        error: 'bot-view-unavailable',
+        reason: 'bot-view-unavailable',
+        scopeKey: tabContext?.scopeKey ?? null,
+      }
+    }
+  }
 
   return {
     ok: result?.data?.isAllowedByLicense === true,

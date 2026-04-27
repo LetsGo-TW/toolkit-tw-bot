@@ -77,6 +77,14 @@ module.exports = () => {
             to: 'sounds',
             noErrorOnMissing: true,
           },
+          {
+            from: path.resolve(__dirname, '../src/service-worker/prepared-context/view'),
+            to: 'service-worker/prepared-context/view',
+            noErrorOnMissing: true,
+            globOptions: {
+              ignore: ['**/index.js'],
+            },
+          },
         ],
       }),
     ],

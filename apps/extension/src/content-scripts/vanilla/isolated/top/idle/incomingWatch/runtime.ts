@@ -14,12 +14,14 @@ import {
   timeServer,
   travelSecond,
 } from '@toolkit-tw-bot/document'
+import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { INCOMING_WATCH_MESSAGE_TYPE, NOTIFY_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
 
 type IncomingAttackEntry = {
   power: string | null
   ticket: string | null
+  currentComment: string | null
   attacker: string | null
   attackerID: string | null
   attackerCoord: string | null
@@ -76,11 +78,31 @@ const APP_NOTIFY = 'notify'
 const NOTIFY_STORAGE_PATH = ['notify', 'state']
 const INCOMING_STORAGE_PATH = ['incoming', 'state']
 const INCOMING_STATE_GRACE_MS = 60 * 1000
+const INCOMING_VISUAL_SYNC_EVENT = 'toolkit:incoming:sync'
+const INCOMING_VISUAL_SYNC_SELECTOR = '#quickedit-rename, #commands_incomings'
+const INCOMING_VISUAL_TOOLTIP_SELECTOR = '[data-go-incoming-ticket-tooltip="1"]'
+const INCOMING_VISUAL_TOOLTIP_ATTR = 'data-go-incoming-ticket-title'
+const INCOMING_VISUAL_TOOLTIP_BOUND_ATTR = 'data-go-incoming-ticket-tooltip-bound'
+const INCOMING_VISUAL_INFO_ICON_CLASS = 'go-incoming-ticket-info'
+const INCOMING_PENDING_TICKET_MARKERS = new Set(['atac', 'attack', 'ataque', 'attacco'])
+const INCOMING_PENDING_TICKET_MARKER_BY_MARKET: Record<string, string> = {
+  ro: 'atac',
+  br: 'ataque',
+  en: 'attack',
+  it: 'attacco',
+  pt: 'ataque',
+  us: 'attack',
+  uk: 'attack',
+}
 
 const unitsByKey = new Map<string, any>()
 
 function getCurrentGameData() {
   return getGameData()
+}
+
+function getCurrentRuntimeParams() {
+  return getParamsUrl(window.location.href, window.location.origin)
 }
 
 function getCurrentWorld() {
@@ -163,6 +185,7 @@ function normalizeIncomingAttackEntry(entry: any = null): IncomingAttackEntry {
   return {
     power: String(entry?.power || '').trim() || null,
     ticket: String(entry?.ticket || '').trim() || null,
+    currentComment: String(entry?.currentComment || '').trim() || null,
     attacker: String(entry?.attacker || '').trim() || null,
     attackerID: String(entry?.attackerID || '').trim() || null,
     attackerCoord: String(entry?.attackerCoord || '').trim() || null,
@@ -240,9 +263,360 @@ function countPendingIncomingTags(state: IncomingState) {
   return Object.values(normalizeIncomingState(state).villages)
     .reduce((total, villageState) => (
       total + Object.values(villageState.comingAttack)
-        .filter((entry) => Boolean(entry.ticket) && entry.taggedAt === null)
+        .filter((entry) => isIncomingApplyPendingEntry(entry))
         .length
     ), 0)
+}
+
+function isIncomingApplyPendingEntry(entry: IncomingAttackEntry | null | undefined) {
+  if (!entry?.ticket || entry.taggedAt !== null) return false
+  return INCOMING_PENDING_TICKET_MARKERS.has(getIncomingTicketMarker(entry.ticket))
+}
+
+function getIncomingTicketMarker(ticket = '') {
+  const leadingSegment = String(ticket || '').split('|')[0] || ''
+  const normalizedLeading = normalizeInlineText(leadingSegment).toLowerCase()
+  const [marker = ''] = normalizedLeading.split(/\s+/)
+  return marker.trim()
+}
+
+function resolveIncomingTicketMarker(currentComment: string | null = '') {
+  const normalizedComment = normalizeInlineText(currentComment || '').toLowerCase()
+
+  if (INCOMING_PENDING_TICKET_MARKERS.has(normalizedComment)) {
+    return normalizedComment
+  }
+
+  const market = String(getCurrentGameData()?.market || '').trim().toLowerCase()
+  return INCOMING_PENDING_TICKET_MARKER_BY_MARKET[market] || 'attack'
+}
+
+function getPremiumFeatureActive(source: unknown) {
+  if (!source || typeof source !== 'object') return false
+
+  const features = (source as Record<string, unknown>).features
+  if (!features || typeof features !== 'object') return false
+
+  const premium = (features as Record<string, unknown>)['Premium']
+  if (!premium || typeof premium !== 'object') return false
+
+  return (premium as Record<string, unknown>).active === true
+}
+
+function isPremiumAccountActive() {
+  return getPremiumFeatureActive(getCurrentGameData())
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  return String(error || '')
+}
+
+export function isIncomingWatchExtensionContextInvalidated(error: unknown) {
+  const message = getErrorMessage(error).trim().toLowerCase()
+
+  return (
+    message.includes('extension context invalidated')
+    || message.includes('extension context was invalidated')
+  )
+}
+
+export function shouldDeferIncomingWatchRead() {
+  return getCurrentRuntimeParams().isTryConfirm === true
+}
+
+export function isIncomingWatchTransientError(error: unknown) {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true
+  }
+
+  const message = getErrorMessage(error).trim().toLowerCase()
+  return (
+    message.includes('failed to fetch')
+    || message.includes('networkerror')
+    || message.includes('load failed')
+  )
+}
+
+function readCurrentIncomingAmount(root: ParentNode = document) {
+  const totalRaw = Number(root.querySelector('#incomings_amount')?.textContent)
+  return Number.isFinite(totalRaw) ? totalRaw : null
+}
+
+export async function getIncomingBootstrapDetail() {
+  const currentCount = readCurrentIncomingAmount(document)
+  if (currentCount === null) return null
+
+  const state = await readIncomingState()
+  const previousCount = Math.max(0, Math.floor(Number(state.lastIncomingCount ?? 0) || 0))
+
+  if (currentCount === previousCount) {
+    return null
+  }
+
+  return {
+    observedAt: Date.now(),
+    previousCount,
+    currentCount,
+    diffCount: currentCount - previousCount,
+  }
+}
+
+function getIncomingAttackEntryByCommandId(
+  state: IncomingState,
+  commandId: string | null | undefined,
+): IncomingAttackEntry | null {
+  const normalizedCommandId = String(commandId || '').trim()
+  if (!normalizedCommandId) return null
+
+  const currentVillageId = String(getCurrentGameData()?.village?.id || '').trim()
+  if (currentVillageId) {
+    const currentVillageEntry = state.villages?.[currentVillageId]?.comingAttack?.[normalizedCommandId]
+    if (currentVillageEntry) {
+      return currentVillageEntry
+    }
+  }
+
+  for (const villageState of Object.values(state.villages || {})) {
+    const entry = villageState?.comingAttack?.[normalizedCommandId]
+    if (entry) {
+      return entry
+    }
+  }
+
+  return null
+}
+
+function escapeHtml(value = '') {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function stripIncomingTicketMarker(segment = '') {
+  const normalizedSegment = normalizeInlineText(segment)
+  if (!normalizedSegment) return ''
+
+  const [rawMarker = '', ...parts] = normalizedSegment.split(/\s+/)
+  if (!INCOMING_PENDING_TICKET_MARKERS.has(rawMarker.toLowerCase())) {
+    return normalizedSegment
+  }
+
+  return parts.join(' ').trim()
+}
+
+function buildIncomingVisualTooltipHtml(ticket = '') {
+  const segments = splitNotifySegments(ticket)
+  if (!segments.length) return ''
+
+  const [unitSegment = '', ...detailSegments] = segments
+  const unitLabel = stripIncomingTicketMarker(unitSegment)
+  let iconSrc = ''
+
+  try {
+    iconSrc = chrome.runtime.getURL('icons/ico.green.128.png')
+  } catch (error) {
+    if (!isIncomingWatchExtensionContextInvalidated(error)) {
+      console.warn('[incoming-watch][tooltip:getURL]', error)
+    }
+  }
+  const lines = [
+    '<div style="display:flex; flex-direction:column; gap:0.3rem; min-width:15rem;">',
+    '<div style="display:flex; align-items:center; gap:0.45rem;">',
+    iconSrc
+      ? `<img src="${escapeHtml(iconSrc)}" alt="" aria-hidden="true" style="width:16px; height:16px; border-radius:3px; flex:0 0 auto;">`
+      : '',
+    `<div style="color:#ffffff; font-size:12px; line-height:1.35; font-weight:700;">${escapeHtml(unitLabel || unitSegment)}</div>`,
+    '</div>',
+  ]
+
+  detailSegments.forEach((segment) => {
+    lines.push(
+      `<div style="color:#e6dcc6; font-size:11px; line-height:1.35;">${escapeHtml(segment)}</div>`,
+    )
+  })
+
+  lines.push('</div>')
+
+  return lines.join('')
+}
+
+function resolveIncomingVisualTarget(element: Element | null) {
+  const target = element?.querySelector?.('span.quickedit-label, span.quickedit-content')
+    ?? element
+  return target instanceof HTMLElement ? target : null
+}
+
+function resolveIncomingVisualHost(element: Element | null, target: HTMLElement | null) {
+  if (!target) return null
+  if (element && target !== element && target.parentElement) {
+    return target.parentElement
+  }
+
+  return target
+}
+
+function findIncomingVisualInfoIcon(host: Element | null) {
+  if (!(host instanceof HTMLElement)) return null
+
+  return Array.from(host.children).find((child) => (
+    child instanceof HTMLElement
+    && child.dataset.goIncomingTicketTooltip === '1'
+  )) as HTMLElement | undefined || null
+}
+
+function createIncomingVisualInfoIcon() {
+  const icon = document.createElement('span')
+  icon.className = `icon info-small ${INCOMING_VISUAL_INFO_ICON_CLASS}`.trim()
+  icon.setAttribute('data-title', '')
+  icon.setAttribute('data-go-incoming-ticket-tooltip', '1')
+  icon.setAttribute('aria-label', 'Incoming details')
+  icon.tabIndex = 0
+  icon.style.marginLeft = '4px'
+  icon.style.verticalAlign = 'middle'
+  icon.style.cursor = 'help'
+  return icon
+}
+
+function updateIncomingTicketInfoIcon(
+  element: Element | null,
+  ticket: string | null | undefined,
+) {
+  const target = resolveIncomingVisualTarget(element)
+  const host = resolveIncomingVisualHost(element, target)
+  const existingIcon = findIncomingVisualInfoIcon(host)
+  const nextTicket = normalizeInlineText(String(ticket || ''))
+
+  if (!target || !host || !nextTicket) {
+    if (existingIcon) {
+      existingIcon.remove()
+      return true
+    }
+
+    return false
+  }
+
+  const nextTooltipTitle = buildIncomingVisualTooltipHtml(nextTicket)
+  if (!nextTooltipTitle) {
+    if (existingIcon) {
+      existingIcon.remove()
+      return true
+    }
+
+    return false
+  }
+
+  let icon = existingIcon
+  let changed = false
+
+  if (!(icon instanceof HTMLElement)) {
+    icon = createIncomingVisualInfoIcon()
+
+    if (target !== host) {
+      target.insertAdjacentElement('afterend', icon)
+    } else {
+      host.appendChild(icon)
+    }
+
+    changed = true
+  }
+
+  if (icon.getAttribute(INCOMING_VISUAL_TOOLTIP_ATTR) !== nextTooltipTitle) {
+    icon.setAttribute(INCOMING_VISUAL_TOOLTIP_ATTR, nextTooltipTitle)
+    changed = true
+  }
+
+  return changed
+}
+
+function clearIncomingVisualInfoIcons(root: ParentNode = document) {
+  const icons = Array.from(root.querySelectorAll?.(INCOMING_VISUAL_TOOLTIP_SELECTOR) || [])
+  icons.forEach((icon) => icon.remove())
+  return icons.length > 0
+}
+
+function ensureIncomingVisualTooltipBinding() {
+  const markerHost = document.documentElement
+  if (!markerHost) {
+    return () => {}
+  }
+
+  if (markerHost.getAttribute(INCOMING_VISUAL_TOOLTIP_BOUND_ATTR) === '1') {
+    return () => {}
+  }
+
+  markerHost.setAttribute(INCOMING_VISUAL_TOOLTIP_BOUND_ATTR, '1')
+
+  const tooltip = new Tooltip({
+    tooltipId: 'go-incoming-ticket-tooltip',
+  })
+  const unbind = tooltip.bind(document, INCOMING_VISUAL_TOOLTIP_SELECTOR, (el) => {
+    const content = String(el.getAttribute(INCOMING_VISUAL_TOOLTIP_ATTR) || '').trim()
+    return content || null
+  })
+
+  return () => {
+    tooltip.hide()
+    unbind()
+
+    if (markerHost.getAttribute(INCOMING_VISUAL_TOOLTIP_BOUND_ATTR) === '1') {
+      markerHost.removeAttribute(INCOMING_VISUAL_TOOLTIP_BOUND_ATTR)
+    }
+  }
+}
+
+export async function syncIncomingVisualTags({
+  state = null,
+  root = document,
+}: {
+  state?: IncomingState | null
+  root?: ParentNode
+} = {}) {
+  if (isPremiumAccountActive()) {
+    return clearIncomingVisualInfoIcons(root ?? document)
+  }
+
+  const normalizedState = normalizeIncomingState(state ?? await readIncomingState())
+  if (!Object.keys(normalizedState.villages || {}).length) return false
+
+  let changed = false
+  const rootNode = root ?? document
+
+  const quickedit = rootNode.querySelector?.('#quickedit-rename') ?? null
+  const quickeditCommandId = String(
+    (quickedit as HTMLElement | null)?.dataset?.id
+    || quickedit?.querySelector?.('span.quickedit')?.getAttribute?.('data-id')
+    || (quickedit?.querySelector?.('span.quickedit') as HTMLElement | null)?.dataset?.id
+    || '',
+  ).trim()
+  const quickeditTicket = getIncomingAttackEntryByCommandId(normalizedState, quickeditCommandId)?.ticket
+  changed = updateIncomingTicketInfoIcon(quickedit, quickeditTicket) || changed
+
+  const commandsTable = rootNode.querySelector?.('#commands_incomings') ?? null
+  commandsTable?.querySelectorAll?.('tr.command-row')?.forEach?.((row) => {
+    const commandId = String(
+      (row.querySelector('span.quickedit') as HTMLElement | null)?.dataset?.id
+      || row.querySelector('span.quickedit')?.getAttribute?.('data-id')
+      || '',
+    ).trim()
+    const ticket = getIncomingAttackEntryByCommandId(normalizedState, commandId)?.ticket
+    changed = updateIncomingTicketInfoIcon(row, ticket) || changed
+  })
+
+  return changed
+}
+
+function dispatchIncomingVisualSyncEvent() {
+  try {
+    window.dispatchEvent(new Event(INCOMING_VISUAL_SYNC_EVENT))
+  } catch (error) {
+    if (!isIncomingWatchExtensionContextInvalidated(error)) {
+      console.warn('[incoming-watch][visual-sync:event]', error)
+    }
+  }
 }
 
 async function readIncomingState(): Promise<IncomingState> {
@@ -250,19 +624,29 @@ async function readIncomingState(): Promise<IncomingState> {
     const storage = createIncomingStorage()
     return pruneExpiredIncomingState(normalizeIncomingState(await storage.get()))
   } catch (error) {
-    console.warn('[incoming-watch][storage:get]', error)
+    if (!isIncomingWatchExtensionContextInvalidated(error)) {
+      console.warn('[incoming-watch][storage:get]', error)
+    }
     return createIncomingStateBase()
   }
 }
 
 async function writeIncomingState(state: IncomingState) {
   const nextState = pruneExpiredIncomingState(normalizeIncomingState(state))
+  let stored = false
 
   try {
     const storage = createIncomingStorage()
     await storage.set(nextState)
+    stored = true
   } catch (error) {
-    console.warn('[incoming-watch][storage:set]', error)
+    if (!isIncomingWatchExtensionContextInvalidated(error)) {
+      console.warn('[incoming-watch][storage:set]', error)
+    }
+  }
+
+  if (stored) {
+    dispatchIncomingVisualSyncEvent()
   }
 
   return nextState
@@ -344,7 +728,9 @@ async function sendIncomingNotify(body = '') {
   try {
     raw = await createNotifyStorage().get()
   } catch (error) {
-    console.warn('[incoming-watch][notify:storage:get]', error)
+    if (!isIncomingWatchExtensionContextInvalidated(error)) {
+      console.warn('[incoming-watch][notify:storage:get]', error)
+    }
   }
 
   const state = normalizeNotifyStorage(raw)
@@ -485,18 +871,21 @@ function buildIncomingTicket({
   arrivalParts = null,
   travel = 0,
   unitSlower = '',
+  currentComment = '',
 }: {
   arrivalParts?: string[] | null
   travel?: number
   unitSlower?: string
+  currentComment?: string | null
 }) {
   if (!Array.isArray(arrivalParts) || arrivalParts.length < 2) return null
+  const attackMarker = resolveIncomingTicketMarker(currentComment)
   const unitName = unitsByKey.get(unitSlower)?.name || unitSlower
   const currentDateValue = dateServer()
   const currentDate = typeof currentDateValue === 'string'
     ? currentDateValue.split('/')
     : []
-  return `${unitName} | 📝 ${currentDate[0] || ''}/${currentDate[1] || ''} ${timeServer()} | 🚀 ${getLaunchTime(travel, arrivalParts)} | 🏠 ${getBackTime(travel, arrivalParts)} |`
+  return `${attackMarker} ${unitName} | 📝 ${currentDate[0] || ''}/${currentDate[1] || ''} ${timeServer()} | 🚀 ${getLaunchTime(travel, arrivalParts)} | 🏠 ${getBackTime(travel, arrivalParts)} |`
 }
 
 function collectIncomingVillages(html: Document = document) {
@@ -695,6 +1084,8 @@ export async function requestIncomingApplyQueue({
 }) {
   const gameData = getCurrentGameData()
   const runtimeParams = getParamsUrl(window.location.href, window.location.origin)
+  const premiumActive = getPremiumFeatureActive(gameData)
+  const nextPendingTagCount = premiumActive ? pendingTagCount : 0
 
   return await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
     extensionId: RELEASE_EXTENSION_ID,
@@ -703,8 +1094,94 @@ export async function requestIncomingApplyQueue({
     world: gameData?.world ?? null,
     t: runtimeParams.t ?? null,
     playerId: getCurrentPlayerId(),
-    pendingTagCount,
+    premiumActive,
+    pendingTagCount: nextPendingTagCount,
   })
+}
+
+export function installIncomingVisualSync() {
+  let destroyed = false
+  let pendingTimer: ReturnType<typeof setTimeout> | null = null
+  const bootstrapRetryTimers: Array<ReturnType<typeof setTimeout>> = []
+  let syncInFlight = false
+  let syncQueued = false
+  const cleanupTooltipBinding = ensureIncomingVisualTooltipBinding()
+
+  const flushSync = async() => {
+    if (destroyed) return
+
+    if (syncInFlight) {
+      syncQueued = true
+      return
+    }
+
+    syncInFlight = true
+
+    try {
+      await syncIncomingVisualTags()
+    } finally {
+      syncInFlight = false
+
+      if (syncQueued && !destroyed) {
+        syncQueued = false
+        scheduleSync(0)
+      }
+    }
+  }
+
+  const scheduleSync = (delay = 0) => {
+    if (destroyed) return
+
+    if (pendingTimer) {
+      clearTimeout(pendingTimer)
+    }
+
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null
+      void flushSync()
+    }, Math.max(0, Number(delay) || 0))
+  }
+
+  const onVisualSync = () => {
+    scheduleSync(0)
+  }
+
+  window.addEventListener(INCOMING_VISUAL_SYNC_EVENT, onVisualSync)
+
+  const observedRoot = document.body || document.documentElement
+  const observer = observedRoot
+    ? new MutationObserver(() => {
+      if (!document.querySelector(INCOMING_VISUAL_SYNC_SELECTOR)) return
+      scheduleSync(80)
+    })
+    : null
+
+  observer?.observe(observedRoot, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  })
+
+  ;[0, 250, 1000, 2500, 5000].forEach((delay) => {
+    bootstrapRetryTimers.push(setTimeout(() => {
+      if (destroyed) return
+      scheduleSync(0)
+    }, delay))
+  })
+
+  return () => {
+    destroyed = true
+
+    if (pendingTimer) {
+      clearTimeout(pendingTimer)
+      pendingTimer = null
+    }
+
+    bootstrapRetryTimers.forEach((timerId) => clearTimeout(timerId))
+    observer?.disconnect()
+    window.removeEventListener(INCOMING_VISUAL_SYNC_EVENT, onVisualSync)
+    cleanupTooltipBinding()
+  }
 }
 
 export async function readSaveNotifyIncomings() {
@@ -758,13 +1235,15 @@ export async function readSaveNotifyIncomings() {
       .reduce((arr, row) => {
         const power = attackPower(row)
         const attId = String((row.querySelector('span.quickedit') as HTMLElement | null)?.dataset?.id || '').trim()
+        const currentComment = normalizeInlineText(
+          row.querySelector('span.quickedit-label')?.textContent
+          || row.querySelector('span.quickedit-content')?.textContent
+          || '',
+        )
         if (!attId) return arr
-        if (!comingAttack[attId]) {
-          comingAttack[attId] = normalizeIncomingAttackEntry({})
-        }
-        arr.push({ attId, power })
+        arr.push({ attId, power, currentComment: currentComment || null })
         return arr
-      }, [] as Array<{ attId: string; power: string | null }>)
+      }, [] as Array<{ attId: string; power: string | null; currentComment: string | null }>)
 
     Object.keys(comingAttack).forEach((commandId) => {
       if (!arrAttackID.find(({ attId }) => Number(attId) === Number(commandId))) {
@@ -772,8 +1251,8 @@ export async function readSaveNotifyIncomings() {
       }
     })
 
-    for (const { attId, power } of arrAttackID) {
-      if (comingAttack[attId]?.ticket) continue
+    for (const { attId, power, currentComment } of arrAttackID) {
+      if (Object.prototype.hasOwnProperty.call(comingAttack, attId)) continue
 
       const infoCommandHtml = await getDoc(`info_command&id=${attId}&type=other`, villageId)
       const rows = Array.from(
@@ -826,14 +1305,16 @@ export async function readSaveNotifyIncomings() {
         arrivalParts,
         travel,
         unitSlower,
+        currentComment,
       })
 
       if (!ticket) continue
 
       comingAttack[attId] = {
-        ...normalizeIncomingAttackEntry(comingAttack[attId]),
+        ...normalizeIncomingAttackEntry(),
         power,
         ticket,
+        currentComment: currentComment || null,
         attacker,
         attackerID,
         attackerCoord,
@@ -883,7 +1364,9 @@ export async function readSaveNotifyIncomings() {
       try {
         await sendIncomingNotify(body)
       } catch (error) {
-        console.error('[incoming-watch][notify]', error)
+        if (!isIncomingWatchExtensionContextInvalidated(error)) {
+          console.error('[incoming-watch][notify]', error)
+        }
       }
     }
   }
