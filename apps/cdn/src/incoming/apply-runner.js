@@ -2,10 +2,12 @@ import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersPost } from
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 import { extensionId as RELEASE_EXTENSION_ID } from "@toolkit-tw-bot/release"
+import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from "../shared/bot-view-status"
 import StorageLocalCompat from "../shared/indexdb/storage-local-compat.js"
 
 const INCOMING_WATCH_MESSAGE_TYPE = "CS_INCOMING_WATCH"
 const INCOMING_STORAGE_PATH = ["incoming", "state"]
+const INCOMING_PENDING_TICKET_MARKERS = new Set(["atac", "attack", "ataque", "attacco"])
 
 function getCurrentGameData() {
   return getGameData()
@@ -32,6 +34,7 @@ function normalizeIncomingAttackEntry(entry = null) {
   return {
     power: String(entry?.power || "").trim() || null,
     ticket: String(entry?.ticket || "").trim() || null,
+    currentComment: String(entry?.currentComment || "").trim() || null,
     attacker: String(entry?.attacker || "").trim() || null,
     attackerID: String(entry?.attackerID || "").trim() || null,
     attackerCoord: String(entry?.attackerCoord || "").trim() || null,
@@ -107,12 +110,13 @@ function listPendingIncomingEntries(state = null) {
   return Object.entries(normalizeIncomingState(state).villages)
     .flatMap(([villageId, villageState]) => (
       Object.entries(villageState.comingAttack)
-        .filter(([, entry]) => Boolean(entry?.ticket) && entry?.taggedAt === null)
+        .filter(([, entry]) => isIncomingApplyPendingEntry(entry))
         .map(([commandId, entry]) => ({
           villageId,
           commandId,
           arrival: entry?.arrival ?? null,
           ticket: entry?.ticket ?? null,
+          currentComment: entry?.currentComment ?? null,
         }))
     ))
     .sort((left, right) => {
@@ -120,6 +124,22 @@ function listPendingIncomingEntries(state = null) {
       const rightArrival = Number.isFinite(Number(right.arrival)) ? Number(right.arrival) : Number.MAX_SAFE_INTEGER
       return leftArrival - rightArrival
     })
+}
+
+function isIncomingApplyPendingEntry(entry = null) {
+  if (!entry?.ticket || entry?.taggedAt !== null) return false
+  return INCOMING_PENDING_TICKET_MARKERS.has(getIncomingTicketMarker(entry.ticket))
+}
+
+function getIncomingTicketMarker(ticket = "") {
+  const leadingSegment = String(ticket || "").split("|")[0] || ""
+  const normalizedLeading = leadingSegment
+    .replace(/\s*[\r\n]+\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .toLowerCase()
+  const [marker = ""] = normalizedLeading.split(/\s+/)
+  return marker.trim()
 }
 
 function countPendingIncomingTags(state = null) {
@@ -207,60 +227,79 @@ async function tagRequest(ticket, commandId, { signal } = {}) {
   }
 }
 
+function renderIncomingApplyStatus(processedCount = 0, totalCount = 0) {
+  if (!Number.isFinite(totalCount) || totalCount <= 0) {
+    clearBotViewExecutionStatus()
+    return
+  }
+
+  const processed = Math.max(0, Math.min(totalCount, Math.floor(Number(processedCount) || 0)))
+  setBotViewExecutionStatus(`Etiquetando ${processed}/${totalCount}`)
+}
+
 export default async function incomingApplyRunner(data = {}, context = {}) {
   await context.reportState?.("running")
 
   let state = await readIncomingState()
   const pendingEntries = listPendingIncomingEntries(state)
+  const totalCount = pendingEntries.length
   let taggedCount = 0
   let failedCount = 0
 
-  for (const pendingEntry of pendingEntries) {
-    if (!pendingEntry.ticket) {
-      continue
-    }
-
-    try {
-      await tagRequest(pendingEntry.ticket, pendingEntry.commandId)
-      const currentVillage = state.villages[pendingEntry.villageId]
-      const currentEntry = currentVillage?.comingAttack?.[pendingEntry.commandId]
-
-      if (currentVillage && currentEntry) {
-        currentVillage.comingAttack[pendingEntry.commandId] = {
-          ...normalizeIncomingAttackEntry(currentEntry),
-          taggedAt: Date.now(),
-        }
-      }
-
-      taggedCount++
-    } catch (error) {
-      failedCount++
-      console.error("[incoming-apply][tag]", {
-        commandId: pendingEntry.commandId,
-        error,
-      })
-    }
-  }
-
-  const nextState = await writeIncomingState(state)
-  const remainingPendingCount = countPendingIncomingTags(nextState)
+  renderIncomingApplyStatus(0, totalCount)
 
   try {
-    await notifyApplyCompleted(context, {
-      pendingTagCount: remainingPendingCount,
-      taggedCount,
-      failedCount,
-    })
-  } catch (error) {
-    console.error("[incoming-apply][sync-completed]", error)
-  }
+    for (const pendingEntry of pendingEntries) {
+      if (!pendingEntry.ticket) {
+        continue
+      }
 
-  await context.reportState?.({
-    status: "completed",
-    detail: {
-      pendingTagCount: remainingPendingCount,
-      taggedCount,
-      failedCount,
-    },
-  })
+      try {
+        await tagRequest(pendingEntry.ticket, pendingEntry.commandId)
+        const currentVillage = state.villages[pendingEntry.villageId]
+        const currentEntry = currentVillage?.comingAttack?.[pendingEntry.commandId]
+
+        if (currentVillage && currentEntry) {
+          currentVillage.comingAttack[pendingEntry.commandId] = {
+            ...normalizeIncomingAttackEntry(currentEntry),
+            taggedAt: Date.now(),
+          }
+        }
+
+        taggedCount++
+      } catch (error) {
+        failedCount++
+        console.error("[incoming-apply][tag]", {
+          commandId: pendingEntry.commandId,
+          error,
+        })
+      } finally {
+        renderIncomingApplyStatus(taggedCount + failedCount, totalCount)
+      }
+    }
+
+    const nextState = await writeIncomingState(state)
+    const remainingPendingCount = countPendingIncomingTags(nextState)
+
+    try {
+      await notifyApplyCompleted(context, {
+        pendingTagCount: remainingPendingCount,
+        taggedCount,
+        failedCount,
+      })
+    } catch (error) {
+      console.error("[incoming-apply][sync-completed]", error)
+    }
+
+    await context.reportState?.({
+      status: "completed",
+      detail: {
+        pendingTagCount: remainingPendingCount,
+        taggedCount,
+        failedCount,
+      },
+    })
+  } finally {
+    clearBotViewExecutionStatus()
+  }
 }
