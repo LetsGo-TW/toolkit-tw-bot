@@ -92,7 +92,7 @@ export default async function show({ data, context, control }) {
     control?.throwIfAborted?.()
 
     if (ConfigSolver.active) {
-      BotViewExecutionStatus('Executando...');
+      BotViewExecutionStatus.set('Executando...');
       await run({
         sendNotify: null,
         soundInteractive,
@@ -105,7 +105,7 @@ export default async function show({ data, context, control }) {
 
   function optionDisableSolver() {
     console.log('Disable!');
-    BotViewExecutionStatus(MSG_SOLVER_DISABLED);
+    BotViewExecutionStatus.set(MSG_SOLVER_DISABLED);
   }
 
   async function onChangeConfig(e) {

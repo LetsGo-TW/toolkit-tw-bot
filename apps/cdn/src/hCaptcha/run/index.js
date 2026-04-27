@@ -4,6 +4,7 @@ import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { printMessage } from "../../components/printMessage/index.js";
 import { getCaptchaNowMs } from "../show/index.js";
 import StorageLocalCompat from "../../shared/indexdb/storage-local-compat.js";
+import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from "../../shared/bot-view-status";
 
 function createAbortError(reason = 'Solver aborted') {
   const error = new Error(reason);
@@ -175,6 +176,7 @@ export async function run(data) {
 
   const handleSuccess = async (message = "Resolvido pelo Let's GO") => {
     if (isAborted()) return;
+    setBotViewExecutionStatus('Recarregando')
 
     // O Captcha foi resolvido com sucesso! Limpamos o histórico de pausas progressivas.
     // Colocamos antes do return para garantir que a trava limpe caso o usuário resolva manualmente ouvindo o alarme!
@@ -201,6 +203,7 @@ export async function run(data) {
     if (isAborted()) return;
     if (isFinished) return;
     isFinished = true;
+    setBotViewExecutionStatus('Recarregando')
 
     cleanup();
 
@@ -341,6 +344,7 @@ export async function run(data) {
     if (event.data.active) {
       if (isHandlingActive) return;
       isHandlingActive = true;
+      setBotViewExecutionStatus('Resolvendo captcha')
 
       console.log('📥 Main received active', event.data.active);
 
@@ -375,6 +379,7 @@ export async function run(data) {
     }
     if (event.data.execute) {
       console.log('📥 Main received execute', event.data.execute);
+      setBotViewExecutionStatus('Resolvendo captcha')
 
       if (secureTimeout) clearTrackedTimeout(secureTimeout); // Limpa o timeout do clique
 
@@ -412,6 +417,7 @@ export async function run(data) {
   }
   const execute = async() => {
     throwIfAborted();
+    setBotViewExecutionStatus('Resolvendo captcha')
     window.addEventListener('message', messageReceived, false);
 
     // Verifica se estamos em um período de pausa (backoff) por excesso de falhas
@@ -420,6 +426,7 @@ export async function run(data) {
     if (backoffUntil && soundInteractive) soundInteractive();
     if (backoffUntil > Date.now()) {
       const remainingMin = Math.ceil((backoffUntil - Date.now()) / 60000);
+      setBotViewExecutionStatus('Em pausa de seguranca')
       console.log(`[Let's GO] hCaptcha em backoff. Aguardando mais ${remainingMin} minutos.`);
       printMessage.error(`hCaptcha pausado por segurança. Retentando em ${remainingMin} min...`, 10000);
 
@@ -513,12 +520,14 @@ export async function run(data) {
     // 1. Se o captcha já está na tela, não clica em mais ninguém. Apenas aguarda a mensagem do CS.
     // O TW coloca a div .captcha vazia no HTML inicial, então precisamos validar se ela tem algum conteúdo.
     if (captchaEl && captchaEl.innerHTML.trim() !== '') {
+      setBotViewExecutionStatus('Resolvendo captcha')
       console.log('Captcha já renderizado na tela. Aguardando resolução da extensão...');
       return;
     }
 
     // 2. Se tem o botão Check (com ou sem o Chuck), tem prioridade total de clique.
     if (checkBtn) {
+      setBotViewExecutionStatus('Resolvendo captcha')
       console.log('Botão de verificação encontrado. Clicando de forma natural...');
       await sleep(Math.random() * 500 + 300); // Hesitação humana
       await dispatchNativeClick(checkBtn, 'check');
@@ -527,6 +536,7 @@ export async function run(data) {
 
     // 3. Se só tem o Chuck visível (sem Check e sem Captcha), clica apenas nele.
     if (chuckBtn) {
+      setBotViewExecutionStatus('Resolvendo captcha')
       let attempts = parseInt(sessionStorage.getItem('_attemps_h') || '0', 10);
 
       if (attempts === 0) {
@@ -580,6 +590,7 @@ export async function run(data) {
 
     // 4. Fallback: Se não tem nada na tela, não tenta forçar. Pode ser um falso positivo ou quebra de DOM.
     console.log('Captcha não identificado na página. Aguarde o reload...');
+    setBotViewExecutionStatus('Recarregando')
     ReportSession.updateError('Nenhum botão ou captcha encontrado');
     const reloadTime = Math.floor(Math.random() * 5000) + 5000; // Tempo aleatório entre 5000ms e 10000ms
     handleFailure('Captcha não identificado na página. Aguarde o reload...', reloadTime);
@@ -599,6 +610,7 @@ export async function run(data) {
     });
     throw error;
   } finally {
+    clearBotViewExecutionStatus()
     if (disposeAbort) {
       disposeAbort();
     }
