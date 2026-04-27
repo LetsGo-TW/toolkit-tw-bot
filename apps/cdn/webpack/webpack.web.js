@@ -38,7 +38,12 @@ module.exports = () => {
           loader: 'html-loader',
         },
         {
+          test: /\.shadow\.css$/i,
+          type: 'asset/source',
+        },
+        {
           test: /\.css$/i,
+          exclude: /\.shadow\.css$/i,
           use: ['style-loader', 'css-loader'],
         },
         {
