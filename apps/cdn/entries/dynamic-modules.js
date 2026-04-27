@@ -35,11 +35,11 @@ module.exports = {
   //   exportName: 'default',
   // },
 
-  // settings: {
-  //   importPath: '../Settings',
-  //   chunkName: 'settings',
-  //   exportName: 'default',
-  // },
+  settings: {
+    importPath: './settings/index.js',
+    chunkName: 'settings',
+    exportName: 'default',
+  },
 
   // overview: {
   //   importPath: '../Overviews',
