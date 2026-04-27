@@ -12,6 +12,7 @@ const GAME_RUNTIME_KEY = '__toolkitTwBotGameRuntime__'
 const GAME_START_EVENT = 'toolkit:game:start'
 const GAME_STOP_EVENT = 'toolkit:game:stop'
 const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
+const PREPARED_BASE_URL_KEY = '__toolkitTwBotPreparedBaseUrl__'
 
 /**
  * @typedef {Object} RunnerState
@@ -35,6 +36,8 @@ const runnerState = {
   preparedBaseUrl: resolvePreparedBaseUrl(),
 }
 
+syncPreparedBaseUrl()
+
 function resolvePreparedBaseUrl() {
   const currentScript = document.currentScript
 
@@ -51,6 +54,19 @@ function resolvePreparedBaseUrl() {
   }
 
   return new URL('./', preparedScript.src).toString()
+}
+
+function syncPreparedBaseUrl() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  if (typeof runnerState.preparedBaseUrl === 'string' && runnerState.preparedBaseUrl.length > 0) {
+    window[PREPARED_BASE_URL_KEY] = runnerState.preparedBaseUrl
+    return
+  }
+
+  delete window[PREPARED_BASE_URL_KEY]
 }
 
 function isValidPageMessage({ data, origin, source }) {
