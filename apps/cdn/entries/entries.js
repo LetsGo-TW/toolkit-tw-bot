@@ -15,5 +15,12 @@ module.exports = {
     },
   },
 
-  workers: {},
+  workers: {
+    "worker.table-production": {
+      entry: "../src/table-production/worker/index.js",
+      build: {
+        obfuscationLevel: "high",
+      },
+    },
+  },
 }
