@@ -1,7 +1,6 @@
 // import { sendNotify } from "../../Notify"
 import { Sounds } from "../../music"
 import { dateServer, timeServer } from "../../stable-compat/date-tw"
-import { notification, printTimer } from "../../components/notification"
 import { run } from "../run"
 import { ConfigSolver } from "../config"
 import { Report } from "../../report"
@@ -10,13 +9,9 @@ import { useGoTiming } from "../../hooks/useGoTiming";
 import { random } from "@toolkit-tw-bot/core"
 import { nDateTime } from "../../stable-compat/date-parse"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
+import { BotViewExecutionStatus } from "../../shared/bot-view-status"
 
 const MSG_SOLVER_DISABLED = 'Resolve-auto: Desligado. Somente ação do usuário.'
-
-function printMsg(msg) {
-  if (!document.querySelector("#print-msg")) return
-  document.querySelector("#print-msg").innerHTML = msg
-}
 
 export const getCaptchaNowMs = () => {
   if (useGoTiming.isReady()) {
@@ -50,11 +45,7 @@ export default async function show({ data, context, control }) {
     return
   }
 
-  printMsg('Aguarde...')
-
-  if (!document.querySelector("#print-msg")) notification()
-
-  printTimer(-1)
+  BotViewExecutionStatus.set('Aguarde...')
 
   await ConfigSolver.init()
   control?.throwIfAborted?.()
@@ -95,12 +86,13 @@ export default async function show({ data, context, control }) {
 
     const time = parseInt(random(5, 10))
 
-    printMsg(`Resolve-auto: ${new Date(getCaptchaNowMs() + ( time * 1000 )).toLocaleString("pt-BR")}`)
+    BotViewExecutionStatus.set(`Resolve-auto: ${new Date(getCaptchaNowMs() + ( time * 1000 )).toLocaleString("pt-BR")}`)
 
     await control?.sleepSeconds?.(time)
     control?.throwIfAborted?.()
 
     if (ConfigSolver.active) {
+      BotViewExecutionStatus('Executando...');
       await run({
         sendNotify: null,
         soundInteractive,
@@ -113,7 +105,7 @@ export default async function show({ data, context, control }) {
 
   function optionDisableSolver() {
     console.log('Disable!');
-    printMsg(MSG_SOLVER_DISABLED);
+    BotViewExecutionStatus(MSG_SOLVER_DISABLED);
   }
 
   async function onChangeConfig(e) {
