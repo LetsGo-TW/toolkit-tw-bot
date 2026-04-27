@@ -4,6 +4,7 @@ import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
 import ConfigSolver from "../hCaptcha/config"
+import { useGoTiming } from "../hooks/useGoTiming"
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
@@ -18,6 +19,13 @@ const GAME_CONTROLLER_PAUSE_EVENT = 'toolkit:game:controller:pause'
 const GAME_CONTROLLER_STOP_EVENT = 'toolkit:game:controller:stop'
 const GAME_START_HANDLER_KEY = '__toolkitTwBotGameStageStartHandlerInstalled__'
 const GAME_STOP_HANDLER_KEY = '__toolkitTwBotGameStageStopHandlerInstalled__'
+const BOT_VIEW_ROOT_ID = 'go-extension-bot-view'
+const BOT_VIEW_SLOT_PRIMARY_ID = 'go-extension-bot-view-slot-primary'
+const BOT_VIEW_SLOT_SECONDARY_ID = 'go-extension-bot-view-slot-secondary'
+const BOT_VIEW_STATUS_SCRIPT_ID = 'go-extension-bot-view-status-script'
+const BOT_VIEW_STATUS_EXECUTION_ID = 'go-extension-bot-view-status-execution'
+const BOT_VIEW_STATUS_NEXT_ID = 'go-extension-bot-view-status-next'
+const GET_BOT_VIEW_STATUS = 'GET_BOT_VIEW_STATUS'
 const RUNNER_HANDLE_STOP_KEYS = ['stop', 'stopExecution', 'destroy', 'dispose', 'cleanup', 'unbind', 'teardown']
 const RUNNER_HANDLE_DESTROY_KEYS = ['destroy', 'dispose', 'cleanup', 'unbind', 'teardown', 'stop', 'stopExecution']
 const RUNNER_HANDLE_PAUSE_KEYS = ['pause', 'pauseExecution']
@@ -128,8 +136,20 @@ const gameState = {
   updatedAt: null,
 }
 
+const botViewStatusSyncState = {
+  currentTitle: null,
+  executionText: null,
+  listenersInstalled: false,
+  nextAt: null,
+  nextTitle: null,
+  refreshPromise: null,
+  unsubscribeTiming: null,
+}
+
+
 function touchGameState() {
   gameState.updatedAt = Date.now()
+  renderBotViewCurrentStatus()
 }
 
 function setGameStatus(status) {
@@ -170,6 +190,7 @@ function clearCurrentExecutionState({
   gameState.currentRuntimeHandle = null
   gameState.currentRuntimeName = null
   gameState.currentStageResponse = null
+  botViewStatusSyncState.executionText = null
 
   if (!preservePage) {
     gameState.currentPageHandle = null
@@ -251,6 +272,187 @@ function normalizeExecutionReportError(error) {
     message: String(error),
     name: 'Error',
   }
+}
+
+function getInjectedBotViewElements() {
+  const root = document.getElementById(BOT_VIEW_ROOT_ID)
+  const primarySlot = document.getElementById(BOT_VIEW_SLOT_PRIMARY_ID)
+  const secondarySlot = document.getElementById(BOT_VIEW_SLOT_SECONDARY_ID)
+  const statusScript = document.getElementById(BOT_VIEW_STATUS_SCRIPT_ID)
+  const statusExecution = document.getElementById(BOT_VIEW_STATUS_EXECUTION_ID)
+  const statusNext = document.getElementById(BOT_VIEW_STATUS_NEXT_ID)
+
+  if (
+    !(root instanceof HTMLElement)
+    || !(primarySlot instanceof HTMLElement)
+    || !(secondarySlot instanceof HTMLElement)
+  ) {
+    return null
+  }
+
+  return {
+    primarySlot,
+    root,
+    secondarySlot,
+    statusExecution: statusExecution instanceof HTMLElement ? statusExecution : null,
+    statusNext: statusNext instanceof HTMLElement ? statusNext : null,
+    statusScript: statusScript instanceof HTMLElement ? statusScript : null,
+  }
+}
+
+function formatBotViewCurrentScriptLabel(snapshot = getGameStateSnapshot()) {
+  if (botViewStatusSyncState.currentTitle) {
+    return botViewStatusSyncState.currentTitle
+  }
+
+  return ''
+}
+
+function formatBotViewNextScriptLabel() {
+  return botViewStatusSyncState.nextTitle || '--'
+}
+
+function formatBotViewExecutionStatusLabel() {
+  return botViewStatusSyncState.executionText || 'Aguardando'
+}
+
+function setBotViewExecutionStatusText(value = null) {
+  botViewStatusSyncState.executionText = normalizeNonEmptyString(value)
+  renderBotViewCurrentStatus()
+}
+
+function clearBotViewExecutionStatusText() {
+  botViewStatusSyncState.executionText = null
+  renderBotViewCurrentStatus()
+}
+
+function formatBotViewCountdownText(diffMs) {
+  const totalSeconds = Math.max(0, Math.ceil(Number(diffMs || 0) / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return [
+      String(hours).padStart(2, '0'),
+      String(minutes).padStart(2, '0'),
+      String(seconds).padStart(2, '0'),
+    ].join(':')
+  }
+
+  return [
+    String(minutes).padStart(2, '0'),
+    String(seconds).padStart(2, '0'),
+  ].join(':')
+}
+
+function getBotViewEffectiveNowMs() {
+  try {
+    const effectiveNowMs = Number(useGoTiming?.getEffectiveServerNowMs?.())
+
+    if (Number.isFinite(effectiveNowMs) && effectiveNowMs > 0) {
+      return effectiveNowMs
+    }
+  } catch {}
+
+  return Date.now()
+}
+
+function renderBotViewCurrentStatus() {
+  const botView = getInjectedBotViewElements()
+
+  if (!botView) {
+    return
+  }
+
+  if (botView.statusScript) {
+    botView.statusScript.textContent = formatBotViewCurrentScriptLabel()
+  }
+
+  if (botView.statusExecution) {
+    botView.statusExecution.textContent = formatBotViewExecutionStatusLabel()
+  }
+}
+
+function renderBotViewNextStatus() {
+  const botView = getInjectedBotViewElements()
+
+  if (!botView?.statusNext) {
+    return
+  }
+
+  if (botViewStatusSyncState.nextTitle) {
+    botView.statusNext.setAttribute('data-title', botViewStatusSyncState.nextTitle)
+  } else {
+    botView.statusNext.removeAttribute('data-title')
+  }
+
+  const nextAt = Number(botViewStatusSyncState.nextAt)
+
+  if (!Number.isFinite(nextAt) || nextAt <= 0) {
+    botView.statusNext.textContent = '--:--'
+    return
+  }
+
+  const diffMs = Math.max(0, nextAt - getBotViewEffectiveNowMs())
+  botView.statusNext.textContent = formatBotViewCountdownText(diffMs)
+}
+
+async function refreshBotViewNextStatus() {
+  if (botViewStatusSyncState.refreshPromise) {
+    return await botViewStatusSyncState.refreshPromise
+  }
+
+  botViewStatusSyncState.refreshPromise = (async() => {
+    try {
+      const response = await sendMessageToExtension({
+        type: GET_BOT_VIEW_STATUS,
+      })
+
+      botViewStatusSyncState.currentTitle = normalizeNonEmptyString(response?.currentTitle)
+      botViewStatusSyncState.nextAt = Number.isFinite(Number(response?.nextAt))
+        ? Number(response.nextAt)
+        : null
+      botViewStatusSyncState.nextTitle = normalizeNonEmptyString(response?.nextTitle)
+    } catch {
+      botViewStatusSyncState.currentTitle = null
+      botViewStatusSyncState.nextAt = null
+      botViewStatusSyncState.nextTitle = null
+    } finally {
+      renderBotViewCurrentStatus()
+      renderBotViewNextStatus()
+      botViewStatusSyncState.refreshPromise = null
+    }
+  })()
+
+  return await botViewStatusSyncState.refreshPromise
+}
+
+function ensureBotViewStatusSync() {
+  renderBotViewCurrentStatus()
+  renderBotViewNextStatus()
+
+  if (!botViewStatusSyncState.listenersInstalled) {
+    botViewStatusSyncState.listenersInstalled = true
+
+    botViewStatusSyncState.unsubscribeTiming = useGoTiming.subscribe(() => {
+      renderBotViewNextStatus()
+    }, { immediate: true })
+
+    const refresh = () => {
+      renderBotViewCurrentStatus()
+      void refreshBotViewNextStatus()
+    }
+
+    window.addEventListener(GAME_START_EVENT, refresh)
+    window.addEventListener(GAME_STOP_EVENT, refresh)
+    window.addEventListener(GAME_CONTROLLER_RUN_EVENT, refresh)
+    window.addEventListener(GAME_CONTROLLER_PAUSE_EVENT, refresh)
+    window.addEventListener(GAME_CONTROLLER_STOP_EVENT, refresh)
+    window.addEventListener(GAME_CONTROLLER_BOT_PROTECT_EVENT, refresh)
+  }
+
+  void refreshBotViewNextStatus()
 }
 
 async function sendMessageToExtension(payload = {}) {
@@ -648,6 +850,14 @@ async function requestStageInstruction(detail = {}) {
     return null
   }
 
+  const botView = getInjectedBotViewElements()
+
+  if (!botView) {
+    throw new Error('Injected bot view is unavailable for GAME.STAGE')
+  }
+
+  ensureBotViewStatusSync()
+
   document.querySelector("html")?.setAttribute('data-activetab', 'true')
 
   gameState.currentData = response.data ?? null
@@ -723,6 +933,8 @@ async function runInstruction(
   if (!instruction) {
     return
   }
+
+  clearBotViewExecutionStatusText()
 
   const data = instruction.data ?? gameState.currentData ?? null
   const machineName = instruction.machineProvided
@@ -866,7 +1078,7 @@ async function startGame(detail = {}) {
       setGameStatus('starting')
       await run(detail)
     })
-    .catch((error) => {
+    .catch(async(error) => {
       gameState.runnerControllerCleanup?.()
       gameState.active = false
       setGameError(error)
@@ -934,8 +1146,10 @@ function installLifecycleListeners() {
 
 function installRuntime() {
   window[GAME_RUNTIME_KEY] = {
+    clearBotViewExecutionStatusText,
     executeControllerPause,
     executeControllerRun,
+    getBotView: getInjectedBotViewElements,
     executeControllerStop,
     getState: getGameStateSnapshot,
     isActive: () => gameState.active,
@@ -943,7 +1157,9 @@ function installRuntime() {
     requestControllerPause,
     requestControllerRun,
     requestControllerStop,
+    refreshBotViewStatus: refreshBotViewNextStatus,
     sendMessageToExtension,
+    setBotViewExecutionStatusText,
     pauseCurrentExecution,
     start: startGame,
     stopCurrentExecution,
