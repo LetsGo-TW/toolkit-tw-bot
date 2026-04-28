@@ -13,6 +13,7 @@ import { updatePlayerAvatar } from "../player-avatar/runtime";
 import { setReconnectOnSessionExpired } from "../reconnect-on-session-expired/runtime";
 import { handleScriptStorage } from "../indexdb/runtime";
 import { handleNotify } from "../notify/runtime";
+import { handlePlannerDistribute } from "../planner/runtime";
 import { verifyWorldPlayerLicense } from "../world-players/license/runtime";
 import {
   ARM_NATIVE_MESSAGE_TYPE,
@@ -24,6 +25,7 @@ import {
   INCOMING_WATCH_MESSAGE_TYPE,
     LOGIN_MESSAGE_TYPE,
     NOTIFY_MESSAGE_TYPE,
+    PLANNER_DISTRIBUTE_MESSAGE_TYPE,
     RUNNER_EXECUTION_REPORT_MESSAGE_TYPE,
     SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE,
     SCRIPT_STORAGE_MESSAGE_TYPE,
@@ -77,6 +79,11 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       return handleScriptStorage(received);
     case NOTIFY_MESSAGE_TYPE:
       return handleNotify(received);
+    case PLANNER_DISTRIBUTE_MESSAGE_TYPE:
+      return handlePlannerDistribute(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
     case SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE:
       return handleScriptExecutionSync(received);
     case RUNNER_EXECUTION_REPORT_MESSAGE_TYPE:

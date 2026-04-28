@@ -29,11 +29,11 @@ module.exports = {
   //   exportName: 'default',
   // },
 
-  // map: {
-  //   importPath: '../Map',
-  //   chunkName: 'map',
-  //   exportName: 'default',
-  // },
+  map: {
+    importPath: './map/index.js',
+    chunkName: 'map',
+    exportName: 'default',
+  },
 
   settings: {
     importPath: './settings/index.js',
