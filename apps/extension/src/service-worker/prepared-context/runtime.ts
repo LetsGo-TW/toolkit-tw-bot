@@ -159,16 +159,20 @@ export async function syncSupportCtx(
           screen: getScreenFromSenderUrl(sender),
           isBotProtected: true,
         })
-      } else if (controllerScopeState?.botProtectActive === true) {
-        await dispatchControllerForScope(tabContext.scopeKey, {
-          reason: 'bot-protect-cleared:support-sync',
-          source: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
-          allowFallback: false,
-          executeNow: true,
-          clearBotProtect: true,
-          screen: getScreenFromSenderUrl(sender),
-          isBotProtected: false,
-        })
+      } else if (!isBotProtected && tabContext?.scopeKey) {
+        // Sempre tenta limpar quando botProtect=false
+        const scopeState = getRunnerControllerScopeState(tabContext.scopeKey)
+        if (scopeState?.botProtectActive === true || scopeState?.current?.machine === 'solver') {
+          await dispatchControllerForScope(tabContext.scopeKey, {
+            reason: 'bot-protect-cleared:support-sync',
+            source: SUPPORT_SYNC_CTX_MESSAGE_TYPE,
+            allowFallback: false,
+            executeNow: true,
+            clearBotProtect: true,
+            screen: getScreenFromSenderUrl(sender),
+            isBotProtected: false,
+          })
+        }
       }
     } catch (error) {
       console.error('[SW][SUPPORT_SYNC_CTX][BOT_PROTECT_DISPATCH]', error)
