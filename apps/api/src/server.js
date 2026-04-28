@@ -23,6 +23,8 @@ require("./database");
 
 const app = express();
 
+app.use(cors());
+
 // Heroku fica atrás de proxy, isso é importante pro redirect HTTPS
 app.set("trust proxy", 1);
 
@@ -50,7 +52,6 @@ app.get("/health", (req, res) => {
 // middlewares comuns
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cors());
 app.use(morgan("dev"));
 
 // controllers / rotas
