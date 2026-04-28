@@ -16,6 +16,7 @@ import { printMessage } from '../printMessage';
 import Tooltip from '@toolkit-tw-bot/document/tooltip';
 import { createPlacePlannerTargetTracker } from './placePlannerTargetTracker';
 import './tw.css';
+import { extensionId } from '@toolkit-tw-bot/release';
 
 const sharedTargetsDraftCore = createTargetsDraftCore()
 let plannerModulePromise = null
@@ -95,7 +96,7 @@ const ICON_DRAFT_LIST = svgToDataUri(`
     <path d="M6 7.5h8M6 10h8M6 12.5h5" stroke="#1f2937" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
 `)
-const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 
 function getBotTooltipIconUrl() {
   const candidates = [

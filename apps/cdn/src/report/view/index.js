@@ -3,8 +3,9 @@ import renderCallReportView from './call'
 import renderOfferReportView from './offer'
 import renderPullReportView from './pull'
 import renderHCaptchaReportView from './hcaptcha'
+import { extensionId } from '@toolkit-tw-bot/release'
 
-const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png'
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 const reportViewHtml = `
 <div
   class="go-report-popup"

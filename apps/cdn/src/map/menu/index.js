@@ -12,6 +12,7 @@ import {
   ICON_GLOBE, 
   ICON_SEARCH 
 } from '../../components/go-buttons'
+import { extensionId } from '@toolkit-tw-bot/release'
 
 const GO = {
   BTN_SIZE: 23,
@@ -39,7 +40,7 @@ const MAP_COLLECTOR_EXTERNAL_TOP_WRAP_ID = 'go-map-collector-launcher-external-w
 const MAP_COLLECTOR_EXTERNAL_TOP_BTN_ID = 'go-map-collector-launcher-external'
 const MAP_COLLECTOR_EXTERNAL_TABLE_WRAP_ID = 'go-map-collector-launcher-table-wrap'
 const MAP_COLLECTOR_EXTERNAL_TABLE_BTN_ID = 'go-map-collector-launcher-table'
-const DEFAULT_BOT_ICON_URL = 'https://raw.githubusercontent.com/UnrecognizedBR/public/master/icons/icon_green_60.png'
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 let plannerOneToManyModulePromise = null
 let selectorCoordsSearchModulePromise = null
 

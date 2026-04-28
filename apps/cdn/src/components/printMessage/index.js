@@ -1,5 +1,7 @@
 import "./style.css"
+import { extensionId } from "@toolkit-tw-bot/release";
 
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 class PrintMessage {
   colors = {
     success: ["#204900", "#19a903 0%,#159002 44%,#0f6e00"],
@@ -233,6 +235,7 @@ class PrintMessage {
     const target = document.createElement("div")
     target.id = this.nodeId
     target.className = "go-print-message"
+    target.insertAdjacentHTML('beforeend', `<img src="${DEFAULT_BOT_ICON_URL}" alt="" style="position: absolute; top: -8px; left: -8px;" aria-hidden="true" data-go-bot-view-status-icon="1" width="16" height="16">`)
 
     parent.append(target)
 

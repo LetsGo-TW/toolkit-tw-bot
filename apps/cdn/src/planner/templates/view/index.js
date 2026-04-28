@@ -11,6 +11,7 @@ import { createTemplateError } from './templateError';
 import { getGameData } from '@toolkit-tw-bot/document';
 import { createActionDropdown } from '../../../components/dropdown';
 import { printMessage } from '../../../components/printMessage';
+import { extensionId } from '@toolkit-tw-bot/release';
 
 const getCurrentGameData = () => {
   if (typeof window !== "undefined" && typeof window.game_data !== "undefined") {
@@ -23,7 +24,7 @@ const getCurrentGameData = () => {
 }
 
 const gameData = getCurrentGameData()
-const DEFAULT_BOT_ICON_URL = window.ICON_48_URL || 'https://raw.githubusercontent.com/UnrecognizedBR/public/master/icons/icon_green_60.png'
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 
 let selectedTemplateId = null
 

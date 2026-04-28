@@ -1,7 +1,8 @@
-import { svgToDataUri } from '../go-buttons/util'
-import youtubeLinkImage from '../youtube-link-image'
-import { printMessage } from '../printMessage'
 import './style.css'
+import youtubeLinkImage from '../youtube-link-image'
+import { svgToDataUri } from '../go-buttons/util'
+import { printMessage } from '../printMessage'
+import { extensionId } from '@toolkit-tw-bot/release'
 
 const ICON_CLEAR_SELECTION = svgToDataUri(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
@@ -19,7 +20,7 @@ const ICON_PASTE_SELECTION = svgToDataUri(
     '<path d="M10.2 10h4.4M10.2 12.9h4.4M10.2 15.8h3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' +
   '</svg>'
 )
-const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 
 function getDefaultBotIconUrl() {
   const candidates = [

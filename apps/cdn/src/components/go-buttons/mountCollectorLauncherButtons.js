@@ -14,6 +14,7 @@ import { createTargetsDraftCore } from '../../planner/targets-draft/core'
 import './planner-action-buttons.css'
 import { getGameData } from '@toolkit-tw-bot/document'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
+import { extensionId } from '@toolkit-tw-bot/release'
 
 const SUPPORTED_SCREENS = new Set(['forum', 'memo', 'report', 'mail', 'info_player', 'accountmanager'])
 const SUPPORTED_ALLY_MODES = new Set(['members_defense', 'members_troops', 'reservations'])
@@ -26,7 +27,7 @@ let collectorBasePreviewPlannerUi = null
 const collectorPreviewCtx = {
   screen: '',
 }
-const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 const collectorPreviewTargetsDraftCore = createTargetsDraftCore()
 let plannerOneToManyModulePromise = null
 
