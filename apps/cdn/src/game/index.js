@@ -5,6 +5,7 @@ import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
 import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
+import { installCtxRuntime, PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
@@ -1149,6 +1150,7 @@ function installRuntime() {
     clearBotViewExecutionStatusText,
     executeControllerPause,
     executeControllerRun,
+    ctxPlannerOpenEvent: PLANNER_CTX_OPEN_EVENT,
     getBotView: getInjectedBotViewElements,
     executeControllerStop,
     getState: getGameStateSnapshot,
@@ -1171,6 +1173,9 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
+installCtxRuntime({
+  getBotView: getInjectedBotViewElements,
+})
 void game()
 
 export {}

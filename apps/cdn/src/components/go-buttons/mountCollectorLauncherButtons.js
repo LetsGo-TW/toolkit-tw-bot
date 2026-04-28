@@ -25,8 +25,6 @@ let collectorBasePreviewCoordSelector = null
 let collectorBasePreviewPlannerUi = null
 const collectorPreviewCtx = {
   screen: '',
-  root: null,
-  token: null
 }
 const DEFAULT_BOT_ICON_URL = 'chrome-extension://ikdgpfehhakffkfhcjnnjgaaigfoknbl/icons/ico.green.128.png';
 const collectorPreviewTargetsDraftCore = createTargetsDraftCore()
@@ -212,15 +210,13 @@ function applyScreenSpecificLayoutFixes(screen) {
   }
 }
 
-function buildDefaultClickHandler({ screen = '', root = null, token = null } = {}) {
+function buildDefaultClickHandler({ screen = '' } = {}) {
   return (event) => {
     event?.preventDefault?.()
     event?.stopPropagation?.()
     printMessage.warn('Coletor Master em preparação.', 2200)
     console.debug('[GO][CollectorLauncher]', {
-      screen,
-      root: Boolean(root),
-      token: Boolean(token)
+      screen
     })
   }
 }
@@ -422,15 +418,14 @@ async function openPlannerFromCollectorPreviewTargets({
       : null,
     dispatchTargetScope: String(meta?.dispatchTargetScope || meta?.targetScope || '').trim() || null,
     targetScope: String(meta?.targetScope || meta?.dispatchTargetScope || '').trim() || null,
-    scheduleDateTime: String(meta?.scheduleDateTime || '').trim() || null,
-    root: collectorPreviewCtx.root ?? null,
-    token: collectorPreviewCtx.token ?? null
+    scheduleDateTime: String(meta?.scheduleDateTime || '').trim() || null
   })
 
   return true
 }
 
 async function openPlannerFromCollectorPreviewSavedDraft({ mergeWithCurrent = false } = {}) {
+  await collectorPreviewTargetsDraftCore.ready?.()
   const draft = collectorPreviewTargetsDraftCore.readDraft?.() || null
   const draftItems = collectorPreviewTargetsDraftCore.parseDraftTargetsItems?.(draft) || []
   if (!draft || draftItems.length <= 1) {
@@ -642,15 +637,19 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
     draftListUi?.refresh?.()
     draftUi?.refresh?.()
   }
+  void collectorPreviewTargetsDraftCore.ready?.()
+    .then(() => {
+      refreshDraftButtons()
+    })
+    .catch((error) => {
+      console.debug('[planner:collector:draft:ready]', error)
+    })
 
   draftListUi = mountPlannerDraftListButton(slot, {
     visibleInContext: true,
     onOpen: ({ draftId }) => {
       collectorBasePreviewPopup?.close?.()
-      openPlannerFromNamedDraft(draftId, {
-        root: collectorPreviewCtx.root ?? null,
-        token: collectorPreviewCtx.token ?? null
-      })
+      void openPlannerFromNamedDraft(draftId)
     },
     onDelete: () => {
       refreshDraftButtons()
@@ -774,8 +773,6 @@ function positionPreviewPopupBelowButton(popup, button) {
 }
 
 export function mountCollectorLauncherButtons({
-  root = null,
-  token = null,
   onOpen = null
 } = {}) {
   const screen = getCurrentScreenName()
@@ -784,8 +781,6 @@ export function mountCollectorLauncherButtons({
   if (screen === 'info_player' && mode) return null
   if (isOwnInfoPlayerScreen(screen)) return null
   collectorPreviewCtx.screen = screen
-  collectorPreviewCtx.root = root ?? null
-  collectorPreviewCtx.token = token ?? null
 
   applyScreenSpecificLayoutFixes(screen)
   ensureCollectorLauncherTooltipOnce()
@@ -816,12 +811,10 @@ export function mountCollectorLauncherButtons({
     ? (event) => onOpen({
       event,
       screen,
-      root,
-      token,
       button: btnSearch,
       wrapper: wrap
     })
-    : buildDefaultClickHandler({ screen, root, token })
+    : buildDefaultClickHandler({ screen })
 
   const btnSearch = createBtnSearch(wrap, {
     size: 24,

@@ -1,0 +1,52 @@
+{
+    "speed": 1.4,
+    "unit_speed": 0.7,
+    "snob": {
+        "gold": 1,
+        "cheap_rebuild": 0,
+        "rise": 2,
+        "max_dist": 100,
+        "factor": 1,
+        "coin_wood": 28000,
+        "coin_stone": 30000,
+        "coin_iron": 25000,
+        "no_barb_conquer": 0
+    },
+    "commands": {
+        "millis_arrival": 1,
+        "attack_gap": 200,
+        "support_gap": 200,
+        "command_cancel_time": 600
+    },
+    "night": {
+        "active": 1,
+        "start_hour": 23,
+        "end_hour": 7,
+        "def_factor": 2,
+        "duration": 14
+    },
+    "game": {
+        "buildtime_formula": 2,
+        "knight": 3,
+        "knight_new_items": 0,
+        "knight_archer_bonus": 1,
+        "archer": 1,
+        "tech": 2,
+        "farm_limit": 0,
+        "church": 1,
+        "watchtower": 1,
+        "stronghold": 0,
+        "fake_limit": 1,
+        "barbarian_rise": 0.003,
+        "barbarian_shrink": 0,
+        "barbarian_max_points": 1500,
+        "scavenging": 1,
+        "hauls": 1,
+        "hauls_base": 1000,
+        "hauls_max": 100000,
+        "base_production": 30,
+        "event": 34,
+        "suppress_events": 0,
+        "relics": 0
+    }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Transparent background by default -->
+  <path d="M32 3
+           C20.5 3 11 12.5 11 24
+           C11 38 32 61 32 61
+           C32 61 53 38 53 24
+           C53 12.5 43.5 3 32 3 Z"
+        fill="none" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="32" cy="24" r="9" fill="none" stroke="#000" stroke-width="6"/>
+  <path d="M18 56 Q32 60 46 56" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round"/>
+</svg>

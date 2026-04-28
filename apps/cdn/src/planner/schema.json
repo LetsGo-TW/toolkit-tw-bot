@@ -1,0 +1,84 @@
+{
+  "_id": "world:<world>:player:<playerId>:planner:<plannerId>:command:<uuid>",
+  "schemaVersion": 1,
+  "type": "scheduling:command",
+  "status": "scheduled",
+  "world": "br134",
+  "playerId": 8092491,
+  "plannerType": "one-to-many",
+  "plannerName": "Meu planner",
+  "plannerId": "UUID",
+  "twCommandId": null,
+  "commandId": "UUID",
+  "commandType": "attack",
+  "commandName": "Meu command",
+  "source": {
+    "id": 10002,
+    "x": 335,
+    "y": 170
+  },
+  "target": {
+    "id": 10001,
+    "x": 334,
+    "y": 170,
+    "speedBonusMultiplier": {
+      "value": 1.1,
+      "identifiedAt": 1770507741605,
+      "identifiedBy": "commandId"
+    }
+  },
+  "durationSeconds": 177050774,
+  "output": "2026-02-08T16:25:00.000Z",
+  "rangeUntilArrival": 600,
+  "cancelAfterSendingTime": null,
+  "serverTimeAtSubmission": 1770507741605,
+  "template": {
+    "templateType": "value",
+    "buildTarget": "farm",
+    "units": [
+      "spear",
+      "sword",
+      "axe",
+      "archer",
+      "spy",
+      "light",
+      "marcher",
+      "heavy",
+      "ram",
+      "catapult",
+      "knight",
+      "snob"
+    ],
+    "values": [
+      [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        0
+      ]
+    ]
+  },
+  "scheduled": {
+    "desiredArrival": "2026-02-08T18:30:00.000Z",
+    "computedOutput": "2026-02-08T16:25:00.000Z",
+    "rescheduledOutput": [
+      "2026-02-08T16:25:00.000Z"
+    ]
+  },
+  "abortBy": null,
+  "conflictTroops": "redistribute",
+  "conflictAttacks": "partial",
+  "conflictSpeedBonusMultiplier": "reschedule",
+  "conflictsResolved": [],
+  "error": null,
+  "createdAt": "2026-02-08T12:00:00.000Z",
+  "updatedAt": "2026-02-08T12:00:00.000Z"
+}

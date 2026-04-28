@@ -1,0 +1,82 @@
+{
+  "_id": "world:<world>:player:<playerId>:command:<uuid>",
+  "schemaVersion": 1,
+  "type": "scheduling:command",
+  "status": "scheduled",
+  "world": "br134",
+  "playerId": 8092491,
+  "commandId": "UUID",
+  "commandType": "attack",
+  "source": {
+    "id": 10002,
+    "x": 335,
+    "y": 170
+  },
+  "target": {
+    "id": 10001,
+    "x": 334,
+    "y": 170
+  },
+  "durationSeconds": 177050774,
+  "output": "2026-02-08T16:25:00.000Z",
+  "rangeUntilArrival": 600,
+  "template": {
+    "templateType": "value",
+    "buildTarget": "farm",
+    "units": [
+      "spear",
+      "sword",
+      "axe",
+      "archer",
+      "spy",
+      "light",
+      "marcher",
+      "heavy",
+      "ram",
+      "catapult",
+      "knight",
+      "snob"
+    ],
+    "values": [
+      [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        0
+      ]
+    ]
+  },
+  "meta": {
+    "worldNightConfig": {
+      "active": 2,
+      "start_hour": 0,
+      "end_hour": 8
+    },
+    "playerNightMoralState": [
+      {
+        "playerId": 919870640,
+        "night": {
+          "current_interval": "Atual: 00:00-08:00"
+        },
+        "moral": 100
+      }
+    ]
+  },
+  "scheduled": {
+    "desiredArrival": "2026-02-08T18:30:00.000Z",
+    "computedOutput": "2026-02-08T16:25:00.000Z"
+  },
+  "conflictTroops": "redistribute",
+  "conflictAttacks": "partial",
+  "conflictSpeedBonusMultiplier": "reschedule",
+  "createdAt": "2026-02-08T12:00:00.000Z",
+  "updatedAt": "2026-02-08T12:00:00.000Z"
+}

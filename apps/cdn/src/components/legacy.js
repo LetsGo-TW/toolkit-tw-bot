@@ -1,6 +1,6 @@
-import { gameData, getPlayers, link_mesma_aldeia, mdf, n_aldeias, premiumActive, scav_active, timeZone, verifyCurrentScreen } from "../general/init_tw"
-import { getStorage, nSegStrHora, setStorage } from "../general/util"
-import { withGroupFix } from "../Groups"
+// import { gameData, getPlayers, link_mesma_aldeia, mdf, n_aldeias, premiumActive, scav_active, timeZone, verifyCurrentScreen } from "../general/init_tw"
+// import { getStorage, nSegStrHora, setStorage } from "../general/util"
+import { withGroupFix } from "../groups"
 
 export function error_box( msg, t = 5000) {
   if (document.querySelector( "#content_value" )) {

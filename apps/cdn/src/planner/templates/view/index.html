@@ -1,0 +1,156 @@
+<section class="go-template-mode">
+  <button class="go-btn-link">
+    <h4>
+      >>> Modelo de Tropas
+    </h4>
+  </button>
+  <div class="go-template-mode" role="radiogroup" aria-label="Tipo de comando do modelo">
+    <button
+      id="go:mode:attack"
+      name="commandMode"
+      class="go-mode-btn is-selected"
+      data-command-mode="attack"
+      aria-pressed="true"
+      type="button"
+    >
+      <img src="https://dsbr.innogamescdn.com/asset/c4af3446/graphic/command/attack.webp" alt="attack">
+      Ataque
+    </button>
+    <button
+      id="go:mode:support"
+      name="commandMode"
+      class="go-mode-btn"
+      data-command-mode="support"
+      aria-pressed="false"
+      type="button"
+    >
+      <img src="https://dsbr.innogamescdn.com/asset/c4af3446/graphic/command/support.webp" alt="support">
+      Apoio
+    </button>
+  </div>
+</section>
+<section class="section-template">
+
+  <table class="vis" id="place_confirm_units" style="width: 100%">
+    <thead>
+      <tr>
+        <th class="train-ui" style="display: table-cell;">
+          <div class="go-templates-tw">
+            <label for="tw-template" class="go-flex go-th-btn" data-title="Modelo TW">
+              <img width="16px" height="16px" id="tw-ico" src="https://dsbr.innogamescdn.com/asset/985df5a4/graphic/favicon-32x32.webp" alt="tw ico">
+              <span>Modelo: </span>
+              <select id="tw-template"></select>
+            </label>
+            <span data-title="Marcar todas as tropas do primeiro ataque." style="margin-right: 2px;">
+              <label for="first:all">
+                <img class="go-th-btn" src="https://dsbr.innogamescdn.com/asset/985df5a4/graphic/command/attack.webp" class="">
+              </label>
+              <input id="first:all" type="checkbox" class="go-unit-toggle">
+            </span>
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="units-row">
+        <th class="train-name" style="align-content: end;">
+          <span>#1</span>
+          <img id="go-add-attack" data-title="Inserir Ataque" class="float_right go-th-btn" src="https://dsbr.innogamescdn.com/asset/98f3b7c4/graphic/plus.webp">
+          <img name="go-add-model-tw" data-title="Inserir Modelo TW" class="float_right go-th-btn" width="16px" height="16px" src="https://dsbr.innogamescdn.com/asset/985df5a4/graphic/favicon-32x32.webp" alt="tw ico">
+          <div class="float_right  go-th-btn" style="margin-right: 6px;">
+            <span id="go-farm-info:0" name="go-farm-info" class="icon info-small"></span>
+          </div>
+          <div class="float_right go-radio">
+            <button name="type" class="go-radio" data-type="value" data-title="Usar unidade de valor">
+              <img
+                name="value"
+                alt="value"
+                width="16"
+                height="16"
+                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><text x='8' y='11.5' text-anchor='middle' font-family='Arial' font-size='9' fill='currentColor'>123</text></svg>"
+              >
+            </button>
+            <button name="type" class="go-radio" data-type="percent" data-title="Usar unidade de porcentagem">
+              <img
+                name="percent"
+                alt="percent"
+                width="16"
+                height="16"
+                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><text x='8' y='11.5' text-anchor='middle' font-family='Arial' font-size='10' fill='currentColor'>%</text></svg>"
+              >
+            </button>
+          </div>
+          <div class="float_right">
+            <button name="clear" class="go-th-btn go-btn-clear" data-title="Limpar tudo">
+              <img
+                name="clear"
+                alt="Borracha Limpar"
+                width="20"
+                height="20"
+              src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><rect x='5' y='5' width='6' height='8' rx='1' ry='1' fill='currentColor'/><rect x='4' y='4' width='8' height='1.5' rx='0.75' ry='0.75' fill='currentColor'/><rect x='6' y='3' width='4' height='1' rx='0.5' ry='0.5' fill='currentColor'/></svg>"
+            >
+            </button>
+          </div>
+        </th>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="train-ui units-sum" style="display: table-row;">
+        <th>
+          Total
+          <div class="float_right go-th-btn" style="margin-right: 6px;">
+            <span id="go-farm-info-total" class="icon info-small"></span>
+          </div>
+        </th>
+      </tr>
+    </tfoot>
+  </table>
+  <ul class="go-table-template-error">
+    <li class="go-table-template-error-item" data-error="footer">
+      <span class="icon info-small"></span>
+      <span class="go-error-message">
+        Conflito! Você não pode selecionar todas as tropas da mesma unidade em mais de um ataque. Resolva para continuar.
+      </span>
+    </li>
+    <li class="go-table-template-error-item" data-error="speed">
+      <span class="icon info-small"></span>
+      <span class="go-error-message">
+        Conflito de velocidade! Todos os ataques precisam ter a mesma velocidade.
+      </span>
+    </li>
+    <li class="go-table-template-error-item" data-error="paladin">
+      <span class="icon info-small"></span>
+      <span class="go-error-message">
+        Conflito de paladino! Só é permitido 1 paladino por comando.
+      </span>
+    </li>
+    <li class="go-table-template-error-item go-table-template-warn" data-error="snob">
+      <span class="icon info-small"></span>
+      <span class="go-error-message">
+        Aviso de nobre: o nobre não pode ir sozinho no ataque.
+      </span>
+    </li>
+  </ul>
+  <div id="go-template-footer">
+    <div class="go-template-build-target hidden"></div>
+    <div class="go-template-manager">
+      <label class="go-flex" for="go-input-template-name">
+        <img data-title="Modelo Let's GO!" width="16px" height="16px" id="go-logo" src="https://dsbr.innogamescdn.com/asset/985df5a4/graphic/favicon-32x32.webp" alt="letsgo ico">
+        <span>Modelo: </span>
+      </label>
+      <input id="go-input-template-name" class="go-unit-input" type="text" value="" autocomplete="off">
+      <div id="go-dp-templates" class="go-dd" hidden>
+        <span data-value="a">
+          NT 5 Marrom
+          <img data-title="Apagar Modelo" alt="Excluir" src="https://dsbr.innogamescdn.com/asset/98f3b7c4/graphic/delete_14.png" class="float_right go-dd-delete">
+        </span>
+        <span data-value="b">
+          FAKE 5
+          <img data-title="Apagar Modelo" alt="Excluir" src="https://dsbr.innogamescdn.com/asset/98f3b7c4/graphic/delete_14.png" class="float_right go-dd-delete">
+        </span>
+      </div>
+      <button id="go-btn-update" data-template-save-action="update">Atualizar</button>
+      <button id="go-btn-save-new" data-template-save-action="new">Novo</button>
+    </div>
+  </div>
+</section>

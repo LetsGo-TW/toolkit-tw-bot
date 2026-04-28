@@ -1,0 +1,239 @@
+.go-planner-targets-draft {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.go-planner-targets-draft.is-icon-button {
+  margin-left: 0;
+}
+
+.go-planner-targets-draft[hidden] {
+  display: none !important;
+}
+
+.go-planner-targets-draft-chip {
+  height: 22px;
+  min-width: 92px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 53, 15, .26);
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(239,232,213,.94));
+  color: #4b3926;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255,255,255,.65) inset;
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(61, 83, 32, .52);
+  background: linear-gradient(180deg, #f1ffef 0%, #cfe9bf 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 1px 2px rgba(0,0,0,.2);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-mode-schedule {
+  border-color: rgba(44, 84, 140, .48);
+  background: linear-gradient(180deg, #eef6ff 0%, #c9def7 100%);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-mode-send {
+  border-color: rgba(61, 83, 32, .52);
+  background: linear-gradient(180deg, #f1ffef 0%, #cfe9bf 100%);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-mode-list {
+  border-color: rgba(51, 65, 85, .42);
+  background: linear-gradient(180deg, #f8fafc 0%, #dbe3ee 100%);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip:hover {
+  background: linear-gradient(180deg, #f6fff0 0%, #bddda7 100%);
+  border-color: rgba(61, 83, 32, .65);
+  transform: translateY(-1px);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-mode-schedule:hover {
+  background: linear-gradient(180deg, #f4f9ff 0%, #bdd5f3 100%);
+  border-color: rgba(44, 84, 140, .62);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-mode-list:hover {
+  background: linear-gradient(180deg, #fbfdff 0%, #ccd7e5 100%);
+  border-color: rgba(51, 65, 85, .55);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip:active {
+  transform: translateY(0);
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-chip.is-pending {
+  border-color: rgba(220, 38, 38, .45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 0 0 1px rgba(220, 38, 38, .14);
+}
+
+.go-planner-targets-draft-icon-wrap {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.go-planner-targets-draft-icon-wrap img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 0 .15px rgba(0,0,0,.8));
+}
+
+.go-planner-targets-draft-chip.is-warning {
+  border-color: rgba(202, 138, 4, .34);
+  background: linear-gradient(180deg, rgba(255,251,219,.95), rgba(247,233,174,.95));
+  color: #854d0e;
+}
+
+.go-planner-targets-draft-chip.is-pending {
+  border-color: rgba(220, 38, 38, .28);
+}
+
+.go-planner-targets-draft-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: auto;
+  right: 0;
+  z-index: 8;
+  min-width: 0;
+  width: max-content;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,.18);
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.go-planner-targets-draft-menu[hidden] {
+  display: none !important;
+}
+
+.go-planner-targets-draft.is-icon-button .go-planner-targets-draft-menu {
+  left: auto;
+  right: 0;
+  min-width: 0;
+}
+
+.go-planner-targets-draft-menu.is-open-upward {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.go-planner-targets-draft-menu button {
+  border: 1px solid rgba(0,0,0,.16);
+  border-radius: 6px;
+  background: rgba(255,255,255,.94);
+  color: #2f2b22;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.go-planner-targets-draft-menu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px;
+}
+
+.go-planner-targets-draft-menu-input-row {
+  display: block;
+  min-width: 150px;
+}
+
+.go-planner-targets-draft-menu-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(44,84,140,.28);
+  border-radius: 6px;
+  background: rgba(245,249,255,.98);
+  color: #2f2b22;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.05);
+}
+
+.go-planner-targets-draft-menu-input:focus {
+  outline: 1px solid rgba(44,84,140,.45);
+  border-color: rgba(44,84,140,.45);
+}
+
+.go-planner-targets-draft-menu-input::placeholder {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.go-planner-targets-draft-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.go-planner-targets-draft-menu-btn.is-secondary {
+  justify-content: center;
+  padding-inline: 6px;
+}
+
+.go-planner-targets-draft-menu-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.go-planner-targets-draft-menu-icon img {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.go-planner-targets-draft-menu-label {
+  min-width: 0;
+}
+
+.go-planner-targets-draft-menu button:hover {
+  background: rgba(248,245,235,.98);
+}
+
+.go-planner-targets-draft-menu button.is-danger {
+  color: #991b1b;
+}
+
+.go-planner-targets-draft-menu button.is-primary {
+  color: #0f3f7a;
+  border-color: rgba(44,84,140,.32);
+  background: rgba(237,245,255,.98);
+}
+
+.go-planner-targets-draft-menu button.is-primary:hover {
+  background: rgba(226,239,255,.98);
+}

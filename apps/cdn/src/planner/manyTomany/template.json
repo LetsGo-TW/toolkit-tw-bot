@@ -1,0 +1,32 @@
+{
+  "templateType": "value",
+  "buildTarget": "farm",
+  "units": [
+    "spear",
+    "sword",
+    "axe",
+    "archer",
+    "spy",
+    "light",
+    "marcher",
+    "heavy",
+    "ram",
+    "catapult",
+    "knight",
+    "snob"
+  ],
+  "values": [
+    0,
+    0,
+    -1,
+    0,
+    -1,
+    -1,
+    -1,
+    0,
+    -1,
+    -1,
+    0,
+    0
+  ]
+}

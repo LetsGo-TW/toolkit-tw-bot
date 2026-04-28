@@ -1,0 +1,396 @@
+div.go-dispatch {
+  width: -webkit-fill-available;
+  height: -webkit-fill-available;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(255,255,255,.45);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.5rem;
+}
+
+div.go-dispatch .go-dispatch-confirm {
+  position: absolute;
+  right: 8px;
+  top: calc(100% + 4px);
+  z-index: 10;
+  min-width: 230px;
+  max-width: min(460px, calc(100vw - 24px));
+  max-height: none;
+  overflow: visible;
+  border: 1px solid rgba(0,0,0,.22);
+  border-radius: 0.45rem;
+  background: rgba(248,248,248,.98);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  padding: 6px;
+}
+
+div.go-dispatch .go-dispatch-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px 6px;
+  color: rgba(20,20,20,.92);
+  font-size: 12px;
+}
+
+div.go-dispatch .go-dispatch-confirm-line {
+  white-space: nowrap;
+}
+
+div.go-dispatch .go-dispatch-estimate-wrap {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+div.go-dispatch .go-dispatch-estimate-card {
+  border: 1px solid rgba(0,0,0,.14);
+  border-radius: 0.4rem;
+  background: rgba(255,255,255,.82);
+  padding: 5px;
+  min-width: 0;
+}
+
+div.go-dispatch .go-dispatch-estimate-card-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(20,20,20,.85);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+div.go-dispatch .go-dispatch-estimate-unit-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+div.go-dispatch .go-dispatch-estimate-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 0.3rem;
+  background: rgba(245,245,245,.95);
+  border: 1px solid rgba(0,0,0,.08);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+div.go-dispatch .go-dispatch-estimate-unit img {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+div.go-dispatch .go-dispatch-estimate-unit span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+div.go-dispatch .go-dispatch-estimate-empty {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: rgba(20,20,20,.65);
+}
+
+div.go-dispatch .go-dispatch-estimate-card-footer {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(0,0,0,.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+div.go-dispatch .go-dispatch-estimate-total-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: rgba(20,20,20,.8);
+}
+
+div.go-dispatch .go-dispatch-estimate-total-line strong {
+  font-size: 11px;
+  color: rgba(20,20,20,.95);
+}
+
+@media (max-width: 520px) {
+  div.go-dispatch .go-dispatch-estimate-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+div.go-dispatch .go-dispatch-confirm-options {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0,0,0,.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+div.go-dispatch .go-dispatch-confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+div.go-dispatch .go-dispatch-confirm-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(20,20,20,.9);
+}
+
+div.go-dispatch .go-dispatch-confirm-field-hint {
+  font-size: 10px;
+  color: rgba(20,20,20,.75);
+}
+
+div.go-dispatch .go-dispatch-confirm-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+div.go-dispatch .go-dispatch-confirm-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0,0,0,.18);
+  background: rgba(255,255,255,.85);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+div.go-dispatch .go-dispatch-confirm-radio input {
+  margin: 0;
+}
+
+div.go-dispatch .go-dispatch-confirm-select {
+  height: 24px;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0,0,0,.2);
+  background: rgba(255,255,255,.9);
+  font-size: 11px;
+  padding: 0 6px;
+}
+
+div.go-dispatch .go-dispatch-confirm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+div.go-dispatch .go-dispatch-confirm-check input {
+  margin: 0;
+}
+
+div.go-dispatch .go-dispatch-confirm-number-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+div.go-dispatch .go-dispatch-confirm-number {
+  width: 76px;
+  min-width: 76px;
+  height: 24px;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0,0,0,.2);
+  background: rgba(255,255,255,.9);
+  font-size: 11px;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+div.go-dispatch .go-dispatch-confirm-number-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+div.go-dispatch .go-dispatch-confirm-pill {
+  width: auto;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.18);
+  background: rgba(255,255,255,.9);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+div.go-dispatch .go-dispatch-confirm-pill.is-warn {
+  border-color: rgba(217, 119, 6, .36);
+  background: rgba(255, 237, 213, .95);
+  color: rgba(154, 52, 18, .98);
+}
+
+div.go-dispatch .go-dispatch-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+div.go-dispatch .go-dispatch-confirm-btn {
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(0,0,0,.24);
+  background: rgba(255,255,255,.9);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+div.go-dispatch .go-dispatch-confirm-btn.is-confirm {
+  border-color: rgba(21, 128, 61, .35);
+  background: linear-gradient(180deg, #e9fbe9 0%, #c8ebc8 100%);
+  color: #1f6a2b;
+}
+
+div.go-dispatch .go-dispatch-confirm-btn.is-cancel {
+  border-color: rgba(185, 28, 28, .28);
+  background: linear-gradient(180deg, #fff0f0 0%, #f6d2d2 100%);
+  color: #8f1d1d;
+}
+
+div.go-dispatch .go-dispatch-scope {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+div.go-dispatch .go-dispatch-sep {
+  width: 1px;
+  height: 26px;
+  margin: 0 4px;
+  background: rgba(0,0,0,.18);
+  flex: 0 0 1px;
+}
+
+div.go-dispatch .go-dispatch-scope-btn {
+  width: auto;
+  min-width: 118px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(0, 0, 0, .25);
+  background: rgba(255,255,255,.88);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+div.go-dispatch .go-dispatch-scope-btn.is-active {
+  color: #fff;
+  border-color: rgba(87, 60, 17, .82);
+  background: linear-gradient(180deg, #9a7b39 0%, #7a5a22 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.18);
+  text-shadow: 0 1px 0 rgba(0,0,0,.28);
+}
+
+div.go-dispatch .go-dispatch-scope-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+div.go-dispatch button {
+  width: -webkit-fill-available;
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  box-sizing: border-box;
+  height: 34px;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(0, 0, 0, .25);
+  background: rgba(255, 255, 255, .85);
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  gap: 0.5rem;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+
+div.go-dispatch #go\:dispatch\:execute {
+  min-width: 170px;
+  margin-left: auto;
+  color: #fff;
+  border-color: rgba(37, 99, 235, .55);
+  background: linear-gradient(180deg, #5fa3ff 0%, #2563eb 55%, #1d4ed8 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(0,0,0,.12);
+  text-shadow: 0 1px 0 rgba(0,0,0,.18);
+}
+
+div.go-dispatch button.go-dispatch-btn img {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-block;
+}
+div.go-dispatch button.go-dispatch-btn img.is-dispatch-sword {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+div.go-dispatch button.go-dispatch-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(92, 71, 34, 0.45);
+  background: linear-gradient(180deg, #fff8e8 0%, #f2e2bd 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+div.go-dispatch #go\:dispatch\:execute:hover {
+  border-color: rgba(30, 78, 216, .72);
+  background: linear-gradient(180deg, #79b4ff 0%, #3b82f6 50%, #1d4ed8 100%);
+  box-shadow: 0 2px 6px rgba(29, 78, 216, .28), inset 0 1px 0 rgba(255,255,255,.22);
+}
+div.go-dispatch button.go-dispatch-btn:focus-visible {
+  outline: 2px solid #1e6edc;
+  outline-offset: 1px;
+}
+div.go-dispatch button.go-dispatch-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+div.go-dispatch #go\:dispatch\:execute:disabled {
+  color: rgba(255,255,255,.92);
+  border-color: rgba(107, 114, 128, .55);
+  background: linear-gradient(180deg, #c5cbd6 0%, #9aa4b2 100%);
+  text-shadow: none;
+}
+div.go-dispatch button.go-dispatch-btn.is-loading {
+  filter: saturate(0.7);
+}

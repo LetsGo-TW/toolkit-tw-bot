@@ -1,0 +1,42 @@
+{
+  "_id": "player:8092491:command:template:attack:5045c6dd-0e2c-4ee5-9a95-e0f0a287304e",
+  "type": "command:template",
+  "schemaVersion": 1,
+  "playerId": 8092491,
+  "name": "ATK:FULL:FARM",
+  "templateType": "value",
+  "buildTarget": "farm",
+  "commandType": "attack",
+  "units": [
+    "spear",
+    "sword",
+    "axe",
+    "archer",
+    "spy",
+    "light",
+    "marcher",
+    "heavy",
+    "ram",
+    "catapult",
+    "knight",
+    "snob"
+  ],
+  "values": [
+    [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0
+    ]
+  ],
+  "createdAt": "2026-02-08T16:24:56.000Z",
+  "updatedAt": "2026-02-08T16:24:56.000Z"
+}

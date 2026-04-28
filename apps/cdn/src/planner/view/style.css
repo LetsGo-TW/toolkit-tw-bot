@@ -1,0 +1,288 @@
+.go-fixed {
+  display:flex;
+  flex-direction:column;
+  align-items: flex-start;
+  background-color: rgba(255,255,255,.45);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  overflow: hidden;
+}
+
+#place_target {
+  margin: 0;
+}
+
+#go-popup-map-planner.go-popup-loading .popup_box {
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+  pointer-events: none;
+}
+
+#go-popup-map-planner .popup_box {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.go-content {
+  width: fit-content;
+  height: 95vh !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.25rem;
+  flex: 1 1 auto;    /* agora ele ocupa tudo */
+  min-height:0;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  tbody {
+    width: -webkit-fill-available;
+  }
+}
+
+.go-content > div {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,.35) transparent;
+  ::-webkit-scrollbar{
+    width: 3px; /* fininho */
+    height: 3px;
+  }
+  ::-webkit-scrollbar-track{
+    background: transparent; /* trilho */
+
+    border-radius: 0.8rem;
+  }
+  ::-webkit-scrollbar-thumb{
+    background: rgba(0,0,0,.25);        /* “pegador” */
+    border: 2px solid transparent;      /* dá aquele efeito slim */
+    background-clip: content-box;
+    border-radius: 0.8rem;
+  }
+}
+
+.go-content > div.go-ml {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.go-ico {
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  transition: 0.2s ease-in-out;
+
+  img {
+    cursor: pointer;
+  }
+
+  :hover {
+    transform: scale(1.1)
+  }
+}
+
+button[data-command-group-refresh].is-pending img.is-spinning {
+  animation: go-spin-refresh 0.9s linear infinite;
+  cursor: progress;
+}
+
+@keyframes go-spin-refresh {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.go-flex-container {
+  width: -webkit-fill-available;
+  max-height: 48px;
+  position: relative;
+  display: flex;
+  margin: 0 0.5rem;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+div#go-planner-groups {
+  height: -webkit-fill-available;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(255,255,255,.45);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.5rem;
+
+  label {
+    margin: 0;
+    position: absolute;
+    top: 6px;
+    left: 18px;
+    font-size: 7pt;
+    color: #80808086;
+    cursor: pointer;
+  }
+
+  select {
+    height: 34px;
+    border: 1px solid rgba(0,0,0,.25);
+    border-radius: 0.5rem;
+    padding: 2px;
+  }
+}
+
+div#go-planner-senders {
+  width: -webkit-fill-available;
+  flex: 1 1 auto;
+  min-height:0;
+  overflow-y:auto;   /* só a tabela rola */
+}
+
+div#go-dispatch-options {
+  width: -webkit-fill-available;
+}
+
+.go-dispatch-options-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.5rem;
+  background-color: rgba(255,255,255,.6);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+}
+
+.go-dispatch-options-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.go-dispatch-options-head > button,
+.go-dispatch-options-actions > button {
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, .85);
+  padding: 4px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.go-dispatch-options-meta,
+.go-dispatch-options-placeholder {
+  margin: 0;
+}
+
+.go-dispatch-options-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.go-map-plan-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.5rem 0 0.5rem;
+  gap: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+
+  #go-planner-mode-slot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 34px;
+    margin-right: 0;
+  }
+}
+
+.go-map-plan-title-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+
+  img {
+    width: 24px;
+    height: 24px;
+  }
+  h3 {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.go-planner-youtube-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  text-decoration: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  margin-left: 0.5rem;
+}
+
+.go-planner-youtube-link img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.go-planner-youtube-link:hover {
+  transform: scale(1.06);
+}
+
+.go-planner-last-report-icon {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: help;
+}
+
+.go-planner-last-report-icon img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.go-planner-last-report-icon[hidden] {
+  display: none !important;
+}
+
+div#go-target-content {
+  width: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.35rem 0.5rem;
+  background-color: rgba(255,255,255,.45);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: 0.5rem;
+}
+
+#go-planner-mode-slot button.go-btn-inline-sword {
+  padding-right: 3px;
+}

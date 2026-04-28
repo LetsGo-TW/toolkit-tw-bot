@@ -196,7 +196,7 @@ function mapDraftItemsToTargets(draftItems = []) {
     .filter(Boolean)
 }
 
-function buildPlannerPayloadFromDraft({ draft = null, root = null, token = null } = {}) {
+function buildPlannerPayloadFromDraft({ draft = null } = {}) {
   const draftItems = sharedTargetsDraftCore.parseDraftTargetsItems?.(draft) || []
   const targets = mapDraftItemsToTargets(draftItems)
   if (targets.length <= 1) return null
@@ -225,9 +225,7 @@ function buildPlannerPayloadFromDraft({ draft = null, root = null, token = null 
     targetScope: String(draft?.targetScope || draft?.dispatchTargetScope || '').trim() || null,
     scheduleDateTime: String(draft?.scheduleDateTime || '').trim() || null,
     targetsDraftId: String(draft?.draftId || '').trim() || null,
-    draftId: String(draft?.draftId || '').trim() || null,
-    root: root ?? null,
-    token: token ?? null
+    draftId: String(draft?.draftId || '').trim() || null
   }
 }
 
@@ -270,37 +268,38 @@ function buildDraftPromptDefaultName(draft = null) {
   return [mode === 'schedule' ? 'Agendar' : 'Enviar', coord, stamp].filter(Boolean).join(' - ')
 }
 
-function getUnexpectedInterruptionRecoveryState() {
-  return getUnexpectedInterruptionState({
-    report: readPlannerLastReport(),
+async function getUnexpectedInterruptionRecoveryState() {
+  await sharedTargetsDraftCore.ready?.()
+  return await getUnexpectedInterruptionState({
+    report: await readPlannerLastReport(),
     draftCore: sharedTargetsDraftCore
   })
 }
 
-function recoverUnexpectedInterruptionIfNeeded(draftId = '') {
-  const state = getUnexpectedInterruptionRecoveryState()
+async function recoverUnexpectedInterruptionIfNeeded(draftId = '') {
+  const state = await getUnexpectedInterruptionRecoveryState()
   if (!matchesUnexpectedInterruptionState(state, draftId)) return null
-  return applyUnexpectedInterruptionRecovery({
+  return await applyUnexpectedInterruptionRecovery({
     state,
     draftCore: sharedTargetsDraftCore,
     writeReport: writePlannerLastReport
   })
 }
 
-function recoverAnyUnexpectedInterruption() {
-  const state = getUnexpectedInterruptionRecoveryState()
+async function recoverAnyUnexpectedInterruption() {
+  const state = await getUnexpectedInterruptionRecoveryState()
   if (!state) return null
-  return applyUnexpectedInterruptionRecovery({
+  return await applyUnexpectedInterruptionRecovery({
     state,
     draftCore: sharedTargetsDraftCore,
     writeReport: writePlannerLastReport
   })
 }
 
-function buildPlannerPayloadFromUnexpectedState(state = null, { root = null, token = null } = {}) {
+function buildPlannerPayloadFromUnexpectedState(state = null) {
   if (!state || typeof state !== 'object') return null
   const recovered = state?.draft && typeof state.draft === 'object' ? state.draft : null
-  const fromDraft = recovered ? buildPlannerPayloadFromDraft({ draft: recovered, root, token }) : null
+  const fromDraft = recovered ? buildPlannerPayloadFromDraft({ draft: recovered }) : null
   if (fromDraft) {
     const draftId = String(state?.draftId || '').trim()
     if (draftId) {
@@ -323,14 +322,12 @@ function buildPlannerPayloadFromUnexpectedState(state = null, { root = null, tok
       id: Number.isFinite(id) ? id : null,
       x,
       y
-    },
-    root: root ?? null,
-    token: token ?? null
+    }
   }
 }
 
-function buildSingleDispatchStatusFromLastReport(targetPayload = null) {
-  const report = readPlannerLastReport()
+async function buildSingleDispatchStatusFromLastReport(targetPayload = null) {
+  const report = await readPlannerLastReport()
   if (!report || typeof report !== 'object' || !targetPayload) return null
   const reportTarget = (report?.target && typeof report.target === 'object') ? report.target : null
   const reportX = Number(reportTarget?.x)
@@ -363,9 +360,9 @@ function buildSingleDispatchStatusFromLastReport(targetPayload = null) {
   }
 }
 
-function enrichSinglePlannerPayloadWithRecoveredStatus(payload = null) {
+async function enrichSinglePlannerPayloadWithRecoveredStatus(payload = null) {
   if (!payload || typeof payload !== 'object') return payload
-  const dispatchStatus = buildSingleDispatchStatusFromLastReport(payload)
+  const dispatchStatus = await buildSingleDispatchStatusFromLastReport(payload)
   if (!dispatchStatus) return payload
   return {
     ...payload,
@@ -412,27 +409,34 @@ export function deleteNamedDraftById(draftId = '', { silent = false } = {}) {
   return true
 }
 
-export function openPlannerFromNamedDraft(draftId = '', { root = null, token = null } = {}) {
+export async function openPlannerFromNamedDraft(draftId = '') {
   const id = String(draftId || '').trim()
   if (!id) {
     printMessage.error('Draft inválido.', 2500)
     return false
   }
-  recoverUnexpectedInterruptionIfNeeded(id)
-  const draft = sharedTargetsDraftCore.readNamedDraft?.(id)
-  if (!draft) {
-    printMessage.error('Draft salvo não encontrado.', 2500)
+  try {
+    await sharedTargetsDraftCore.ready?.()
+    await recoverUnexpectedInterruptionIfNeeded(id)
+    const draft = sharedTargetsDraftCore.readNamedDraft?.(id)
+    if (!draft) {
+      printMessage.error('Draft salvo não encontrado.', 2500)
+      return false
+    }
+    const plannerPayload = buildPlannerPayloadFromDraft({ draft })
+    if (!plannerPayload) {
+      printMessage.error('Draft inválido para recuperação.', 2500)
+      return false
+    }
+    plannerPayload.targetsDraftId = id
+    plannerPayload.draftId = id
+    void runPlannerOneToMany(plannerPayload)
+    return true
+  } catch (error) {
+    console.error('[planner:draft:open:named]', error)
+    printMessage.error(error?.message || 'Erro ao abrir draft salvo.', 2500)
     return false
   }
-  const plannerPayload = buildPlannerPayloadFromDraft({ draft, root, token })
-  if (!plannerPayload) {
-    printMessage.error('Draft inválido para recuperação.', 2500)
-    return false
-  }
-  plannerPayload.targetsDraftId = id
-  plannerPayload.draftId = id
-  void runPlannerOneToMany(plannerPayload)
-  return true
 }
 
 export function mountPlannerDraftListButton(container, {
@@ -611,52 +615,65 @@ export function mountPlannerDraftButton(container, {
   }
 }
 
-export function openPlannerFromSavedDraft({ root = null, token = null } = {}) {
-  recoverUnexpectedInterruptionIfNeeded()
-  const payload = readSavedTargetsDraftList()
-  if (!payload?.draft) {
-    printMessage.error('Nenhum rascunho salvo encontrado.', 2500)
+export async function openPlannerFromSavedDraft() {
+  try {
+    await sharedTargetsDraftCore.ready?.()
+    await recoverUnexpectedInterruptionIfNeeded()
+    const payload = readSavedTargetsDraftList()
+    if (!payload?.draft) {
+      printMessage.error('Nenhum rascunho salvo encontrado.', 2500)
+      return false
+    }
+    const plannerPayload = buildPlannerPayloadFromDraft({ draft: payload.draft })
+    if (!plannerPayload) {
+      printMessage.error('Rascunho inválido para recuperação.', 2500)
+      return false
+    }
+    void runPlannerOneToMany(plannerPayload)
+    return true
+  } catch (error) {
+    console.error('[planner:draft:open:last]', error)
+    printMessage.error(error?.message || 'Erro ao abrir últimos alvos salvos.', 2500)
     return false
   }
-  const plannerPayload = buildPlannerPayloadFromDraft({ draft: payload.draft, root, token })
-  if (!plannerPayload) {
-    printMessage.error('Rascunho inválido para recuperação.', 2500)
-    return false
-  }
-  void runPlannerOneToMany(plannerPayload)
-  return true
 }
 
-export function openPlannerFromUnexpectedInterruptionState(state = null, { root = null, token = null } = {}) {
+export async function openPlannerFromUnexpectedInterruptionState(state = null) {
   if (!state || typeof state !== 'object') {
     printMessage.error('Último envio inválido para recuperação.', 2500)
     return false
   }
-  const draftId = String(state?.draftId || '').trim()
-  const recoveryResult = draftId
-    ? recoverUnexpectedInterruptionIfNeeded(draftId)
-    : applyUnexpectedInterruptionRecovery({
-      state,
-      draftCore: sharedTargetsDraftCore,
-      writeReport: writePlannerLastReport
-    })
-  const nextState = (() => {
-    if (recoveryResult?.draft || recoveryResult?.report) {
-      return {
-        ...state,
-        ...(recoveryResult?.draft ? { draft: recoveryResult.draft } : {}),
-        ...(recoveryResult?.report ? { report: recoveryResult.report } : {})
+  try {
+    const draftId = String(state?.draftId || '').trim()
+    const recoveryResult = draftId
+      ? await recoverUnexpectedInterruptionIfNeeded(draftId)
+      : await applyUnexpectedInterruptionRecovery({
+        state,
+        draftCore: sharedTargetsDraftCore,
+        writeReport: writePlannerLastReport
+      })
+    const nextState = (() => {
+      if (recoveryResult?.draft || recoveryResult?.report) {
+        return {
+          ...state,
+          ...(recoveryResult?.draft ? { draft: recoveryResult.draft } : {}),
+          ...(recoveryResult?.report ? { report: recoveryResult.report } : {})
+        }
       }
+      return state
+    })()
+    const plannerPayload = buildPlannerPayloadFromUnexpectedState(nextState)
+    if (!plannerPayload) {
+      printMessage.error('Último envio indisponível para abrir.', 2500)
+      return false
     }
-    return getUnexpectedInterruptionRecoveryState() || state
-  })()
-  const plannerPayload = buildPlannerPayloadFromUnexpectedState(nextState, { root, token })
-  if (!plannerPayload) {
-    printMessage.error('Último envio indisponível para abrir.', 2500)
+    void runPlannerOneToMany(plannerPayload)
+    return true
+  } catch (error) {
+    console.error('[planner:draft:open:unexpected]', error)
+    printMessage.error(error?.message || 'Erro ao recuperar último envio.', 2500)
     return false
   }
-  void runPlannerOneToMany(plannerPayload)
-  return true
 }
 
 export function mountPlannerActionButtons(data) {
@@ -707,21 +724,35 @@ export function mountPlannerActionButtons(data) {
   }
 
   const onClickSchedule = () => {
-    if (!isPlannerScheduleEnabled()) {
-      printMessage.warn(PLANNER_SCHEDULE_DISABLED_MESSAGE, 2200)
-      return
-    }
-    recoverAnyUnexpectedInterruption()
-    const payload = enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-    if (!payload) return
-    void runPlannerOneToMany({ ...payload, dispatchMode: 'schedule', mode: 'schedule' })
+    void (async() => {
+      try {
+        if (!isPlannerScheduleEnabled()) {
+          printMessage.warn(PLANNER_SCHEDULE_DISABLED_MESSAGE, 2200)
+          return
+        }
+        await recoverAnyUnexpectedInterruption()
+        const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
+        if (!payload) return
+        void runPlannerOneToMany({ ...payload, dispatchMode: 'schedule', mode: 'schedule' })
+      } catch (error) {
+        console.error('[planner:action:schedule]', error)
+        printMessage.error(error?.message || 'Erro ao abrir planner para agendar.', 2500)
+      }
+    })()
   }
 
   const onClickSend = () => {
-    recoverAnyUnexpectedInterruption()
-    const payload = enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-    if (!payload) return
-    void runPlannerOneToMany({ ...payload, dispatchMode: 'send', mode: 'send' })
+    void (async() => {
+      try {
+        await recoverAnyUnexpectedInterruption()
+        const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
+        if (!payload) return
+        void runPlannerOneToMany({ ...payload, dispatchMode: 'send', mode: 'send' })
+      } catch (error) {
+        console.error('[planner:action:send]', error)
+        printMessage.error(error?.message || 'Erro ao abrir planner para enviar.', 2500)
+      }
+    })()
   }
 
   const buttons = createInlinePlannerActionButtons(buttonsWrap, {
@@ -767,10 +798,17 @@ export function mountPlannerActionButtons(data) {
     draftListUi?.refresh?.()
     draftUi?.refresh?.()
   }
+  void sharedTargetsDraftCore.ready?.()
+    .then(() => {
+      refreshDraftButtons()
+    })
+    .catch((error) => {
+      console.debug('[planner:draft:ready]', error)
+    })
   draftListUi = mountPlannerDraftListButton(buttonsWrap, {
     visibleInContext: true,
     onOpen: ({ draftId }) => {
-      openPlannerFromNamedDraft(draftId, { root: data?.root ?? null, token: data?.token ?? null })
+      void openPlannerFromNamedDraft(draftId)
     },
     onDelete: () => {},
     onChange: () => {
@@ -785,7 +823,7 @@ export function mountPlannerActionButtons(data) {
     getCurrentTargets: () => [],
     canMerge: () => false,
     onRecover: () => {
-      openPlannerFromSavedDraft({ root: data?.root ?? null, token: data?.token ?? null })
+      void openPlannerFromSavedDraft()
     },
     onDelete: () => {
       printMessage.warn('Rascunho excluído.', 2000)

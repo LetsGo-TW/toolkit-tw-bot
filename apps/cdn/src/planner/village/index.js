@@ -1,0 +1,1 @@
+export { imageSrcPerPoint } from './imageSrcPerPoint'

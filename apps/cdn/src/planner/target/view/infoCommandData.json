@@ -1,0 +1,70 @@
+{
+  "village_start": {
+    "id": "81683"
+  },
+  "village_target": {
+    "id": "117057"
+  },
+  "type": "return",
+  "time_arrival": {
+    "date": "1769745873",
+    "millis": "000"
+  },
+  "units": {
+    "spear": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_spear.webp"
+    },
+    "sword": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_sword.webp"
+    },
+    "axe": {
+      "count": "150",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_axe.webp"
+    },
+    "archer": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_archer.webp"
+    },
+    "spy": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_spy.webp"
+    },
+    "light": {
+      "count": "50",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_light.webp"
+    },
+    "marcher": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_marcher.webp"
+    },
+    "heavy": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_heavy.webp"
+    },
+    "ram": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_ram.webp"
+    },
+    "catapult": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_catapult.webp"
+    },
+    "knight": {
+      "count": "0",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_knight.webp"
+    },
+    "snob": {
+      "count": "1",
+      "image_src": "https://dsbr.innogamescdn.com/asset/1bc739f8/graphic/unit/unit_snob.webp"
+    }
+  },
+  "start_comment": "",
+  "carrying_capacity": 5500,
+  "booty": {
+    "wood": "1833",
+    "stone": "1833",
+    "iron": "1834"
+  }
+}
