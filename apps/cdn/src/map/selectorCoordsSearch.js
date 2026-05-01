@@ -2,6 +2,7 @@ const VIEW_ID = 'go-map-collector-view'
 const STYLE_ID = 'go-map-collector-view-style'
 const MARKERS_ID = 'go-map-collector-markers'
 const AREA_HINT_ID = 'go-map-collector-area-hint'
+const COLLECTOR_SAFE_UI_SELECTOR = `#${VIEW_ID}, #go-map-collector-launcher, #go-slot-primary-config, .go-bot-view-config-popover`
 import {
   createBtnCalendar,
   ICON_CALENDAR
@@ -623,7 +624,9 @@ function ensureStyle() {
       padding: 5px;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,.35);
-      background: rgba(20, 20, 20, .90);
+      background:
+        radial-gradient(circle at top left, rgba(80, 250, 123, 0.2), transparent 42%),
+        linear-gradient(180deg, rgba(40, 42, 54, 0.96) 0%, rgba(31, 41, 35, 0.94) 100%);
       box-shadow: 0 4px 12px rgba(0,0,0,.35);
       color: #f3f4f6;
       font-family: Arial, sans-serif;
@@ -797,7 +800,9 @@ function ensureStyle() {
       padding: 6px;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,.22);
-      background: rgba(22,22,22,.96);
+      background:
+        radial-gradient(circle at top left, rgba(80, 250, 123, 0.18), transparent 44%),
+        linear-gradient(180deg, rgba(40, 42, 54, 0.98) 0%, rgba(31, 41, 35, 0.96) 100%);
       box-shadow: 0 10px 26px rgba(0,0,0,.34);
       display: flex;
       flex-direction: column;
@@ -1090,7 +1095,7 @@ function moveAreaHint(event) {
   if (!view || !view.classList.contains('is-open')) return hideAreaHint()
   const mode = view.dataset.mode || state.lastMode || 'area'
   if (mode !== 'area') return hideAreaHint()
-  if (event?.target?.closest?.(`#${VIEW_ID}, #go-map-collector-launcher`)) return hideAreaHint()
+  if (event?.target?.closest?.(COLLECTOR_SAFE_UI_SELECTOR)) return hideAreaHint()
   if (!isEventInsideMap(event)) return hideAreaHint()
 
   const el = getOrCreateAreaHint()
@@ -1627,7 +1632,7 @@ function bindMapClickCollectorOnce() {
     if (event.button !== 0) return
     const view = document.getElementById(VIEW_ID)
     if (!view || !view.classList.contains('is-open')) return
-    if (event.target?.closest?.(`#${VIEW_ID}, #go-map-collector-launcher`)) return
+    if (event.target?.closest?.(COLLECTOR_SAFE_UI_SELECTOR)) return
     if (!isEventInsideMap(event)) return
 
     // Intercepta cedo para o TW não abrir o contexto da vila.
@@ -1684,7 +1689,7 @@ function bindMapClickCollectorOnce() {
   document.addEventListener('click', (event) => {
     const view = document.getElementById(VIEW_ID)
     if (!view || !view.classList.contains('is-open')) return
-    if (event.target?.closest?.(`#${VIEW_ID}, #go-map-collector-launcher`)) return
+    if (event.target?.closest?.(COLLECTOR_SAFE_UI_SELECTOR)) return
     if (!isEventInsideMap(event)) return
     stopAll(event)
   }, true)

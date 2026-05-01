@@ -9,6 +9,7 @@ import { bootMapCollectorLauncherRunning, destroyMapCollectorLauncher } from "./
 import { searchBarbariansView } from "./searchBarbarians/view";
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from '../shared/bot-view-status';
 import { commandMap } from './commandMap';
+import { createBotViewConfigPopover } from '../components/bot-view-config-popover';
 
 const SETTINGS_GEAR_ICON_URL = `chrome-extension://${RELEASE_EXTENSION_ID}/icons/gear.green.svg`
 
@@ -26,8 +27,6 @@ export default async() => {
   const slotPrimary = document.querySelector('#go-extension-bot-view-slot-primary')
   if (!slotPrimary) return
 
-  const destroyMap = { searchBarbarians: null }
-
   const btnConfig = document.createElement('button')
   btnConfig.id = 'go-slot-primary-config'
   btnConfig.type = 'button'
@@ -40,46 +39,42 @@ export default async() => {
   btnConfigImg.width = 16
   btnConfigImg.height = 16
   btnConfig.append(btnConfigImg)
-  
-  const render = async () => {
-    setBotViewExecutionStatus('Configurando')
-    destroyMap.searchBarbarians = searchBarbariansView(searchContext)
-  }
-
-  const destroy = () => {
-    clearBotViewExecutionStatus()
-    if (typeof destroyMap.searchBarbarians === 'function') {
-      destroyMap.searchBarbarians()
-      destroyMap.searchBarbarians = null
-    }
-  }
-
-  const btnConfigOnClick = () => {
-    const mounted = document.querySelector("#go__map_container")
-    if (mounted) {
-      destroy()
-      mounted?.remove()
-      return
-    }
-    render()
-  }
-
-  btnConfig.addEventListener('click', btnConfigOnClick)
-  
-  const removeListner = () => {
-    destroy()
-    btnConfig.removeEventListener('click', btnConfigOnClick)
-    btnConfig.remove()
-  }
 
   slotPrimary.insertAdjacentElement('beforeend', btnConfig)
+
+  const configPopover = createBotViewConfigPopover({
+    btn: btnConfig,
+    sections: [
+      {
+        id: 'map-search-barbarians',
+        label: 'Search Barbarians',
+        mount: (container) => {
+          const view = searchBarbariansView({
+            ...searchContext,
+            mountTarget: container,
+          })
+
+          return typeof view?.destroy === 'function'
+            ? () => view.destroy()
+            : null
+        },
+      },
+    ],
+    onOpen: () => {
+      setBotViewExecutionStatus('Configurando')
+    },
+    onClose: () => {
+      clearBotViewExecutionStatus()
+    },
+  })
 
   const destroyCommandMap = await commandMap();
 
   return {
     destroy: () => {
-      removeListner()
-      document.querySelector("#go__map_container")?.remove?.()
+      clearBotViewExecutionStatus()
+      configPopover?.destroy?.()
+      btnConfig.remove()
       destroyMapCollectorLauncher()
       destroyCommandMap?.()
     }
