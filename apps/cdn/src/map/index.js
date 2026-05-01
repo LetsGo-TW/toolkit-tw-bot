@@ -5,6 +5,7 @@ import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { searchBarbarians } from "./searchBarbarians";
 import { initMapInfoCacheObserver } from "./mapInfoCacheObserver";
 import { bootMapMenuRunning } from "./menu/index.js";
+import { bootMapCollectorLauncherRunning } from "./menu/mapCollectorLauncher.js";
 import { searchBarbariansView } from "./searchBarbarians/view";
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from '../shared/bot-view-status';
 import { commandMap } from './commandMap';
@@ -19,6 +20,7 @@ export default async() => {
   const searchContext = searchBarbarians()
   initMapInfoCacheObserver()
   bootMapMenuRunning()
+  bootMapCollectorLauncherRunning()
 
   if (document.querySelector('#go-slot-primary-config')) return
   const slotPrimary = document.querySelector('#go-extension-bot-view-slot-primary')
