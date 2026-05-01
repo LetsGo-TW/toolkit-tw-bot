@@ -216,6 +216,10 @@
     box-shadow 120ms ease;
 }
 
+#go-extension-bot-view [data-go-bot-view-slot] > button[hidden] {
+  display: none !important;
+}
+
 #go-extension-bot-view [data-go-bot-view-slot] > button > img {
   display: block;
   width: 20px;

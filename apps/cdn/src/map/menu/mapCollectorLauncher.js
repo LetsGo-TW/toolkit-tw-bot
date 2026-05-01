@@ -27,6 +27,19 @@ let mapCollectorLauncherHashListenerBound = false
 let mapCollectorLauncherStateListenerBound = false
 let selectorCoordsSearchModulePromise = null
 
+function getCurrentScreenName() {
+  try {
+    const url = new URL(location.href, origin)
+    return String(url.searchParams.get('screen') || '').trim().toLowerCase()
+  } catch (_) {
+    return ''
+  }
+}
+
+function isCurrentMapScreen() {
+  return getCurrentScreenName() === 'map'
+}
+
 async function loadSelectorCoordsSearch() {
   if (!selectorCoordsSearchModulePromise) {
     selectorCoordsSearchModulePromise = import('../selectorCoordsSearch.js')
@@ -73,6 +86,10 @@ function getMapCollectorSlot() {
   return document.querySelector(MAP_COLLECTOR_SLOT_PRIMARY_SELECTOR)
 }
 
+function removeMapCollectorLauncher() {
+  document.getElementById(MAP_COLLECTOR_LAUNCHER_ID)?.remove?.()
+}
+
 function mountMapCollectorLauncherButton(btn) {
   const slotPrimary = getMapCollectorSlot()
   if (!slotPrimary || !btn) return null
@@ -115,6 +132,11 @@ function createMapCollectorLauncherButton() {
 }
 
 function getOrCreateMapCollectorLauncher() {
+  if (!isCurrentMapScreen()) {
+    removeMapCollectorLauncher()
+    return null
+  }
+
   const existing = document.getElementById(MAP_COLLECTOR_LAUNCHER_ID)
   const btn = existing instanceof HTMLButtonElement
     ? existing
@@ -129,6 +151,10 @@ function getOrCreateMapCollectorLauncher() {
 
 async function openMapCollectorFromLauncher(event) {
   stopAll(event)
+  if (!isCurrentMapScreen()) {
+    removeMapCollectorLauncher()
+    return false
+  }
   try {
     if (window.TWMap?.context?._visible && typeof window.TWMap.context.hide === 'function') {
       window.TWMap.context.hide()
@@ -156,6 +182,11 @@ function isMapCollectorPopupOpen() {
 }
 
 function syncMapCollectorLaunchersState() {
+  if (!isCurrentMapScreen()) {
+    removeMapCollectorLauncher()
+    return
+  }
+
   const btn = getOrCreateMapCollectorLauncher()
   if (!btn) return
 
@@ -174,7 +205,6 @@ function bindMapCollectorLauncherStateListenersOnce() {
   mapCollectorLauncherStateListenerBound = true
 
   const syncState = () => {
-    ensureMapCollectorLauncher()
     syncMapCollectorLaunchersState()
   }
 
@@ -184,9 +214,18 @@ function bindMapCollectorLauncherStateListenersOnce() {
 }
 
 function ensureMapCollectorLauncher() {
+  if (!isCurrentMapScreen()) {
+    removeMapCollectorLauncher()
+    return null
+  }
+
   ensureMapCollectorTooltipOnce()
   bindMapCollectorLauncherStateListenersOnce()
   return getOrCreateMapCollectorLauncher()
+}
+
+export function destroyMapCollectorLauncher() {
+  removeMapCollectorLauncher()
 }
 
 export function bootMapCollectorLauncherRunning() {

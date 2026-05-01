@@ -15,11 +15,25 @@ import './planner-action-buttons.css'
 import { getGameData } from '@toolkit-tw-bot/document'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { extensionId } from '@toolkit-tw-bot/release'
+import { svgToDataUri } from './util'
 
 const SUPPORTED_SCREENS = new Set(['forum', 'memo', 'report', 'mail', 'info_player', 'accountmanager'])
 const SUPPORTED_ALLY_MODES = new Set(['members_defense', 'members_troops', 'reservations'])
 const SUPPORTED_MAIL_MODES = new Set(['', 'in', 'view'])
 const UNSUPPORTED_REPORT_MODES = new Set(['event', 'filter', 'groups'])
+const BOT_VIEW_COLLECTOR_LAUNCHER_ID = 'go-slot-primary-collector'
+const MAP_COLLECTOR_LAUNCHER_ID = 'go-map-collector-launcher'
+const BOT_VIEW_SLOT_PRIMARY_SELECTOR = '#go-extension-bot-view-slot-primary'
+const BOT_VIEW_SLOT_CONFIG_SELECTOR = '#go-slot-primary-config'
+const BOT_VIEW_COLLECTOR_ICON_URL = svgToDataUri(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24">' +
+    '<circle cx="11" cy="11" r="6.8" fill="none" stroke="#dcfce7" stroke-width="3.6"/>' +
+    '<circle cx="11" cy="11" r="6.8" fill="none" stroke="#50fa7b" stroke-width="2.1"/>' +
+    '<circle cx="9.2" cy="9.2" r="1.9" fill="#50fa7b" opacity="0.22"/>' +
+    '<line x1="16.6" y1="16.6" x2="21" y2="21" stroke="#dcfce7" stroke-width="4.2" stroke-linecap="round"/>' +
+    '<line x1="16.6" y1="16.6" x2="21" y2="21" stroke="#50fa7b" stroke-width="2.3" stroke-linecap="round"/>' +
+  '</svg>'
+)
 let unbindCollectorLauncherTooltip = null
 let collectorBasePreviewPopup = null
 let collectorBasePreviewCoordSelector = null
@@ -30,6 +44,13 @@ const collectorPreviewCtx = {
 const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 const collectorPreviewTargetsDraftCore = createTargetsDraftCore()
 let plannerOneToManyModulePromise = null
+let botViewCollectorLauncherBooted = false
+let botViewCollectorLauncherHashListenerBound = false
+let botViewCollectorLauncherStateListenerBound = false
+let botViewCollectorLauncherBodyObserver = null
+let botViewCollectorLauncherContentObserver = null
+let botViewCollectorLauncherObservedContent = null
+let botViewCollectorLauncherSyncFrame = 0
 
 async function loadPlannerOneToMany() {
   if (!plannerOneToManyModulePromise) {
@@ -58,6 +79,10 @@ function getCurrentModeName() {
   } catch (_) {
     return ''
   }
+}
+
+function isMapScreen(screen = '') {
+  return String(screen || '').trim().toLowerCase() === 'map'
 }
 
 function isSupportedScreen(screen, mode = '') {
@@ -166,6 +191,11 @@ function ensureCollectorLauncherTooltipOnce() {
       return renderBotTooltip(value)
     }
   )
+}
+
+function stopLauncherEvent(event) {
+  event?.preventDefault?.()
+  event?.stopPropagation?.()
 }
 
 function getMountAnchor(screen = '') {
@@ -312,8 +342,18 @@ function ensureCollectorBasePreviewBodyHint(popup) {
   }
 }
 
+function getCollectorContentRoot() {
+  return document.querySelector('#content_value')
+}
+
+function hasRenderableCoordsInContentRoot(root) {
+  if (!root?.isConnected) return false
+  const text = String(root.innerText || '')
+  return /\b\d{1,3}\|\d{1,3}\b/.test(text)
+}
+
 function getCollectorSelectionRoot() {
-  return document.querySelector('#content_value') || document.body
+  return getCollectorContentRoot() || document.body
 }
 
 function parseCoordKeyToTarget(coordKey = '') {
@@ -749,6 +789,21 @@ function hasActivePopup() {
   return Boolean(collectorPopup?.classList?.contains?.('is-open'))
 }
 
+function bindCollectorPopupStateSync(popupRoot, onSyncState) {
+  if (!popupRoot || typeof onSyncState !== 'function') return
+
+  let handlers = popupRoot.__goCollectorLauncherStateSyncHandlers
+  if (!(handlers instanceof Set)) {
+    handlers = new Set()
+    popupRoot.__goCollectorLauncherStateSyncHandlers = handlers
+  }
+
+  if (handlers.has(onSyncState)) return
+  handlers.add(onSyncState)
+  popupRoot.addEventListener('go:collector-base:open', onSyncState)
+  popupRoot.addEventListener('go:collector-base:close', onSyncState)
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(value, max))
 }
@@ -771,6 +826,202 @@ function positionPreviewPopupBelowButton(popup, button) {
   popupRoot.style.left = `${clamp(desiredLeft, margin, maxLeft)}px`
   popupRoot.style.top = `${clamp(desiredTop, margin, maxTop)}px`
   popupRoot.style.transform = 'none'
+}
+
+function openCollectorBasePreviewFromButton({
+  event = null,
+  button = null,
+  screen = '',
+  onSyncState = null
+} = {}) {
+  stopLauncherEvent(event)
+  ensureCollectorLauncherTooltipOnce()
+
+  const popup = getOrCreateCollectorBasePreviewPopup({ screen })
+  popup?.setTitle?.('Coletor Master')
+  ensureCollectorBasePreviewPlannerActions(popup)
+
+  const coordSelector = getOrCreateCollectorBasePreviewCoordSelector({ popup, screen })
+  popup?.setCount?.(coordSelector?.getSelectedCount?.() || 0)
+
+  const popupRoot = popup?.root?.()
+  bindCollectorPopupStateSync(popupRoot, onSyncState)
+
+  popup?.open?.()
+  if (button) {
+    positionPreviewPopupBelowButton(popup, button)
+  }
+
+  coordSelector?.start?.()
+  refreshCollectorPreviewPlannerUi()
+  onSyncState?.()
+  return popup
+}
+
+function getBotViewCollectorSlot() {
+  return document.querySelector(BOT_VIEW_SLOT_PRIMARY_SELECTOR)
+}
+
+function removeBotViewCollectorLauncher() {
+  document.getElementById(BOT_VIEW_COLLECTOR_LAUNCHER_ID)?.remove?.()
+}
+
+function removeMapCollectorLauncherIfNotOnMap(screen = getCurrentScreenName()) {
+  if (isMapScreen(screen)) return
+  document.getElementById(MAP_COLLECTOR_LAUNCHER_ID)?.remove?.()
+}
+
+function mountBotViewCollectorLauncherButton(btn) {
+  const slotPrimary = getBotViewCollectorSlot()
+  if (!slotPrimary || !btn) return null
+
+  const configButton = slotPrimary.querySelector(BOT_VIEW_SLOT_CONFIG_SELECTOR)
+  if (configButton?.parentElement === slotPrimary) {
+    if (configButton.nextElementSibling !== btn) {
+      configButton.insertAdjacentElement('afterend', btn)
+    }
+    return btn
+  }
+
+  if (btn.parentElement !== slotPrimary) {
+    slotPrimary.insertAdjacentElement('beforeend', btn)
+  }
+
+  return btn
+}
+
+function isBotViewCollectorLauncherAvailable(screen = getCurrentScreenName()) {
+  if (!screen || isMapScreen(screen)) return false
+
+  const contentRoot = getCollectorContentRoot()
+  if (!contentRoot) return false
+
+  return hasRenderableCoordsInContentRoot(contentRoot)
+}
+
+function syncBotViewCollectorLauncherState() {
+  removeMapCollectorLauncherIfNotOnMap()
+
+  const available = isBotViewCollectorLauncherAvailable()
+  if (!available) {
+    removeBotViewCollectorLauncher()
+    return
+  }
+
+  const btn = getOrCreateBotViewCollectorLauncher()
+  if (!btn) return
+
+  const disabled = hasActivePopup()
+  btn.disabled = disabled
+  btn.setAttribute('aria-disabled', disabled ? 'true' : 'false')
+  btn.setAttribute(
+    'data-go-bot-view-tooltip',
+    disabled ? 'Coletor Master já aberto' : 'Coletor Master'
+  )
+}
+
+function scheduleBotViewCollectorLauncherSync() {
+  if (botViewCollectorLauncherSyncFrame) return
+
+  botViewCollectorLauncherSyncFrame = window.requestAnimationFrame(() => {
+    botViewCollectorLauncherSyncFrame = 0
+    bindBotViewCollectorContentObserver()
+    syncBotViewCollectorLauncherState()
+  })
+}
+
+function bindBotViewCollectorContentObserver() {
+  const nextRoot = getCollectorContentRoot()
+  if (botViewCollectorLauncherObservedContent === nextRoot) return
+
+  botViewCollectorLauncherContentObserver?.disconnect?.()
+  botViewCollectorLauncherContentObserver = null
+  botViewCollectorLauncherObservedContent = nextRoot || null
+
+  if (!nextRoot) return
+
+  botViewCollectorLauncherContentObserver = new MutationObserver(() => {
+    scheduleBotViewCollectorLauncherSync()
+  })
+
+  botViewCollectorLauncherContentObserver.observe(nextRoot, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'hidden']
+  })
+}
+
+function bindBotViewCollectorLauncherObserversOnce() {
+  if (!botViewCollectorLauncherBodyObserver) {
+    botViewCollectorLauncherBodyObserver = new MutationObserver(() => {
+      scheduleBotViewCollectorLauncherSync()
+    })
+
+    botViewCollectorLauncherBodyObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+  }
+
+  bindBotViewCollectorContentObserver()
+}
+
+function openBotViewCollectorFromLauncher(event) {
+  const button = event?.currentTarget instanceof HTMLElement
+    ? event.currentTarget
+    : document.getElementById(BOT_VIEW_COLLECTOR_LAUNCHER_ID)
+
+  if (!button || !isBotViewCollectorLauncherAvailable()) {
+    syncBotViewCollectorLauncherState()
+    return false
+  }
+
+  collectorPreviewCtx.screen = getCurrentScreenName()
+  openCollectorBasePreviewFromButton({
+    event,
+    button,
+    screen: collectorPreviewCtx.screen,
+    onSyncState: syncBotViewCollectorLauncherState
+  })
+
+  return false
+}
+
+function createBotViewCollectorLauncherButton() {
+  const btn = document.createElement('button')
+  btn.id = BOT_VIEW_COLLECTOR_LAUNCHER_ID
+  btn.type = 'button'
+  btn.setAttribute('aria-label', 'Abrir coletor')
+  btn.setAttribute('data-go-bot-view-tooltip', 'Coletor Master')
+
+  const img = document.createElement('img')
+  img.src = BOT_VIEW_COLLECTOR_ICON_URL
+  img.alt = ''
+  img.width = 18
+  img.height = 18
+  btn.append(img)
+
+  btn.addEventListener('pointerdown', stopLauncherEvent, true)
+  btn.addEventListener('mousedown', stopLauncherEvent, true)
+  btn.addEventListener('touchstart', stopLauncherEvent, true)
+  btn.addEventListener('click', openBotViewCollectorFromLauncher, true)
+
+  return btn
+}
+
+function getOrCreateBotViewCollectorLauncher() {
+  const existing = document.getElementById(BOT_VIEW_COLLECTOR_LAUNCHER_ID)
+  const btn = existing instanceof HTMLButtonElement
+    ? existing
+    : createBotViewCollectorLauncherButton()
+
+  if (existing && existing !== btn) {
+    existing.remove()
+  }
+
+  return mountBotViewCollectorLauncherButton(btn)
 }
 
 export function mountCollectorLauncherButtons({
@@ -841,26 +1092,12 @@ export function mountCollectorLauncherButtons({
       clickHandler(event)
       return
     }
-
-    event?.preventDefault?.()
-    event?.stopPropagation?.()
-    const popup = getOrCreateCollectorBasePreviewPopup({ screen })
-    popup?.setTitle?.('Coletor Master')
-    ensureCollectorBasePreviewPlannerActions(popup)
-    const coordSelector = getOrCreateCollectorBasePreviewCoordSelector({ popup, screen })
-    popup?.setCount?.(coordSelector?.getSelectedCount?.() || 0)
-    const popupRoot = popup?.root?.()
-    if (popupRoot && !popupRoot.__goCollectorLauncherStateSyncBound) {
-      const syncFromPopupEvent = () => syncDisabledState()
-      popupRoot.addEventListener('go:collector-base:open', syncFromPopupEvent)
-      popupRoot.addEventListener('go:collector-base:close', syncFromPopupEvent)
-      popupRoot.__goCollectorLauncherStateSyncBound = true
-    }
-    popup?.open?.()
-    positionPreviewPopupBelowButton(popup, btnSearch)
-    coordSelector?.start?.()
-    refreshCollectorPreviewPlannerUi()
-    syncDisabledState()
+    openCollectorBasePreviewFromButton({
+      event,
+      button: btnSearch,
+      screen,
+      onSyncState: syncDisabledState
+    })
   }
 
   btnSearch.removeEventListener?.('click', clickHandler)
@@ -876,6 +1113,39 @@ export function mountCollectorLauncherButtons({
   return () => {
     wrap.remove()
   }
+}
+
+export function bootCollectorLauncherBotViewRunning() {
+  const screen = getCurrentScreenName()
+  removeMapCollectorLauncherIfNotOnMap(screen)
+
+  ensureCollectorLauncherTooltipOnce()
+
+  if (!botViewCollectorLauncherHashListenerBound) {
+    botViewCollectorLauncherHashListenerBound = true
+    window.addEventListener('hashchange', scheduleBotViewCollectorLauncherSync, { passive: true })
+  }
+
+  if (!botViewCollectorLauncherStateListenerBound) {
+    botViewCollectorLauncherStateListenerBound = true
+    document.addEventListener('go:collector-base:open', scheduleBotViewCollectorLauncherSync, true)
+    document.addEventListener('go:collector-base:close', scheduleBotViewCollectorLauncherSync, true)
+    document.addEventListener('go:planner:close', scheduleBotViewCollectorLauncherSync, true)
+  }
+
+  bindBotViewCollectorLauncherObserversOnce()
+
+  if (!screen || isMapScreen(screen)) {
+    removeBotViewCollectorLauncher()
+  }
+
+  if (botViewCollectorLauncherBooted) {
+    scheduleBotViewCollectorLauncherSync()
+    return
+  }
+
+  botViewCollectorLauncherBooted = true
+  scheduleBotViewCollectorLauncherSync()
 }
 
 export default mountCollectorLauncherButtons

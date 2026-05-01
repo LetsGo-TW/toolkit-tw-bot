@@ -64,6 +64,88 @@ function canTokenizeTextNode(node) {
   return true
 }
 
+function isVisibleTextParent(parent) {
+  if (!parent?.isConnected) return false
+
+  const style = window.getComputedStyle(parent)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+    return false
+  }
+
+  return parent.getClientRects().length > 0
+}
+
+function isVisibleCoordToken(token) {
+  if (!token?.isConnected) return false
+
+  const style = window.getComputedStyle(token)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+    return false
+  }
+
+  return token.getClientRects().length > 0
+}
+
+export function findVisibleCoordKeysInRoot(root, { limit = Infinity } = {}) {
+  if (!root || !root.isConnected) return []
+
+  const max = Number.isFinite(Number(limit)) && Number(limit) > 0
+    ? Math.max(1, Math.floor(Number(limit)))
+    : Infinity
+
+  if (typeof root.innerText === 'string') {
+    const renderedCoords = extractCoordKeysFromText(root.innerText)
+    if (renderedCoords.length <= max) return renderedCoords
+    return renderedCoords.slice(0, max)
+  }
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        return canTokenizeTextNode(node)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT
+      }
+    }
+  )
+
+  const result = []
+  const seen = new Set()
+
+  const tokens = root.querySelectorAll(`.${TOKEN_CLASS}[data-go-coord]`)
+  for (const token of tokens) {
+    if (!isVisibleCoordToken(token)) continue
+
+    const coord = parseCoordString(token.dataset.goCoord)
+    if (!coord || seen.has(coord)) continue
+    seen.add(coord)
+    result.push(coord)
+    if (result.length >= max) return result
+  }
+
+  let current = null
+
+  while ((current = walker.nextNode())) {
+    if (!isVisibleTextParent(current.parentElement)) continue
+
+    const coords = extractCoordKeysFromText(current.nodeValue || '')
+    for (const coord of coords) {
+      if (!coord || seen.has(coord)) continue
+      seen.add(coord)
+      result.push(coord)
+      if (result.length >= max) return result
+    }
+  }
+
+  return result
+}
+
+export function hasVisibleCoordsInRoot(root) {
+  return findVisibleCoordKeysInRoot(root, { limit: 1 }).length > 0
+}
+
 function tokenizeCoordsInRoot(root) {
   if (!root || !root.isConnected) return { inserted: 0, totalTokens: 0 }
 

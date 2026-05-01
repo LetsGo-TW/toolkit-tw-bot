@@ -5,7 +5,7 @@ import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { searchBarbarians } from "./searchBarbarians";
 import { initMapInfoCacheObserver } from "./mapInfoCacheObserver";
 import { bootMapMenuRunning } from "./menu/index.js";
-import { bootMapCollectorLauncherRunning } from "./menu/mapCollectorLauncher.js";
+import { bootMapCollectorLauncherRunning, destroyMapCollectorLauncher } from "./menu/mapCollectorLauncher.js";
 import { searchBarbariansView } from "./searchBarbarians/view";
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from '../shared/bot-view-status';
 import { commandMap } from './commandMap';
@@ -69,6 +69,7 @@ export default async() => {
   const removeListner = () => {
     destroy()
     btnConfig.removeEventListener('click', btnConfigOnClick)
+    btnConfig.remove()
   }
 
   slotPrimary.insertAdjacentElement('beforeend', btnConfig)
@@ -76,7 +77,11 @@ export default async() => {
   const destroyCommandMap = await commandMap();
 
   return {
-    destroySearchBarbarians: removeListner,
-    destroyCommandMap
+    destroy: () => {
+      removeListner()
+      document.querySelector("#go__map_container")?.remove?.()
+      destroyMapCollectorLauncher()
+      destroyCommandMap?.()
+    }
   }
 }

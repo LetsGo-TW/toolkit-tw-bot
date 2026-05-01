@@ -5,6 +5,7 @@ import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
 import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
+import { bootGameCollectorLauncherRunning } from "./collector-launcher"
 import { bootGameCtxMenuRunning } from "./ctx-menu"
 import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
@@ -1174,6 +1175,7 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
+void bootGameCollectorLauncherRunning()
 void bootGameCtxMenuRunning()
 void game()
 
