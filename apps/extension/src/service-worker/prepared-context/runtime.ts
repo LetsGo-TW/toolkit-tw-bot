@@ -162,7 +162,11 @@ export async function syncSupportCtx(
       } else if (!isBotProtected && tabContext?.scopeKey) {
         // Sempre tenta limpar quando botProtect=false
         const scopeState = getRunnerControllerScopeState(tabContext.scopeKey)
-        if (scopeState?.botProtectActive === true || scopeState?.current?.machine === 'solver') {
+        if (
+          scopeState?.botProtectActive === true
+          || scopeState?.current?.machine === 'solver'
+          || scopeState?.pending?.machine === 'solver'
+        ) {
           await dispatchControllerForScope(tabContext.scopeKey, {
             reason: 'bot-protect-cleared:support-sync',
             source: SUPPORT_SYNC_CTX_MESSAGE_TYPE,

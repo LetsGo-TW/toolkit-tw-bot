@@ -365,6 +365,15 @@ function createFallbackInstruction(
   }
 }
 
+function isBotProtectInstruction(instruction: ControllerRunInstruction | null) {
+  if (!instruction) {
+    return false
+  }
+
+  return instruction.kind === EXECUTION_KINDS.BOT_PROTECT
+    || instruction.machine === 'solver'
+}
+
 function applyBotProtectObservation(
   scopeState: ScopeRuntimeState,
   {
@@ -385,6 +394,39 @@ function applyBotProtectObservation(
   if (clearBotProtect) {
     scopeState.botProtectActive = false
     scopeState.botProtectClearedAt = Date.now()
+  }
+}
+
+async function clearBotProtectInstructions(
+  scopeState: ScopeRuntimeState,
+  {
+    reason = 'bot-protect-cleared',
+    source = 'controller-dispatch',
+  }: {
+    reason?: string
+    source?: string
+  } = {},
+) {
+  if (isBotProtectInstruction(scopeState.current)) {
+    await postRunnerControllerCommand(scopeState, {
+      action: 'stop',
+      reason,
+      source,
+      dispatchId: createDispatchId(scopeState.scopeKey),
+    })
+  }
+
+  if (isBotProtectInstruction(scopeState.current)) {
+    scopeState.current = null
+  }
+
+  if (isBotProtectInstruction(scopeState.pending)) {
+    scopeState.pending = null
+  }
+
+  if (!scopeState.current) {
+    scopeState.status = 'idle'
+    scopeState.pauseRequested = false
   }
 }
 
@@ -640,6 +682,13 @@ async function dispatchControllerForScopeInternal(
     isBotProtected,
     clearBotProtect,
   })
+
+  if (clearBotProtect && scopeState.botProtectActive !== true) {
+    await clearBotProtectInstructions(scopeState, {
+      reason,
+      source,
+    })
+  }
 
   const hasBotProtect = scopeState.botProtectActive
   const dueInstruction = hasBotProtect
@@ -981,6 +1030,35 @@ export async function resolveGameStageInstruction({
       senderTabId,
       senderWindowId,
     })
+
+    const hasStaleBotProtectState = (
+      scopeState.botProtectActive === true
+      || isBotProtectInstruction(scopeState.current)
+      || isBotProtectInstruction(scopeState.pending)
+    )
+
+    if (isBotProtected === true) {
+      return await dispatchControllerForScopeInternal(scopeState, {
+        allowFallback: true,
+        executeNow: false,
+        reason: 'bot-protect-active:game-stage',
+        source: 'game-stage',
+        screen,
+        isBotProtected: true,
+      })
+    }
+
+    if (isBotProtected === false && hasStaleBotProtectState) {
+      return await dispatchControllerForScopeInternal(scopeState, {
+        allowFallback: true,
+        executeNow: false,
+        reason: 'bot-protect-cleared:game-stage',
+        source: 'game-stage',
+        clearBotProtect: true,
+        screen,
+        isBotProtected: false,
+      })
+    }
 
     if (scopeState.pending) {
       return scopeState.pending
