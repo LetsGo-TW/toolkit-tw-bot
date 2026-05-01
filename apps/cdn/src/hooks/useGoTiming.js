@@ -43,6 +43,33 @@ function createGoTimingHub() {
     });
   }
 
+  function normalizeTimingSnapshot(detail = null) {
+    if (!detail || typeof detail !== "object") return detail;
+
+    const clientNowMsRaw = Number(detail.clientNowMs);
+    const sampledAtMsRaw = Number(detail.sampledAtMs);
+
+    return {
+      ...detail,
+      clientNowMs: Number.isFinite(clientNowMsRaw) && clientNowMsRaw > 0 ? clientNowMsRaw : Date.now(),
+      sampledAtMs: Number.isFinite(sampledAtMsRaw) && sampledAtMsRaw > 0
+        ? sampledAtMsRaw
+        : (Number.isFinite(clientNowMsRaw) && clientNowMsRaw > 0 ? clientNowMsRaw : Date.now())
+    };
+  }
+
+  function projectServerNowMs(snapshot, { includeLatencyHalf = false } = {}) {
+    const base = snapshot && typeof snapshot === "object" ? snapshot : null;
+    const offsetMs = Number(base?.offsetMs);
+    if (!Number.isFinite(offsetMs)) return null;
+
+    const latencyMs = Number(base?.latencyMs);
+    const latencyHalf = includeLatencyHalf && Number.isFinite(latencyMs) ? latencyMs / 2 : 0;
+    const nowMs = Date.now() + offsetMs + latencyHalf;
+
+    return Number.isFinite(nowMs) && nowMs > 0 ? nowMs : null;
+  }
+
   function createFallbackSnapshot(reason = "dom-fallback") {
     const serverNowMs = parseServerNowFromDom();
     if (!Number.isFinite(serverNowMs)) return null;
@@ -53,7 +80,8 @@ function createGoTimingHub() {
       latencyMs: 0,
       source: "fallback",
       reason,
-      sampledAtMs: now
+      sampledAtMs: now,
+      clientNowMs: now
     };
   }
 
@@ -68,14 +96,14 @@ function createGoTimingHub() {
   }
 
   function onTimingEvent(e) {
-    last = e.detail;
+    last = normalizeTimingSnapshot(e.detail);
     ready = true;
     notifySubscribers(last);
   }
 
   function onReadyEvent(e) {
     // garante ready mesmo se alguém só ouvir ready
-    last = last || e.detail;
+    last = last || normalizeTimingSnapshot(e.detail);
     ready = true;
   }
 
@@ -124,7 +152,7 @@ function createGoTimingHub() {
         }, timeoutMs);
 
         const handler = (e) => {
-          last = e.detail;
+          last = normalizeTimingSnapshot(e.detail);
           ready = true;
           cleanup();
           resolve(last);
@@ -152,12 +180,13 @@ function createGoTimingHub() {
 
     getServerNowMs() {
       assertReady();
-      return last.serverNowMs;
+      return projectServerNowMs(last) ?? last.serverNowMs;
     },
 
     getEffectiveServerNowMs() {
       assertReady();
-      return last.serverNowMs + (last.latencyMs || 0) / 2;
+      return projectServerNowMs(last, { includeLatencyHalf: true })
+        ?? (last.serverNowMs + (last.latencyMs || 0) / 2);
     },
 
     getOffsetMs() {

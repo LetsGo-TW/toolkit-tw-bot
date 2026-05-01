@@ -15,6 +15,7 @@ import {
   calcUnitDateTimeSend
 } from './utils'
 import { dataUnits } from '../..'
+import { getPlannerProductionVillageByIdMap } from '../../production-snapshot'
 import { getWorldUnitIndexByName, getWorldUnitsOrder } from '../../../unit'
 import {
   readyTableSenderFilterStorage,
@@ -171,9 +172,7 @@ function buildSenderMetaContexts({
   nightBonusConfig = null,
   minSpyCommandConfig = null
 }) {
-  const gameData = getGameData()
-  const production = JSON.parse(localStorage.getItem(`_ds_v_data_${gameData.player.id}`)) || []
-  const villageById = new Map(production.map(village => [village.id, village]))
+  const villageById = getPlannerProductionVillageByIdMap()
   const worldUnitsOrder = getWorldUnitsOrder()
   const unitIndexByName = getWorldUnitIndexByName()
   const dateTimeContext = senderDateTimeContext({

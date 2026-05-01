@@ -2,7 +2,7 @@ import { getGameData } from "@toolkit-tw-bot/document";
 
 const gameData = getGameData();
 
-const STORAGE_KEY = `__plan:e:logs:${gameData.player.id}`
+const STORAGE_KEY = `__plan:e:logs:${gameData.world}:${gameData.player.id}`
 const MAX_LOGS_DEFAULT = 500
 
 function safeReadLogs() {
@@ -65,4 +65,3 @@ export function getExecutionLogs() {
 export function clearExecutionLogs() {
   safeWriteLogs([])
 }
-

@@ -2,6 +2,7 @@ import { useGoTiming } from "../hooks/useGoTiming"
 import { nDateTime } from "../stable-compat/date-parse"
 import { dateServer, timeServer } from "../stable-compat/date-tw"
 import { dbGet, dbSet } from "./db"
+import { gameData } from "./context"
 
 const TABLE_PRODUCTION_DEFAULT_SEASON_SECONDS = 60
 const TABLE_PRODUCTION_CACHE_ENTRIES_KEY = "table-production:entries"
@@ -32,9 +33,20 @@ const normalizeCacheTtlMs = (seasonSeconds = null) => {
 
 const normalizeCacheKey = (key = "") => String(key || "").trim()
 
+const getTableProductionCacheScopeKey = () => {
+  const world = String(gameData?.world || "").trim()
+  const playerId = Number(gameData?.player?.id || 0)
+
+  if (!world || !Number.isFinite(playerId) || playerId <= 0) {
+    return "global:0"
+  }
+
+  return `${world}:${playerId}`
+}
+
 const buildTableProductionCacheKey = ({ premium = true, groupId = 0 } = {}) => {
   const mode = premium ? "p" : "np"
-  return `${mode}:${Number(groupId || 0)}`
+  return `${getTableProductionCacheScopeKey()}:${mode}:${Number(groupId || 0)}`
 }
 
 const normalizeCacheEntries = (cache = null) => {

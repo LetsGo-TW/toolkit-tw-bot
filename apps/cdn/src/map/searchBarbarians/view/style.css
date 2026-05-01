@@ -1,0 +1,48 @@
+section.go-search-barbarians {
+  border: solid 0.01rem #603000;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+
+  h4 {
+    color: #603000;
+    margin: 0;
+  }
+}
+
+button#go__start_search,
+button#go__stop_search,
+button#go__finish_search {
+  display: none;
+  padding: 5px 10px;
+}
+
+button#go__start_search.show {
+  display: block;
+}
+
+button#go__stop_search.show {
+  display: block;
+}
+
+button#go__finish_search.show {
+  display: block;
+}
+
+.go-search-barbarians-title {
+  width: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.go-search-barbarians-buttons {
+  display: flex;
+}
+
+.go-search-barbarians-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

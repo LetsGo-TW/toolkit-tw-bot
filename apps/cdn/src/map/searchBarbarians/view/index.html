@@ -1,0 +1,37 @@
+<section class="go-search-barbarians">
+  <div class="go-search-barbarians-title">
+    <h4>Search Barbarians</h4>
+  </div>
+  <div class="go-search-barbarians-content">
+    <div class="go-search-barbarians-resize">
+      <label for="go__map_chooser_select">Resize Map:</label>
+      <select id="go__map_chooser_select" onchange="TWMap.resize(parseInt($('#go__map_chooser_select').val()), true)">
+        <option value="4">4x4</option>
+        <option value="5">5x5</option>
+        <option value="7">7x7</option>
+        <option value="9">9x9</option>
+        <option value="11">11x11</option>
+        <option value="13">13x13</option>
+        <option value="15">15x15</option>
+        <option value="20">20x20</option>
+        <option value="30">30x30</option>
+        <option value="40">40x40</option>
+        <option value="50">50x50</option>
+        <option value="60">60x60</option>
+        <option value="70">70x70</option>
+        <option value="80">80x80</option>
+        <option value="100">100x100</option>
+        <option value="120">120x120</option>
+        <option value="140">140x140</option>
+        <option value="160">160x160</option>
+        <option value="180">180x180</option>
+        <option value="200">200x200</option>
+      </select>
+    </div>
+    <div class="go-search-barbarians-buttons">
+      <button id="go__start_search" class="btn show" type="button">Start Search</button>
+      <button id="go__stop_search" class="btn" type="button">Stop Search</button>
+      <button id="go__finish_search" class="btn" type="button">Finish Search</button>
+    </div>
+  </div>
+</section>

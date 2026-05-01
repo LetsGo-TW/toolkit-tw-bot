@@ -162,6 +162,14 @@ export default class Running {
     })
   }
 
+  togglePause(script = this.name, payload = {}) {
+    if (this.is_paused(script)) {
+      this.resume(script, payload)
+    } else if (this.is_running(script)) {
+      this.pause(script, payload)
+    }
+  }
+
   resume(script = this.name, payload = {}) {
     this.setState(script, {
       ...payload,

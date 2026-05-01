@@ -25,7 +25,10 @@ import {
   writePlannerLastReport as writePlannerLastReportStorage,
   startPlannerPendingSendSession
 } from '../recovery';
-import { refreshPlannerProductionSnapshot } from '../production-snapshot';
+import {
+  getPlannerProductionVillageByIdMap,
+  refreshPlannerProductionSnapshot
+} from '../production-snapshot';
 import { getGameData, ProtectingBot } from '@toolkit-tw-bot/document';
 import { printMessage } from '../../components/printMessage';
 import { consoleDev } from '@toolkit-tw-bot/utils';
@@ -111,7 +114,7 @@ const gameData = getGameData();
 // Flag de debug local para testes do guard sem bridge de vilas.
 const DEBUG_DISABLE_TARGETS_VILLAGES_BRIDGE = false
 
-const SEND_CONFLICT_TROOPS_STORAGE_KEY = `__plan:send:conflict:troops:mode:${gameData?.player?.id}}`
+const SEND_CONFLICT_TROOPS_STORAGE_KEY = `__plan:send:conflict:troops:mode:${gameData?.world}:${gameData?.player?.id}`
 const PLANNER_TARGETS_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const plannerTargetsDraftCore = createTargetsDraftCore({
   ttlMs: PLANNER_TARGETS_DRAFT_TTL_MS
@@ -4115,14 +4118,7 @@ function parseSenderVillageInfoText(rawText = '') {
 function getSenderVillageByIdMap() {
   if (senderVillageByIdCache instanceof Map) return senderVillageByIdCache
   try {
-    const gameData = getGameData()
-    const key = `_ds_v_data_${gameData.player.id}`
-    const production = JSON.parse(localStorage.getItem(key)) || []
-    senderVillageByIdCache = new Map(
-      production
-        .filter((village) => Number.isFinite(Number(village?.id)))
-        .map((village) => [Number(village.id), village])
-    )
+    senderVillageByIdCache = getPlannerProductionVillageByIdMap()
   } catch (error) {
     senderVillageByIdCache = new Map()
   }

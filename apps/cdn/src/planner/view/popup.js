@@ -1,6 +1,9 @@
 import plannerTextHtml from './index.html'
-import { printMessage } from '../../components/printMessage'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
+import { printMessage } from '../../components/printMessage'
+import { extensionId } from '@toolkit-tw-bot/release';
+
+const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 
 function bindEsc(callback, cancelEvents) {
   const onKeyPress = (event) => {
@@ -79,7 +82,7 @@ export async function showPopUpPlanner(data, deps = {}) {
 
     document.querySelector('#ds_body').insertAdjacentHTML('beforeend', plannerTextHtml)
     setPlannerPopupLoading(true)
-    const safeGoLogoUrl = resolveSafeIconUrl(window?.ICON_48_URL)
+    const safeGoLogoUrl = resolveSafeIconUrl(DEFAULT_BOT_ICON_URL)
     if (safeGoLogoUrl) {
       document.querySelector('#go-logo').src = safeGoLogoUrl
     }
@@ -211,6 +214,7 @@ export async function showPopUpPlanner(data, deps = {}) {
       `
       updateTargetReservationLock(plannerTargetNode, targetReservation)
     }
+
     const applyMapInfoToTarget = (mapInfo) => {
       if (!mapInfo || typeof mapInfo !== 'object') return false
       hasTargetMapInfoLoaded = true
@@ -239,9 +243,11 @@ export async function showPopUpPlanner(data, deps = {}) {
     if (applyMapInfoToTarget(cachedMapInfoOnLoad)) {
       updateVillageInfo()
     }
+
     const rerenderPlannerTable = () => {
       renderPlannerSendersTable({ preserveSelection: true })
     }
+
     const ensureTargetMapInfoForNightBonus = async () => {
       const worldMode = getNightActiveModeFromWorldConfig()
       if (isTargetMapInfoLoading || hasTargetMapInfoLoaded) return
@@ -268,6 +274,7 @@ export async function showPopUpPlanner(data, deps = {}) {
         isTargetMapInfoLoading = false
       }
     }
+
     const updatePlayerNightBonusConfig = () => {
       if (!isSeedPreviewActive()) return
       const nextTargetNightBonusConfig = resolveTargetNightBonusConfigFromStateOrCache({
@@ -291,6 +298,7 @@ export async function showPopUpPlanner(data, deps = {}) {
       updateVillageInfo()
       rerenderPlannerTable()
     }
+
     const updateWorldConfig = (payload) => {
       const nextSpeed = Number(payload?.config?.speed)
       const nextUnitSpeed = Number(payload?.config?.unit_speed)
