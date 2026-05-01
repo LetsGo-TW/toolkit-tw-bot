@@ -3,9 +3,9 @@ import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
-import { bootCtxMenuRunning } from "../common/ctx-menu"
 import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
+import { bootGameCtxMenuRunning } from "./ctx-menu"
 import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
 const CDN = 'GAME.STAGE'
@@ -1174,7 +1174,7 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
-bootCtxMenuRunning()
+void bootGameCtxMenuRunning()
 void game()
 
 export {}
