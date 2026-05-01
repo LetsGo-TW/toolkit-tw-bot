@@ -907,7 +907,13 @@ function ensureStyle() {
 function setLauncherVisible(visible) {
   const launcher = document.getElementById('go-map-collector-launcher')
   if (!launcher) return
-  launcher.style.display = visible ? 'block' : 'none'
+  launcher.hidden = false
+  launcher.disabled = !visible
+  launcher.setAttribute('aria-disabled', visible ? 'false' : 'true')
+  launcher.setAttribute(
+    'data-go-bot-view-tooltip',
+    visible ? 'Coletor Master' : 'Coletor Master já aberto'
+  )
 }
 
 function isElementVisibleRect(el) {

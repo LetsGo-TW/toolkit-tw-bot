@@ -3,9 +3,10 @@ import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
+import { bootCtxMenuRunning } from "../common/ctx-menu"
 import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
-import { installCtxRuntime, PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
+import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
@@ -1173,9 +1174,7 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
-installCtxRuntime({
-  getBotView: getInjectedBotViewElements,
-})
+bootCtxMenuRunning()
 void game()
 
 export {}

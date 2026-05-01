@@ -224,8 +224,27 @@
   filter: drop-shadow(0 0 6px rgba(80, 250, 123, 0.14));
 }
 
+#go-extension-bot-view [data-go-bot-view-slot] > button:disabled,
+#go-extension-bot-view [data-go-bot-view-slot] > button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.54;
+  border-color: rgba(148, 163, 184, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(148, 163, 184, 0.10), transparent 44%),
+    linear-gradient(180deg, rgba(28, 34, 32, 0.82) 0%, rgba(18, 23, 21, 0.88) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 1px 4px rgba(0, 0, 0, 0.14);
+  transform: none;
+}
+
+#go-extension-bot-view [data-go-bot-view-slot] > button:disabled > img,
+#go-extension-bot-view [data-go-bot-view-slot] > button[aria-disabled="true"] > img {
+  filter: grayscale(0.12) saturate(0.7) drop-shadow(0 0 3px rgba(80, 250, 123, 0.08));
+}
+
 #go-extension-bot-view [data-go-bot-view-trigger]:hover,
-#go-extension-bot-view [data-go-bot-view-slot] > button:hover {
+#go-extension-bot-view [data-go-bot-view-slot] > button:not(:disabled):hover {
   transform: translateY(-1px);
   border-color: rgba(80, 250, 123, 0.42);
   background:
@@ -236,7 +255,7 @@
     0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-#go-extension-bot-view [data-go-bot-view-slot] > button:hover {
+#go-extension-bot-view [data-go-bot-view-slot] > button:not(:disabled):hover {
   background:
     radial-gradient(circle at top left, rgba(80, 250, 123, 0.28), transparent 42%),
     linear-gradient(180deg, rgba(31, 47, 37, 0.92) 0%, rgba(18, 28, 22, 0.94) 100%);
