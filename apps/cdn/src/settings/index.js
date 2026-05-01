@@ -24,8 +24,8 @@ export default async() => {
   const btnConfig = document.createElement('button')
   btnConfig.id = 'go-slot-primary-config'
   btnConfig.type = 'button'
-  btnConfig.setAttribute('aria-label', 'Inserir configuraões desta página.')
-  btnConfig.setAttribute('data-go-bot-view-tooltip', 'Inserir configuraões desta página.')
+  btnConfig.setAttribute('aria-label', 'Mostrar/ocultar configurações.')
+  btnConfig.setAttribute('data-go-bot-view-tooltip', 'Mostrar/ocultar configurações.')
 
   const btnConfigImg = document.createElement('img')
   btnConfigImg.src = SETTINGS_GEAR_ICON_URL
