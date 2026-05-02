@@ -21,7 +21,10 @@ function normalizeSafeIconUrl(value = '') {
 
 export function createTargetsDraftButton(container, {
   onAction = () => {},
-  variant = 'chip'
+  variant = 'chip',
+  menuPortalTarget = null,
+  menuClassName = '',
+  menuZIndex = ''
 } = {}) {
   if (!container) return null
 
@@ -29,6 +32,44 @@ export function createTargetsDraftButton(container, {
   let chipEl = null
   let menuEl = null
   let isOpen = false
+  let menuPortalFrame = 0
+  const portalTarget = menuPortalTarget instanceof HTMLElement ? menuPortalTarget : null
+  const menuPortalClasses = String(menuClassName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const parsedMenuZIndex = Number(menuZIndex)
+  const resolvedMenuZIndex = Number.isFinite(parsedMenuZIndex) ? parsedMenuZIndex : 1000005
+
+  const isPortalMenu = () => Boolean(portalTarget instanceof HTMLElement)
+
+  const cancelPortalReposition = () => {
+    if (!menuPortalFrame) return
+    window.cancelAnimationFrame(menuPortalFrame)
+    menuPortalFrame = 0
+  }
+
+  const queuePortalReposition = () => {
+    if (!isPortalMenu() || !isOpen) return
+    if (menuPortalFrame) return
+    menuPortalFrame = window.requestAnimationFrame(() => {
+      menuPortalFrame = 0
+      positionMenuWithinViewport()
+    })
+  }
+
+  const bindPortalViewportListeners = () => {
+    if (!isPortalMenu()) return
+    window.addEventListener('resize', queuePortalReposition, true)
+    window.addEventListener('scroll', queuePortalReposition, true)
+  }
+
+  const unbindPortalViewportListeners = () => {
+    if (!isPortalMenu()) return
+    window.removeEventListener('resize', queuePortalReposition, true)
+    window.removeEventListener('scroll', queuePortalReposition, true)
+    cancelPortalReposition()
+  }
 
   const positionMenuWithinViewport = () => {
     if (!root || !menuEl || menuEl.hidden) return
@@ -39,6 +80,7 @@ export function createTargetsDraftButton(container, {
     const viewportMaxWidth = Math.max(140, viewportWidth - margin * 2)
     const viewportMaxHeight = Math.max(80, viewportHeight - margin * 2)
     const rootRect = root.getBoundingClientRect()
+    const anchorRect = chipEl?.getBoundingClientRect?.() || rootRect
 
     menuEl.classList.remove('is-open-upward')
     menuEl.style.left = ''
@@ -49,6 +91,45 @@ export function createTargetsDraftButton(container, {
     menuEl.style.maxHeight = `${viewportMaxHeight}px`
 
     const menuRect = menuEl.getBoundingClientRect()
+
+    if (isPortalMenu()) {
+      let nextLeft = anchorRect.right - menuRect.width
+      let nextTop = anchorRect.bottom + 4
+      let shouldOpenUpward = false
+
+      if (nextLeft < margin) {
+        nextLeft = margin
+      }
+      if (nextLeft + menuRect.width > viewportWidth - margin) {
+        nextLeft = Math.max(margin, viewportWidth - margin - menuRect.width)
+      }
+
+      if (nextTop + menuRect.height > viewportHeight - margin) {
+        const spaceAbove = anchorRect.top - margin
+        const spaceBelow = viewportHeight - anchorRect.bottom - margin
+        if (spaceAbove > spaceBelow) {
+          shouldOpenUpward = true
+          nextTop = anchorRect.top - menuRect.height - 4
+        }
+      }
+
+      if (nextTop < margin) {
+        nextTop = margin
+      }
+      if (nextTop + menuRect.height > viewportHeight - margin) {
+        nextTop = Math.max(margin, viewportHeight - margin - menuRect.height)
+      }
+
+      if (shouldOpenUpward) {
+        menuEl.classList.add('is-open-upward')
+      }
+      menuEl.style.left = `${Math.round(nextLeft)}px`
+      menuEl.style.top = `${Math.round(nextTop)}px`
+      menuEl.style.right = 'auto'
+      menuEl.style.bottom = 'auto'
+      return
+    }
+
     let nextLeft = rootRect.width - menuRect.width
     let shouldOpenUpward = false
 
@@ -77,6 +158,7 @@ export function createTargetsDraftButton(container, {
 
   const closeMenu = () => {
     isOpen = false
+    unbindPortalViewportListeners()
     if (!root) return
     root.classList.remove('is-open')
     if (menuEl) menuEl.hidden = true
@@ -87,7 +169,9 @@ export function createTargetsDraftButton(container, {
     if (!root) return
     root.classList.add('is-open')
     if (menuEl) {
+      if (isPortalMenu()) portalTarget.append(menuEl)
       menuEl.hidden = false
+      bindPortalViewportListeners()
       requestAnimationFrame(positionMenuWithinViewport)
     }
   }
@@ -111,6 +195,13 @@ export function createTargetsDraftButton(container, {
     `
     chipEl = root.querySelector('[data-planner-targets-draft-toggle]')
     menuEl = root.querySelector('[data-planner-targets-draft-menu]')
+    if (menuEl && isPortalMenu()) {
+      menuEl.classList.add('is-portal')
+      menuPortalClasses.forEach((className) => menuEl.classList.add(className))
+      menuEl.style.position = 'fixed'
+      menuEl.style.zIndex = String(resolvedMenuZIndex)
+      portalTarget.append(menuEl)
+    }
     chipEl?.addEventListener('click', (event) => {
       event.preventDefault()
       event.stopPropagation()
@@ -133,14 +224,35 @@ export function createTargetsDraftButton(container, {
       if (result === false) return
       closeMenu()
     })
+    document.addEventListener('pointerdown', onDocumentPointerDown, true)
     document.addEventListener('click', onDocumentClick, true)
+    document.addEventListener('focusin', onDocumentFocusIn, true)
     container.insertAdjacentElement('beforeend', root)
     return root
   }
 
+  const shouldIgnoreOutsideClose = (event) => {
+    if (!root?.isConnected) return true
+    const targetNode = event.target
+    if (targetNode instanceof Node) {
+      if (root.contains(targetNode)) return true
+      if (menuEl?.contains?.(targetNode)) return true
+    }
+    return false
+  }
+
+  const onDocumentPointerDown = (event) => {
+    if (shouldIgnoreOutsideClose(event)) return
+    closeMenu()
+  }
+
   const onDocumentClick = (event) => {
-    if (!root?.isConnected) return
-    if (event.target?.closest?.('[data-planner-targets-draft]')) return
+    if (shouldIgnoreOutsideClose(event)) return
+    closeMenu()
+  }
+
+  const onDocumentFocusIn = (event) => {
+    if (shouldIgnoreOutsideClose(event)) return
     closeMenu()
   }
 
@@ -259,7 +371,11 @@ export function createTargetsDraftButton(container, {
   }
 
   const destroy = () => {
+    document.removeEventListener('pointerdown', onDocumentPointerDown, true)
     document.removeEventListener('click', onDocumentClick, true)
+    document.removeEventListener('focusin', onDocumentFocusIn, true)
+    unbindPortalViewportListeners()
+    menuEl?.remove?.()
     root?.remove()
     root = null
     chipEl = null

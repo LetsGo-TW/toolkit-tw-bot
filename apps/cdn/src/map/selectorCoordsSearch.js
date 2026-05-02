@@ -4,15 +4,16 @@ const MARKERS_ID = 'go-map-collector-markers'
 const AREA_HINT_ID = 'go-map-collector-area-hint'
 const COLLECTOR_SAFE_UI_SELECTOR = `#${VIEW_ID}, #go-map-collector-launcher, #go-slot-config, .go-bot-view-config-popover`
 import {
-  createBtnCalendar,
-  ICON_CALENDAR
+  createBtnCalendar
 } from '../components/go-buttons/calendar'
 import {
-  createBtnCrossedSwords,
-  ICON_CROSSED_SWORDS_CENTERED
+  createBtnCrossedSwords
 } from '../components/go-buttons/crossed-swords'
 import { svgToDataUri } from '../components/go-buttons/util'
 import {
+  ICON_PLANNER_CALENDAR_EMERALD,
+  ICON_PLANNER_DRAFT_LIST_EMERALD,
+  ICON_PLANNER_SWORDS_EMERALD,
   mountPlannerDraftListButton,
   openPlannerFromNamedDraft,
   saveLastDraftAsNamed
@@ -44,6 +45,13 @@ const ICON_MODE_AREA = svgToDataUri(
   '</svg>'
 )
 
+function setButtonIconSrc(button, iconUri = '') {
+  if (!(button instanceof HTMLButtonElement) || !iconUri) return
+  const img = button.querySelector('img')
+  if (!(img instanceof HTMLImageElement)) return
+  img.src = iconUri
+}
+
 const state = {
   selectedCoords: new Map(),
   areaStartCoord: null,
@@ -69,6 +77,7 @@ const state = {
   overwriteDraftMenuMode: null
 }
 let plannerOneToManyModulePromise = null
+let collectorDraftCoreReadyPromise = null
 
 async function loadPlannerOneToMany() {
   if (!plannerOneToManyModulePromise) {
@@ -82,6 +91,27 @@ async function loadPlannerOneToMany() {
 }
 
 const targetsDraftCore = createTargetsDraftCore()
+
+function ensureCollectorDraftCoreReady() {
+  if (!collectorDraftCoreReadyPromise) {
+    collectorDraftCoreReadyPromise = Promise.resolve(targetsDraftCore.ready?.())
+      .catch((error) => {
+        console.debug('[planner:collector:draft:ready]', error)
+        return null
+      })
+  }
+  return collectorDraftCoreReadyPromise
+}
+
+function refreshCollectorDraftUiAfterReady(view = null) {
+  const currentView = (view instanceof HTMLElement && view.isConnected)
+    ? view
+    : document.getElementById(VIEW_ID)
+  if (!(currentView instanceof HTMLElement)) return
+  syncCollectorTargetsDraftButton(currentView)
+  state.collectorPopup?.refreshLayout?.()
+  positionSelectorView(currentView)
+}
 
 function getCollectorSavedDraftPayload() {
   const draft = targetsDraftCore.readDraft?.()
@@ -249,7 +279,10 @@ function ensureCollectorTargetsDraftButton(view) {
   const container = view.querySelector('[data-go-buttons]')
   if (!container) return null
   ensureCollectorTargetsDraftListButton(view)
-  if (state.targetsDraftButton?.root?.()?.isConnected) return state.targetsDraftButton
+  if (state.targetsDraftButton?.root?.()?.isConnected) {
+    state.targetsDraftButton.root()?.classList?.add?.('go-collector-planner-draft')
+    return state.targetsDraftButton
+  }
   state.targetsDraftButton = createTargetsDraftButton(container, {
     variant: 'icon-button',
     onAction: (action, details = {}) => {
@@ -285,7 +318,10 @@ function ensureCollectorTargetsDraftListButton(view) {
   if (!view) return null
   const container = view.querySelector('[data-go-buttons]')
   if (!container) return null
-  if (state.targetsDraftListButton?.root?.()?.isConnected) return state.targetsDraftListButton
+  if (state.targetsDraftListButton?.root?.()?.isConnected) {
+    state.targetsDraftListButton.root()?.classList?.add?.('go-collector-planner-draft')
+    return state.targetsDraftListButton
+  }
   state.targetsDraftListButton = mountPlannerDraftListButton(container, {
     visibleInContext: true,
     onOpen: ({ draftId }) => {
@@ -301,8 +337,10 @@ function ensureCollectorTargetsDraftListButton(view) {
     onChange: () => {
       syncCollectorTargetsDraftButton(view)
     },
-    getTooltipLabel: ({ entries }) => `Drafts salvos (${entries.length})`
+    getTooltipLabel: ({ entries }) => `Drafts salvos (${entries.length})`,
+    buttonIconUri: ICON_PLANNER_DRAFT_LIST_EMERALD
   })
+  state.targetsDraftListButton?.root?.()?.classList?.add?.('go-collector-planner-draft')
   return state.targetsDraftListButton
 }
 
@@ -335,8 +373,8 @@ function syncCollectorTargetsDraftButton(view) {
     brandTooltip: true,
     pending: pending > 0,
     iconMode: mode,
-    iconUri: mode === 'schedule' ? ICON_CALENDAR : ICON_CROSSED_SWORDS_CENTERED,
-    iconFallbackUri: ICON_CROSSED_SWORDS_CENTERED || ICON_CALENDAR || '',
+    iconUri: mode === 'schedule' ? ICON_PLANNER_CALENDAR_EMERALD : ICON_PLANNER_SWORDS_EMERALD,
+    iconFallbackUri: mode === 'schedule' ? ICON_PLANNER_CALENDAR_EMERALD : ICON_PLANNER_SWORDS_EMERALD,
     iconAlt: mode === 'schedule' ? 'Rascunho de agendamento' : 'Rascunho de envio',
     actions: hasDraft ? [
       { id: 'open_saved', label: 'Abrir últimos alvos' },
@@ -352,6 +390,7 @@ function syncCollectorTargetsDraftButton(view) {
       { id: 'save_named', label: 'Salvar na lista', primary: true }
     ] : []
   })
+  button?.root?.()?.classList?.add?.('go-collector-planner-draft')
   return button
 }
 
@@ -637,7 +676,7 @@ function ensureStyle() {
     #${VIEW_ID} .go-mcv-title{
       display: block;
       margin: 0;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
       color: #e5e7eb;
     }
@@ -717,7 +756,7 @@ function ensureStyle() {
     }
     #${VIEW_ID} .go-mcv-status{
       margin: 0 0 6px;
-      font-size: 10px;
+      font-size: 11px;
       color: #d1d5db;
       white-space: nowrap;
       display: flex;
@@ -738,7 +777,7 @@ function ensureStyle() {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       line-height: 1;
     }
@@ -813,7 +852,7 @@ function ensureStyle() {
     }
     #${VIEW_ID} .go-mcv-overwrite-draft-text{
       color: #f3f4f6;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.25;
       white-space: normal;
       max-width: 230px;
@@ -829,7 +868,7 @@ function ensureStyle() {
       background: rgba(255,255,255,.07);
       color: #f9fafb;
       padding: 4px 7px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       line-height: 1;
       cursor: pointer;
@@ -894,7 +933,7 @@ function ensureStyle() {
       background: rgba(20, 20, 20, .88);
       color: #f3f4f6;
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
       line-height: 1.1;
       white-space: nowrap;
@@ -1918,9 +1957,11 @@ function createView() {
     size: 24,
     className: 'go-btn-inline go-btn-inline-sword',
     title: 'Enviar comandos',
-    iconUri: ICON_CROSSED_SWORDS_CENTERED,
+    iconUri: ICON_PLANNER_SWORDS_EMERALD,
     onClick: async () => { await runPlannerActionFromCollector('send') }
   })
+  setButtonIconSrc(btnSchedule, ICON_PLANNER_CALENDAR_EMERALD)
+  setButtonIconSrc(btnSend, ICON_PLANNER_SWORDS_EMERALD)
   btnSchedule.setAttribute('data-action', 'schedule')
   btnSend.setAttribute('data-action', 'send')
   btnSchedule.setAttribute('data-go-title', 'Agendar comandos')
@@ -1934,6 +1975,9 @@ function createView() {
   updateViewStatus(wrap)
   syncCollectorTargetsDraftButton(wrap)
   popup.refreshLayout?.()
+  void ensureCollectorDraftCoreReady().then(() => {
+    refreshCollectorDraftUiAfterReady(wrap)
+  })
   return wrap
 }
 
@@ -1964,6 +2008,9 @@ export function selectorCoordsSearch(payload = {}) {
   setActiveMode(view, view.dataset.mode || state.lastMode || 'area')
   updateViewStatus(view)
   syncCollectorTargetsDraftButton(view)
+  void ensureCollectorDraftCoreReady().then(() => {
+    refreshCollectorDraftUiAfterReady(view)
+  })
   renderSelectedMarkers()
   syncAreaHintText()
   positionSelectorView(view)

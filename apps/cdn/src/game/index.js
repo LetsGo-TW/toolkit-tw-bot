@@ -7,6 +7,7 @@ import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
 import { bootGameCollectorLauncherRunning } from "./collector-launcher"
 import { bootGameCtxMenuRunning } from "./ctx-menu"
+import { bootGamePlannerActionsRunning } from "./planner-actions"
 import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
 const CDN = 'GAME.STAGE'
@@ -1191,6 +1192,7 @@ installLifecycleListeners()
 installRuntime()
 void bootGameCollectorLauncherRunning()
 void bootGameCtxMenuRunning()
+void bootGamePlannerActionsRunning()
 void game()
 
 export {}

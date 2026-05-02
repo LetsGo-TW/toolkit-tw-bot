@@ -5,6 +5,9 @@ import { printMessage } from '../printMessage'
 import { isPlannerScheduleEnabled, PLANNER_SCHEDULE_DISABLED_MESSAGE } from '../../planner/featureFlags'
 import { createInlinePlannerActionButtons } from './inline-planner-actions'
 import {
+  ICON_PLANNER_CALENDAR_EMERALD,
+  ICON_PLANNER_DRAFT_LIST_EMERALD,
+  ICON_PLANNER_SWORDS_EMERALD,
   mountPlannerDraftButton,
   mountPlannerDraftListButton,
   openPlannerFromNamedDraft,
@@ -329,7 +332,7 @@ function ensureCollectorBasePreviewBodyHint(popup) {
   if (!toolbar.querySelector('[data-go-collector-preview-hint]')) {
     const hint = document.createElement('div')
     hint.setAttribute('data-go-collector-preview-hint', '1')
-    hint.style.font = '11px/1.25 Arial, sans-serif'
+    hint.style.font = '12px/1.25 Arial, sans-serif'
     hint.style.color = '#f0c15a'
     hint.style.textShadow = '0 1px 0 rgba(0,0,0,.25)'
     hint.style.maxWidth = '230px'
@@ -598,10 +601,12 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
 
   const inline = createInlinePlannerActionButtons(slot, {
     size: 24,
-    wrapperClass: 'go-planner-action-buttons-group',
+    wrapperClass: 'go-planner-action-buttons-group go-collector-planner-actions',
+    scheduleIconUri: ICON_PLANNER_CALENDAR_EMERALD,
     tooltipAttr: 'data-go-title',
     scheduleDisabled: !isPlannerScheduleEnabled(),
     scheduleDisabledTitle: PLANNER_SCHEDULE_DISABLED_MESSAGE,
+    sendIconUri: ICON_PLANNER_SWORDS_EMERALD,
     onSchedule: (event) => {
       const triggerBtn = event?.currentTarget || null
       runPreviewDispatchActionWithConfirm({ mode: 'schedule', triggerBtn })
@@ -697,8 +702,10 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
     onChange: () => {
       refreshDraftButtons()
     },
-    getTooltipLabel: ({ entries }) => `Drafts salvos (${entries.length})`
+    getTooltipLabel: ({ entries }) => `Drafts salvos (${entries.length})`,
+    buttonIconUri: ICON_PLANNER_DRAFT_LIST_EMERALD
   })
+  draftListUi?.root?.()?.classList?.add?.('go-collector-planner-draft')
 
   draftUi = mountPlannerDraftButton(slot, {
     visibleInContext: true,
@@ -728,8 +735,13 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
     },
     onChange: () => {
       refreshDraftButtons()
+    },
+    buttonIconUriByMode: {
+      schedule: ICON_PLANNER_CALENDAR_EMERALD,
+      send: ICON_PLANNER_SWORDS_EMERALD
     }
   })
+  draftUi?.root?.()?.classList?.add?.('go-collector-planner-draft')
 
   collectorBasePreviewPlannerUi = {
     root: () => slot,

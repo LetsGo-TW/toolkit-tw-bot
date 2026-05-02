@@ -1,4 +1,6 @@
 import { createInlinePlannerActionButtons } from './inline-planner-actions';
+import { createBtnCalendar } from './calendar';
+import { createBtnCrossedSwords } from './crossed-swords';
 import { isPlannerScheduleEnabled, PLANNER_SCHEDULE_DISABLED_MESSAGE } from '../../planner/featureFlags';
 import { ICON_CALENDAR } from './calendar';
 import { ICON_CROSSED_SWORDS_CENTERED } from './crossed-swords';
@@ -23,6 +25,19 @@ let plannerModulePromise = null
 let plannerWarmupIdleTimerId = null
 let plannerWarmupIdleCallbackId = null
 let plannerWarmupPromise = null
+const BOT_VIEW_PLANNER_SLOT_SELECTOR = '#go-extension-bot-view-slot-planner'
+const BOT_VIEW_DRAFT_SLOT_SELECTOR = '#go-extension-bot-view-slot-draft'
+const BOT_VIEW_PLANNER_SEND_BUTTON_ID = 'go-slot-planner-send'
+const BOT_VIEW_PLANNER_SCHEDULE_BUTTON_ID = 'go-slot-planner-schedule'
+const BOT_VIEW_DRAFT_RECOVERY_ENTRY_ID = 'go-slot-draft-recovery'
+let botViewPlannerSlotsBooted = false
+let botViewPlannerSlotsBodyObserver = null
+let botViewPlannerSlotsHashListenerBound = false
+let botViewPlannerSlotsStateListenersBound = false
+let botViewPlannerSlotsFocusListenersBound = false
+let botViewPlannerSlotsSyncFrame = 0
+let botViewPlannerSlotsController = null
+let botViewPlannerSlotsForceRefresh = false
 
 async function loadPlannerModule() {
   if (!plannerModulePromise) {
@@ -96,6 +111,33 @@ const ICON_DRAFT_LIST = svgToDataUri(`
     <path d="M6 7.5h8M6 10h8M6 12.5h5" stroke="#1f2937" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
 `)
+const BOT_VIEW_SWORDS_PATH =
+  'M6.1 4.5 L8.1 4.5 L14.1 10.5 L20.1 4.5 L22.1 4.5 L22.1 6.5 L16.1 12.5 L17.1 13.5 L18.1 12.5 L19.1 13.5 L17.9 14.7 L19.9 16.7 L18.5 18.1 L16.5 16.1 L15.3 17.3 L14.3 16.3 L15.3 15.3 L14.3 14.3 L12.9 15.3 L13.9 16.3 L12.9 17.3 L11.7 16.1 L9.7 18.1 L8.3 16.7 L10.3 14.7 L9.1 13.5 L10.1 12.5 L11.1 13.5 L12.1 12.5 L6.1 6.5 L6.1 4.5 Z'
+const ICON_DRAFT_LIST_BOT_VIEW = svgToDataUri(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <rect x="3" y="4" width="14" height="12" rx="2" stroke="#dcfce7" stroke-width="1.5"/>
+    <path d="M6 7.5h8M6 10h8M6 12.5h5" stroke="#50fa7b" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>
+`)
+const ICON_CALENDAR_BOT_VIEW = svgToDataUri(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <rect x="4" y="5" width="16" height="15" rx="2.5" stroke="#dcfce7" stroke-width="1.7"/>
+    <path d="M4 9h16" stroke="#50fa7b" stroke-width="1.7"/>
+    <path d="M8 3.5v3.8M16 3.5v3.8" stroke="#dcfce7" stroke-width="1.9" stroke-linecap="round"/>
+    <rect x="7.4" y="11.7" width="3.2" height="3.2" rx="0.5" fill="#50fa7b"/>
+    <rect x="12.4" y="11.7" width="3.2" height="3.2" rx="0.5" fill="#dcfce7" opacity="0.92"/>
+  </svg>
+`)
+const ICON_CROSSED_SWORDS_BOT_VIEW = svgToDataUri(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+    <g transform="translate(-2.1 0.7)">
+      <path d="${BOT_VIEW_SWORDS_PATH}" fill="#dcfce7" stroke="#50fa7b" stroke-width="1.25" stroke-linejoin="round"/>
+    </g>
+  </svg>
+`)
+export const ICON_PLANNER_DRAFT_LIST_EMERALD = ICON_DRAFT_LIST_BOT_VIEW
+export const ICON_PLANNER_CALENDAR_EMERALD = ICON_CALENDAR_BOT_VIEW
+export const ICON_PLANNER_SWORDS_EMERALD = ICON_CROSSED_SWORDS_BOT_VIEW
 const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
 
 function getBotTooltipIconUrl() {
@@ -134,6 +176,13 @@ function renderBotTooltip(text) {
       <span>${safeText}</span>
     </div>
   `
+}
+
+function setButtonIconSrc(button, iconUri = '') {
+  if (!(button instanceof HTMLButtonElement) || !iconUri) return
+  const img = button.querySelector('img')
+  if (!(img instanceof HTMLImageElement)) return
+  img.src = iconUri
 }
 
 function readSavedTargetsDraftList() {
@@ -445,7 +494,11 @@ export function mountPlannerDraftListButton(container, {
   onOpen = null,
   onDelete = null,
   onChange = null,
-  getTooltipLabel = null
+  getTooltipLabel = null,
+  buttonIconUri = ICON_DRAFT_LIST,
+  menuPortalTarget = null,
+  menuClassName = '',
+  menuZIndex = ''
 } = {}) {
   if (!container) return null
   const ACTION_OPEN_PREFIX = 'open_saved_named:'
@@ -453,6 +506,9 @@ export function mountPlannerDraftListButton(container, {
 
   const button = createTargetsDraftButton(container, {
     variant: 'icon-button',
+    menuPortalTarget,
+    menuClassName,
+    menuZIndex,
     onAction: (action) => {
       const raw = String(action || '').trim()
       if (!raw) return
@@ -492,8 +548,8 @@ export function mountPlannerDraftListButton(container, {
       goTitle: hasList ? String(tooltipLabel || 'Lista de drafts salvos') : '',
       brandTooltip: true,
       iconMode: 'list',
-      iconUri: ICON_DRAFT_LIST,
-      iconFallbackUri: ICON_DRAFT_LIST,
+      iconUri: buttonIconUri || ICON_DRAFT_LIST,
+      iconFallbackUri: buttonIconUri || ICON_DRAFT_LIST,
       iconAlt: 'Lista de drafts',
       actions: hasList ? entries.map(({ draft }) => {
         const id = String(draft?.draftId || '').trim()
@@ -532,12 +588,19 @@ export function mountPlannerDraftButton(container, {
   onDelete = null,
   onSave = null,
   getTooltipLabel = null,
-  onChange = null
+  onChange = null,
+  buttonIconUriByMode = null,
+  menuPortalTarget = null,
+  menuClassName = '',
+  menuZIndex = ''
 } = {}) {
   if (!container) return null
 
   const button = createTargetsDraftButton(container, {
     variant: 'icon-button',
+    menuPortalTarget,
+    menuClassName,
+    menuZIndex,
     onAction: (action, details = {}) => {
       const payload = readSavedTargetsDraftList()
       if (!payload?.draft) return
@@ -570,7 +633,9 @@ export function mountPlannerDraftButton(container, {
     const currentTargets = typeof getCurrentTargets === 'function' ? (getCurrentTargets() || []) : []
     const currentCount = Array.isArray(currentTargets) ? currentTargets.length : 0
     const mode = getSavedDraftDispatchMode(draft)
-    const iconUri = mode === 'schedule' ? ICON_CALENDAR : ICON_CROSSED_SWORDS_CENTERED
+    const iconUri = mode === 'schedule'
+      ? (buttonIconUriByMode?.schedule || ICON_CALENDAR)
+      : (buttonIconUriByMode?.send || ICON_CROSSED_SWORDS_CENTERED)
     const iconAlt = mode === 'schedule' ? 'Rascunho de agendamento' : 'Rascunho de envio'
     const suggestedSaveName = hasDraft ? buildDraftPromptDefaultName(draft) : ''
     const tooltipLabel = typeof getTooltipLabel === 'function'
@@ -588,7 +653,7 @@ export function mountPlannerDraftButton(container, {
       pending: pending > 0,
       iconMode: mode,
       iconUri,
-      iconFallbackUri: ICON_CROSSED_SWORDS_CENTERED || ICON_CALENDAR || '',
+      iconFallbackUri: mode === 'schedule' ? ICON_CALENDAR : ICON_CROSSED_SWORDS_CENTERED,
       iconAlt,
       actions: hasDraft ? [
         { id: 'recover', label: 'Abrir últimos alvos' },
@@ -675,6 +740,589 @@ export async function openPlannerFromUnexpectedInterruptionState(state = null) {
     printMessage.error(error?.message || 'Erro ao recuperar último envio.', 2500)
     return false
   }
+}
+
+function readPlannerPageContext() {
+  try {
+    const url = new URL(location.href, origin)
+    return {
+      screen: String(url.searchParams.get('screen') || '').trim().toLowerCase(),
+      tryMode: String(url.searchParams.get('try') || '').trim().toLowerCase(),
+      id: String(url.searchParams.get('id') || '').trim(),
+      target: String(url.searchParams.get('target') || '').trim()
+    }
+  } catch (_) {
+    return {
+      screen: '',
+      tryMode: '',
+      id: '',
+      target: ''
+    }
+  }
+}
+
+function isPlannerBotViewInfoVillagePage(page = readPlannerPageContext()) {
+  return page?.screen === 'info_village'
+}
+
+function isPlannerBotViewPlacePage(page = readPlannerPageContext()) {
+  return page?.screen === 'place' && page?.tryMode !== 'confirm'
+}
+
+function getPlannerBotViewControllerKey() {
+  const page = readPlannerPageContext()
+  return [
+    page.screen,
+    page.tryMode,
+    page.id,
+    page.target
+  ].join('|')
+}
+
+function getBotViewPlannerSlot() {
+  return document.querySelector(BOT_VIEW_PLANNER_SLOT_SELECTOR)
+}
+
+function getBotViewDraftSlot() {
+  return document.querySelector(BOT_VIEW_DRAFT_SLOT_SELECTOR)
+}
+
+function decorateBotViewSlotButton(button, tooltip = '') {
+  if (!(button instanceof HTMLButtonElement)) return button
+  const safeTooltip = String(tooltip || '').trim()
+  if (safeTooltip) {
+    button.setAttribute('data-go-bot-view-tooltip', safeTooltip)
+    button.setAttribute('aria-label', safeTooltip)
+  } else {
+    button.removeAttribute('data-go-bot-view-tooltip')
+    button.removeAttribute('aria-label')
+  }
+  button.removeAttribute('title')
+  return button
+}
+
+function setDraftSlotVisible(slot, visible) {
+  if (!(slot instanceof HTMLElement)) return
+  slot.hidden = !visible
+}
+
+function hasVisibleDraftSlotEntries(slot) {
+  if (!(slot instanceof HTMLElement)) return false
+  return Array.from(slot.children).some((node) => (
+    node instanceof HTMLElement
+    && !node.hidden
+  ))
+}
+
+function formatUnexpectedRecoveryTitle(state = null) {
+  if (!state || typeof state !== 'object') return ''
+  const lines = ['Ultimo envio com pendencias']
+  const distributedCount = Math.max(0, Math.floor(Number(state?.distributedCount) || 0))
+  const sentCount = Math.max(0, Math.floor(Number(state?.sentCount) || 0))
+  const errorCount = Math.max(0, Math.floor(Number(state?.errorCount) || 0))
+  const missingCount = Math.max(0, Math.floor(Number(state?.missingCount) || 0))
+  const pendingCommands = Array.isArray(state?.pendingCommands) ? state.pendingCommands.length : 0
+  if (distributedCount > 0) lines.push(`Distribuidos: ${distributedCount}`)
+  if (sentCount > 0) lines.push(`Enviados: ${sentCount}`)
+  if (errorCount > 0) lines.push(`Erros: ${errorCount}`)
+  if (missingCount > 0) lines.push(`Pendencias: ${missingCount}`)
+  if (pendingCommands > 0) lines.push(`Comandos pendentes: ${pendingCommands}`)
+  if (String(state?.draftId || '').trim()) lines.push('Origem: draft salvo')
+  return lines.join('<br>')
+}
+
+function mountPlannerUnexpectedRecoveryButton(container, {
+  onRecover = null,
+  onChange = null,
+  menuPortalTarget = null,
+  menuClassName = '',
+  menuZIndex = ''
+} = {}) {
+  if (!container) return null
+
+  let currentState = null
+  const button = createTargetsDraftButton(container, {
+    variant: 'icon-button',
+    menuPortalTarget,
+    menuClassName,
+    menuZIndex,
+    onAction: (action) => {
+      if (String(action || '').trim() !== 'recover') return
+      if (!currentState) return
+      onRecover?.(currentState)
+      onChange?.()
+    }
+  })
+
+  const refresh = (state = null) => {
+    currentState = state && typeof state === 'object'
+      ? state
+      : null
+    const pendingCount = Math.max(0, Math.floor(Number(currentState?.missingCount) || 0))
+    button.refresh({
+      visible: Boolean(currentState),
+      label: 'Ultimo envio',
+      title: currentState ? formatUnexpectedRecoveryTitle(currentState) : '',
+      goTitle: currentState ? 'Ultimo envio com pendencias' : '',
+      brandTooltip: true,
+      pending: pendingCount > 0,
+      iconMode: 'send',
+      iconUri: ICON_CROSSED_SWORDS_BOT_VIEW,
+      iconFallbackUri: ICON_CROSSED_SWORDS_BOT_VIEW,
+      iconAlt: 'Ultimo envio com pendencias',
+      actions: currentState ? [
+        { id: 'recover', label: 'Recuperar ultimo envio', primary: true }
+      ] : []
+    })
+    return currentState
+  }
+
+  refresh()
+
+  return {
+    root: () => button?.root?.() || null,
+    refresh,
+    destroy: () => button?.destroy?.()
+  }
+}
+
+function createBotViewPlannerSlotsController({
+  data = null,
+  plannerSlot = null,
+  draftSlot = null,
+  pageContextKey = ''
+} = {}) {
+  if (!(plannerSlot instanceof HTMLElement) || !(draftSlot instanceof HTMLElement)) return null
+
+  const page = readPlannerPageContext()
+  const infoVillagePage = isPlannerBotViewInfoVillagePage(page)
+  const placePage = isPlannerBotViewPlacePage(page)
+  const plannerSupported = infoVillagePage || placePage
+  let destroyed = false
+  let placeTargetTracker = null
+  let unbindPlaceTracker = null
+  let draftListUi = null
+  let draftUi = null
+  let recoveryUi = null
+  let btnCal = null
+  let btnSword = null
+  let draftRefreshToken = 0
+
+  const onWarmupIntent = () => {
+    void warmupPlannerModule('intent')
+  }
+
+  const getPlannerPayload = () => {
+    const currentPage = readPlannerPageContext()
+    if (isPlannerBotViewInfoVillagePage(currentPage)) {
+      const id = currentPage.id
+      if (!id) return null
+      const coord = document.querySelector('#content_value td[valign="top"]')
+        ?.innerText
+        ?.match(/(\d{1,3})\|(\d{1,3})/)?.[0]
+      if (!coord) return null
+      const [x, y] = coord.split('|')
+      if (!x || !y) return null
+      return { id, x: Number(x), y: Number(y), ...(data && typeof data === 'object' ? data : {}) }
+    }
+    if (isPlannerBotViewPlacePage(currentPage)) {
+      const tracked = placeTargetTracker?.getActiveTarget?.() || null
+      if (!tracked) return null
+      return {
+        id: Number.isFinite(Number(tracked?.id)) ? Number(tracked.id) : null,
+        x: Number(tracked.x),
+        y: Number(tracked.y),
+        ...(data && typeof data === 'object' ? data : {})
+      }
+    }
+    return null
+  }
+
+  const onClickSchedule = () => {
+    void (async() => {
+      try {
+        if (!isPlannerScheduleEnabled()) {
+          printMessage.warn(PLANNER_SCHEDULE_DISABLED_MESSAGE, 2200)
+          return
+        }
+        await recoverAnyUnexpectedInterruption()
+        const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
+        if (!payload) return
+        void runPlannerOneToMany({ ...payload, dispatchMode: 'schedule', mode: 'schedule' })
+      } catch (error) {
+        console.error('[planner:bot-view:schedule]', error)
+        printMessage.error(error?.message || 'Erro ao abrir planner para agendar.', 2500)
+      }
+    })()
+  }
+
+  const onClickSend = () => {
+    void (async() => {
+      try {
+        await recoverAnyUnexpectedInterruption()
+        const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
+        if (!payload) return
+        void runPlannerOneToMany({ ...payload, dispatchMode: 'send', mode: 'send' })
+      } catch (error) {
+        console.error('[planner:bot-view:send]', error)
+        printMessage.error(error?.message || 'Erro ao abrir planner para enviar.', 2500)
+      }
+    })()
+  }
+
+  const removePlannerButtons = () => {
+    btnCal?.removeEventListener('pointerenter', onWarmupIntent)
+    btnSword?.removeEventListener('pointerenter', onWarmupIntent)
+    btnCal?.removeEventListener('focus', onWarmupIntent)
+    btnSword?.removeEventListener('focus', onWarmupIntent)
+    btnCal?.removeEventListener('pointerdown', onWarmupIntent)
+    btnSword?.removeEventListener('pointerdown', onWarmupIntent)
+    btnCal?.removeEventListener('click', onClickSchedule)
+    btnSword?.removeEventListener('click', onClickSend)
+    document.getElementById(BOT_VIEW_PLANNER_SCHEDULE_BUTTON_ID)?.remove?.()
+    document.getElementById(BOT_VIEW_PLANNER_SEND_BUTTON_ID)?.remove?.()
+    btnCal = null
+    btnSword = null
+  }
+
+  const ensurePlannerButtons = () => {
+    if (!plannerSupported) return
+    if (btnCal instanceof HTMLButtonElement && btnSword instanceof HTMLButtonElement) return
+    removePlannerButtons()
+    btnCal = createBtnCalendar(plannerSlot, {
+      size: 20,
+      className: '',
+      title: 'Agendar comandos',
+      onClick: onClickSchedule
+    })
+    btnCal.id = BOT_VIEW_PLANNER_SCHEDULE_BUTTON_ID
+    setButtonIconSrc(btnCal, ICON_CALENDAR_BOT_VIEW)
+    decorateBotViewSlotButton(btnCal, 'Agendar comandos')
+
+    btnSword = createBtnCrossedSwords(plannerSlot, {
+      size: 20,
+      className: '',
+      title: 'Enviar comandos',
+      onClick: onClickSend,
+      iconUri: ICON_CROSSED_SWORDS_BOT_VIEW
+    })
+    btnSword.id = BOT_VIEW_PLANNER_SEND_BUTTON_ID
+    setButtonIconSrc(btnSword, ICON_CROSSED_SWORDS_BOT_VIEW)
+    decorateBotViewSlotButton(btnSword, 'Enviar comandos')
+
+    btnCal?.addEventListener('pointerenter', onWarmupIntent, { passive: true })
+    btnSword?.addEventListener('pointerenter', onWarmupIntent, { passive: true })
+    btnCal?.addEventListener('focus', onWarmupIntent, { passive: true })
+    btnSword?.addEventListener('focus', onWarmupIntent, { passive: true })
+    btnCal?.addEventListener('pointerdown', onWarmupIntent, { passive: true })
+    btnSword?.addEventListener('pointerdown', onWarmupIntent, { passive: true })
+  }
+
+  const setPlannerButtonState = (button, {
+    disabled = false,
+    tooltip = ''
+  } = {}) => {
+    if (!(button instanceof HTMLButtonElement)) return
+    button.disabled = Boolean(disabled)
+    button.setAttribute('aria-disabled', disabled ? 'true' : 'false')
+    decorateBotViewSlotButton(button, tooltip)
+  }
+
+  const syncPlannerButtonsState = () => {
+    if (!plannerSupported) {
+      removePlannerButtons()
+      return
+    }
+    ensurePlannerButtons()
+    const payload = getPlannerPayload()
+    const hasTarget = placePage ? Boolean(placeTargetTracker?.hasTarget?.()) : Boolean(payload)
+    const canSend = Boolean(payload)
+    setPlannerButtonState(btnSword, {
+      disabled: !canSend,
+      tooltip: canSend
+        ? 'Enviar comandos'
+        : (placePage ? 'Selecione um alvo na praça' : 'Alvo indisponível')
+    })
+    const scheduleEnabled = isPlannerScheduleEnabled()
+    const canSchedule = canSend && scheduleEnabled
+    setPlannerButtonState(btnCal, {
+      disabled: !canSchedule,
+      tooltip: !hasTarget
+        ? (placePage ? 'Selecione um alvo na praça' : 'Alvo indisponível')
+        : (!scheduleEnabled ? PLANNER_SCHEDULE_DISABLED_MESSAGE : 'Agendar comandos')
+    })
+  }
+
+  const bindPlaceTrackerIfNeeded = () => {
+    if (!placePage || placeTargetTracker) return
+    placeTargetTracker = createPlacePlannerTargetTracker({
+      onChange: () => {
+        syncPlannerButtonsState()
+      }
+    })
+    unbindPlaceTracker = placeTargetTracker?.subscribe?.(() => {
+      syncPlannerButtonsState()
+    })
+  }
+
+  const syncDraftSlotVisibility = () => {
+    setDraftSlotVisible(draftSlot, hasVisibleDraftSlotEntries(draftSlot))
+  }
+
+  const syncDraftSlotTooltips = () => {
+    draftSlot.querySelectorAll('.go-planner-targets-draft-chip').forEach((node) => {
+      const tooltip = String(
+        node?.getAttribute?.('data-go-title')
+        || node?.getAttribute?.('data-title')
+        || node?.getAttribute?.('title')
+        || ''
+      ).trim()
+      if (tooltip) {
+        node.setAttribute('data-go-bot-view-tooltip', tooltip)
+        node.setAttribute('aria-label', tooltip)
+      } else {
+        node.removeAttribute('data-go-bot-view-tooltip')
+        node.removeAttribute('aria-label')
+      }
+      node.removeAttribute('title')
+    })
+  }
+
+  const readUnexpectedRecoveryStateForBotView = async() => {
+    const draftPayload = readSavedTargetsDraftList()
+    if (draftPayload?.draft) return null
+    const report = await readPlannerLastReport()
+    if (!report || typeof report !== 'object') return null
+    return await getUnexpectedInterruptionState({
+      report,
+      draftCore: sharedTargetsDraftCore
+    })
+  }
+
+  const refreshDraftButtons = async() => {
+    const currentToken = ++draftRefreshToken
+    await sharedTargetsDraftCore.ready?.()
+    if (destroyed || currentToken !== draftRefreshToken) return
+    draftListUi?.refresh?.()
+    draftUi?.refresh?.()
+    const nextUnexpectedState = await readUnexpectedRecoveryStateForBotView()
+    if (destroyed || currentToken !== draftRefreshToken) return
+    recoveryUi?.refresh?.(nextUnexpectedState)
+    syncDraftSlotTooltips()
+    syncDraftSlotVisibility()
+  }
+
+  const queueDraftRefresh = () => {
+    void refreshDraftButtons()
+  }
+
+  const ensureDraftButtons = () => {
+    if (draftListUi && draftUi && recoveryUi) return
+    const botViewDraftMenuPortalTarget = document.body instanceof HTMLElement
+      ? document.body
+      : null
+    const botViewDraftMenuOptions = {
+      menuPortalTarget: botViewDraftMenuPortalTarget,
+      menuClassName: 'go-bot-view-draft-menu',
+      menuZIndex: 13015
+    }
+    draftListUi = mountPlannerDraftListButton(draftSlot, {
+      visibleInContext: true,
+      onOpen: ({ draftId }) => {
+        void openPlannerFromNamedDraft(draftId)
+      },
+      onDelete: () => {
+        queueDraftRefresh()
+      },
+      onChange: () => {
+        queueDraftRefresh()
+      },
+      getTooltipLabel: ({ entries }) => `Drafts salvos (${entries.length})`,
+      buttonIconUri: ICON_DRAFT_LIST_BOT_VIEW,
+      ...botViewDraftMenuOptions
+    })
+
+    draftUi = mountPlannerDraftButton(draftSlot, {
+      visibleInContext: true,
+      getCurrentTargets: () => [],
+      canMerge: () => false,
+      onRecover: () => {
+        void openPlannerFromSavedDraft().finally(() => {
+          queueDraftRefresh()
+        })
+      },
+      onDelete: () => {
+        printMessage.warn('Rascunho excluido.', 2000)
+        queueDraftRefresh()
+      },
+      onSave: (_payload, { name }) => {
+        const result = saveLastDraftAsNamed(name, {
+          onSaved: () => {
+            queueDraftRefresh()
+          }
+        })
+        if (!result?.ok) return false
+      },
+      getTooltipLabel: ({ draft }) => {
+        const mode = getSavedDraftDispatchMode(draft)
+        return `Ultimos alvos salvos (${mode === 'schedule' ? 'agendar' : 'enviar'})`
+      },
+      onChange: () => {
+        queueDraftRefresh()
+      },
+      buttonIconUriByMode: {
+        schedule: ICON_CALENDAR_BOT_VIEW,
+        send: ICON_CROSSED_SWORDS_BOT_VIEW
+      },
+      ...botViewDraftMenuOptions
+    })
+
+    recoveryUi = mountPlannerUnexpectedRecoveryButton(draftSlot, {
+      onRecover: (state) => {
+        void openPlannerFromUnexpectedInterruptionState(state).finally(() => {
+          queueDraftRefresh()
+        })
+      },
+      onChange: () => {
+        queueDraftRefresh()
+      },
+      ...botViewDraftMenuOptions
+    })
+    recoveryUi?.root?.()?.setAttribute?.('id', BOT_VIEW_DRAFT_RECOVERY_ENTRY_ID)
+  }
+
+  bindPlaceTrackerIfNeeded()
+  ensureDraftButtons()
+  syncDraftSlotTooltips()
+  syncDraftSlotVisibility()
+  syncPlannerButtonsState()
+  queueDraftRefresh()
+
+  return {
+    matches: ({ nextPlannerSlot = null, nextDraftSlot = null, nextPageContextKey = '' } = {}) => (
+      plannerSlot === nextPlannerSlot
+      && draftSlot === nextDraftSlot
+      && pageContextKey === nextPageContextKey
+    ),
+    refresh: () => {
+      if (destroyed) return
+      bindPlaceTrackerIfNeeded()
+      syncPlannerButtonsState()
+      queueDraftRefresh()
+    },
+    destroy: () => {
+      if (destroyed) return
+      destroyed = true
+      unbindPlaceTracker?.()
+      placeTargetTracker?.destroy?.()
+      draftListUi?.destroy?.()
+      draftUi?.destroy?.()
+      recoveryUi?.destroy?.()
+      removePlannerButtons()
+      syncDraftSlotVisibility()
+    }
+  }
+}
+
+function syncBotViewPlannerSlots({
+  forceRefresh = false
+} = {}) {
+  const plannerSlot = getBotViewPlannerSlot()
+  const draftSlot = getBotViewDraftSlot()
+  if (!(plannerSlot instanceof HTMLElement) || !(draftSlot instanceof HTMLElement)) {
+    botViewPlannerSlotsController?.destroy?.()
+    botViewPlannerSlotsController = null
+    return
+  }
+
+  const nextPageContextKey = getPlannerBotViewControllerKey()
+  if (!botViewPlannerSlotsController?.matches?.({
+    nextPlannerSlot: plannerSlot,
+    nextDraftSlot: draftSlot,
+    nextPageContextKey
+  })) {
+    botViewPlannerSlotsController?.destroy?.()
+    botViewPlannerSlotsController = createBotViewPlannerSlotsController({
+      plannerSlot,
+      draftSlot,
+      pageContextKey: nextPageContextKey
+    })
+    return
+  }
+
+  if (forceRefresh) {
+    botViewPlannerSlotsController?.refresh?.()
+  }
+}
+
+function scheduleBotViewPlannerSlotsSync({
+  forceRefresh = false
+} = {}) {
+  if (forceRefresh) {
+    botViewPlannerSlotsForceRefresh = true
+  }
+  if (botViewPlannerSlotsSyncFrame) return
+  botViewPlannerSlotsSyncFrame = window.requestAnimationFrame(() => {
+    const nextForceRefresh = botViewPlannerSlotsForceRefresh
+    botViewPlannerSlotsForceRefresh = false
+    botViewPlannerSlotsSyncFrame = 0
+    syncBotViewPlannerSlots({
+      forceRefresh: nextForceRefresh
+    })
+  })
+}
+
+export function bootPlannerActionBotViewRunning() {
+  if (!botViewPlannerSlotsHashListenerBound) {
+    botViewPlannerSlotsHashListenerBound = true
+    window.addEventListener('hashchange', () => {
+      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+    }, { passive: true })
+  }
+
+  if (!botViewPlannerSlotsStateListenersBound) {
+    botViewPlannerSlotsStateListenersBound = true
+    document.addEventListener('go:planner:open', () => {
+      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+    }, true)
+    document.addEventListener('go:planner:close', () => {
+      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+    }, true)
+  }
+
+  if (!botViewPlannerSlotsFocusListenersBound) {
+    botViewPlannerSlotsFocusListenersBound = true
+    window.addEventListener('focus', () => {
+      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+    }, { passive: true })
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+      }
+    }, true)
+  }
+
+  if (!botViewPlannerSlotsBodyObserver) {
+    botViewPlannerSlotsBodyObserver = new MutationObserver(() => {
+      scheduleBotViewPlannerSlotsSync()
+    })
+    if (!document.body) {
+      botViewPlannerSlotsBodyObserver = null
+    } else {
+      botViewPlannerSlotsBodyObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+      })
+    }
+  }
+
+  if (botViewPlannerSlotsBooted) {
+    scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+    return
+  }
+
+  botViewPlannerSlotsBooted = true
+  scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
 }
 
 export function mountPlannerActionButtons(data) {

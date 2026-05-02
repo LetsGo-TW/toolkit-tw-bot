@@ -5,6 +5,7 @@ import './planner-action-buttons.css';
 export function createInlinePlannerActionButtons(container, {
   size = 24,
   wrapperClass = 'go-planner-action-buttons-group',
+  scheduleIconUri = '',
   scheduleTitle = 'Agendar comandos',
   scheduleDisabled = false,
   scheduleDisabledTitle = 'Agendar em preparação',
@@ -33,6 +34,13 @@ export function createInlinePlannerActionButtons(container, {
     onClick: typeof onSend === 'function' ? onSend : undefined,
     iconUri: sendIconUri
   })
+
+  if (scheduleIconUri) {
+    const scheduleImg = btnCal?.querySelector?.('img')
+    if (scheduleImg instanceof HTMLImageElement) {
+      scheduleImg.src = scheduleIconUri
+    }
+  }
 
   if (scheduleDisabled && btnCal) {
     btnCal.disabled = true
