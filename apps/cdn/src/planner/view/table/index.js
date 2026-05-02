@@ -172,6 +172,7 @@ function buildSenderMetaContexts({
   nightBonusConfig = null,
   minSpyCommandConfig = null
 }) {
+  const gameData = getGameData()
   const villageById = getPlannerProductionVillageByIdMap()
   const worldUnitsOrder = getWorldUnitsOrder()
   const unitIndexByName = getWorldUnitIndexByName()

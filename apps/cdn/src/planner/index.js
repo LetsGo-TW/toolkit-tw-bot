@@ -16,7 +16,53 @@ import { printMessage } from "../components/printMessage";
 */
 export const minSpyCommand = { players: 5, barbarians: 1 }
 export const dataUnits = new Map()
+const PLANNER_POPUP_ROOT_ID = 'go-popup-map-planner'
 let plannerWarmupPromise = null
+let plannerOpenPromise = null
+let plannerLifecycleState = 'idle'
+let plannerLifecycleEventsBound = false
+
+function isPlannerPopupMounted() {
+  return (
+    typeof document !== 'undefined'
+    && document.getElementById(PLANNER_POPUP_ROOT_ID) instanceof HTMLElement
+  )
+}
+
+function resetPlannerLifecycleState() {
+  plannerLifecycleState = 'idle'
+  plannerOpenPromise = null
+}
+
+function finalizePlannerOpenAttempt() {
+  if (isPlannerPopupMounted()) {
+    plannerLifecycleState = 'open'
+    return
+  }
+  resetPlannerLifecycleState()
+}
+
+function syncPlannerLifecycleFromDom() {
+  if (plannerLifecycleState === 'opening') return
+  if (isPlannerPopupMounted()) {
+    plannerLifecycleState = 'open'
+    return
+  }
+  resetPlannerLifecycleState()
+}
+
+function bindPlannerLifecycleEventsOnce() {
+  if (plannerLifecycleEventsBound || typeof document === 'undefined') return
+  plannerLifecycleEventsBound = true
+
+  document.addEventListener('go:planner:open', () => {
+    plannerLifecycleState = 'open'
+  }, true)
+
+  document.addEventListener('go:planner:close', () => {
+    resetPlannerLifecycleState()
+  }, true)
+}
 
 function syncDataUnitsMap(dataUnitsJson) {
   if (!dataUnitsJson || typeof dataUnitsJson !== 'object') return
@@ -50,6 +96,9 @@ export function warmupPlanner({ level = 'idle' } = {}) {
 }
 
 export async function plannerOneToMany(data) {
+  bindPlannerLifecycleEventsOnce()
+  syncPlannerLifecycleFromDom()
+
   const normalizedInput = coercePlannerInputScheduleToSend(data)
   if (normalizedInput.changed && !isPlannerScheduleEnabled()) {
     printMessage.warn(PLANNER_SCHEDULE_DISABLED_MESSAGE, 2200)
@@ -74,15 +123,39 @@ export async function plannerOneToMany(data) {
     return;
   }
 
-  await ensurePlannerUnitsLoaded()
-
-  try {
-    await refreshPlannerProductionSnapshot({
-      forceRefresh: true
-    })
-  } catch (error) {
-    console.warn('[GO][planner][tp-refresh]', error?.message || error)
+  if (plannerLifecycleState === 'opening' && plannerOpenPromise) {
+    return await plannerOpenPromise
   }
 
-  await plannerView(data)
+  if (plannerLifecycleState === 'open' || isPlannerPopupMounted()) {
+    plannerLifecycleState = 'open'
+    return
+  }
+
+  plannerLifecycleState = 'opening'
+  plannerOpenPromise = (async() => {
+    await ensurePlannerUnitsLoaded()
+
+    try {
+      await refreshPlannerProductionSnapshot({
+        forceRefresh: true
+      })
+    } catch (error) {
+      console.warn('[GO][planner][tp-refresh]', error?.message || error)
+    }
+
+    await plannerView(data)
+    finalizePlannerOpenAttempt()
+  })()
+    .catch((error) => {
+      finalizePlannerOpenAttempt()
+      throw error
+    })
+    .finally(() => {
+      if (plannerLifecycleState !== 'open') {
+        plannerOpenPromise = null
+      }
+    })
+
+  return await plannerOpenPromise
 }

@@ -82,6 +82,9 @@ export async function showPopUpPlanner(data, deps = {}) {
 
     document.querySelector('#ds_body').insertAdjacentHTML('beforeend', plannerTextHtml)
     setPlannerPopupLoading(true)
+    document.dispatchEvent(new CustomEvent('go:planner:open', {
+      detail: { x, y }
+    }))
     const safeGoLogoUrl = resolveSafeIconUrl(DEFAULT_BOT_ICON_URL)
     if (safeGoLogoUrl) {
       document.querySelector('#go-logo').src = safeGoLogoUrl
@@ -370,6 +373,11 @@ export async function showPopUpPlanner(data, deps = {}) {
       renderDataTitle
     )
     const closePopUp = () => {
+      document.dispatchEvent(new CustomEvent('go:popup:close', {
+        detail: {
+          popupId: 'go-popup-map-planner'
+        }
+      }))
       popUpMapPlanner?.remove()
       popUpBoxClose?.removeEventListener('click', closePopUp)
       Object.keys(cancelEvents).forEach((key) => {
@@ -407,6 +415,11 @@ export async function showPopUpPlanner(data, deps = {}) {
       state.nightBonusConfigTarget = null
       state.nightBonusConfig = null
       resetPlayerNightMoralState()
+      document.dispatchEvent(new CustomEvent('go:planner:close', {
+        detail: {
+          popupId: 'go-popup-map-planner'
+        }
+      }))
     }
 
     bindEsc(closePopUp, cancelEvents)

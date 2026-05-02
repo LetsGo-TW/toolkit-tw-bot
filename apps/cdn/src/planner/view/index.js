@@ -4375,11 +4375,12 @@ export async function plannerView(data) {
       || plannerDataCurrent?.dateTime
       || ''
     ).trim()
-    const inputDateTimeResponse = inputDateTimeView(inputDateTimeContent, undefined, {
+    const inputDateTimeResponse = await inputDateTimeView(inputDateTimeContent, undefined, {
       initialValue: incomingDraftScheduleDateTime || undefined
     })
     inputDateTimeController = inputDateTimeResponse || null
     dateTimeValue = inputDateTimeResponse?.dateTimeValue
+    setDispatchDateTimeMode(getActiveDispatchMode())
     cancelEvents.cancelInputDateTime = () => {
       inputDateTimeResponse?.inputDateTimeClose?.()
       inputDateTimeController = null
