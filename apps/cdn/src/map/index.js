@@ -23,12 +23,12 @@ export default async() => {
   bootMapMenuRunning()
   bootMapCollectorLauncherRunning()
 
-  if (document.querySelector('#go-slot-primary-config')) return
-  const slotPrimary = document.querySelector('#go-extension-bot-view-slot-primary')
-  if (!slotPrimary) return
+  if (document.querySelector('#go-slot-config')) return
+  const slotConfig = document.querySelector('#go-extension-bot-view-slot-config')
+  if (!slotConfig) return
 
   const btnConfig = document.createElement('button')
-  btnConfig.id = 'go-slot-primary-config'
+  btnConfig.id = 'go-slot-config'
   btnConfig.type = 'button'
   btnConfig.setAttribute('aria-label', 'Mostrar/ocultar configuraões.')
   btnConfig.setAttribute('data-go-bot-view-tooltip', 'Mostrar/ocultar configuraões.')
@@ -40,7 +40,7 @@ export default async() => {
   btnConfigImg.height = 16
   btnConfig.append(btnConfigImg)
 
-  slotPrimary.insertAdjacentElement('beforeend', btnConfig)
+  slotConfig.insertAdjacentElement('beforeend', btnConfig)
 
   const configPopover = createBotViewConfigPopover({
     btn: btnConfig,

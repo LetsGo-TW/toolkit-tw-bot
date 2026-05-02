@@ -21,10 +21,9 @@ const SUPPORTED_SCREENS = new Set(['forum', 'memo', 'report', 'mail', 'info_play
 const SUPPORTED_ALLY_MODES = new Set(['members_defense', 'members_troops', 'reservations'])
 const SUPPORTED_MAIL_MODES = new Set(['', 'in', 'view'])
 const UNSUPPORTED_REPORT_MODES = new Set(['event', 'filter', 'groups'])
-const BOT_VIEW_COLLECTOR_LAUNCHER_ID = 'go-slot-primary-collector'
+const BOT_VIEW_COLLECTOR_LAUNCHER_ID = 'go-slot-collector'
 const MAP_COLLECTOR_LAUNCHER_ID = 'go-map-collector-launcher'
-const BOT_VIEW_SLOT_PRIMARY_SELECTOR = '#go-extension-bot-view-slot-primary'
-const BOT_VIEW_SLOT_CONFIG_SELECTOR = '#go-slot-primary-config'
+const BOT_VIEW_SLOT_COLLECTOR_SELECTOR = '#go-extension-bot-view-slot-collector'
 const BOT_VIEW_COLLECTOR_ICON_URL = svgToDataUri(
   '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24">' +
     '<circle cx="11" cy="11" r="6.8" fill="none" stroke="#dcfce7" stroke-width="3.6"/>' +
@@ -859,7 +858,7 @@ function openCollectorBasePreviewFromButton({
 }
 
 function getBotViewCollectorSlot() {
-  return document.querySelector(BOT_VIEW_SLOT_PRIMARY_SELECTOR)
+  return document.querySelector(BOT_VIEW_SLOT_COLLECTOR_SELECTOR)
 }
 
 function removeBotViewCollectorLauncher() {
@@ -872,19 +871,11 @@ function removeMapCollectorLauncherIfNotOnMap(screen = getCurrentScreenName()) {
 }
 
 function mountBotViewCollectorLauncherButton(btn) {
-  const slotPrimary = getBotViewCollectorSlot()
-  if (!slotPrimary || !btn) return null
+  const slotCollector = getBotViewCollectorSlot()
+  if (!slotCollector || !btn) return null
 
-  const configButton = slotPrimary.querySelector(BOT_VIEW_SLOT_CONFIG_SELECTOR)
-  if (configButton?.parentElement === slotPrimary) {
-    if (configButton.nextElementSibling !== btn) {
-      configButton.insertAdjacentElement('afterend', btn)
-    }
-    return btn
-  }
-
-  if (btn.parentElement !== slotPrimary) {
-    slotPrimary.insertAdjacentElement('beforeend', btn)
+  if (btn.parentElement !== slotCollector) {
+    slotCollector.insertAdjacentElement('beforeend', btn)
   }
 
   return btn

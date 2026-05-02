@@ -9,8 +9,7 @@ import {
 } from './shared.js'
 
 const MAP_COLLECTOR_LAUNCHER_ID = 'go-map-collector-launcher'
-const MAP_COLLECTOR_SLOT_PRIMARY_SELECTOR = '#go-extension-bot-view-slot-primary'
-const MAP_COLLECTOR_SLOT_CONFIG_SELECTOR = '#go-slot-primary-config'
+const MAP_COLLECTOR_SLOT_COLLECTOR_SELECTOR = '#go-extension-bot-view-slot-collector'
 const MAP_COLLECTOR_LAUNCHER_ICON_URL = svgToDataUri(
   '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24">' +
     '<circle cx="11" cy="11" r="6.8" fill="none" stroke="#dcfce7" stroke-width="3.6"/>' +
@@ -83,7 +82,7 @@ function ensureMapCollectorTooltipOnce() {
 }
 
 function getMapCollectorSlot() {
-  return document.querySelector(MAP_COLLECTOR_SLOT_PRIMARY_SELECTOR)
+  return document.querySelector(MAP_COLLECTOR_SLOT_COLLECTOR_SELECTOR)
 }
 
 function removeMapCollectorLauncher() {
@@ -91,19 +90,11 @@ function removeMapCollectorLauncher() {
 }
 
 function mountMapCollectorLauncherButton(btn) {
-  const slotPrimary = getMapCollectorSlot()
-  if (!slotPrimary || !btn) return null
+  const slotCollector = getMapCollectorSlot()
+  if (!slotCollector || !btn) return null
 
-  const configButton = slotPrimary.querySelector(MAP_COLLECTOR_SLOT_CONFIG_SELECTOR)
-  if (configButton?.parentElement === slotPrimary) {
-    if (configButton.nextElementSibling !== btn) {
-      configButton.insertAdjacentElement('afterend', btn)
-    }
-    return btn
-  }
-
-  if (btn.parentElement !== slotPrimary) {
-    slotPrimary.insertAdjacentElement('beforeend', btn)
+  if (btn.parentElement !== slotCollector) {
+    slotCollector.insertAdjacentElement('beforeend', btn)
   }
 
   return btn

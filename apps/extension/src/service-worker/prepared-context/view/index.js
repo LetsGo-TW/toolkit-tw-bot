@@ -1,8 +1,12 @@
 /// <reference types="chrome" />
 
 const BOT_VIEW_ROOT_ID = 'go-extension-bot-view'
-const BOT_VIEW_SLOT_PRIMARY_ID = 'go-extension-bot-view-slot-primary'
-const BOT_VIEW_SLOT_SECONDARY_ID = 'go-extension-bot-view-slot-secondary'
+const BOT_VIEW_SLOT_IDS = [
+  'go-extension-bot-view-slot-config',
+  'go-extension-bot-view-slot-collector',
+  'go-extension-bot-view-slot-planner',
+  'go-extension-bot-view-slot-draft',
+]
 const BOT_VIEW_ICON_PATH = 'icons/ico.green.128.png'
 const BOT_VIEW_HTML_PATH = 'service-worker/prepared-context/view/index.html'
 const BOT_VIEW_CSS_PATH = 'service-worker/prepared-context/view/style.css'
@@ -51,8 +55,7 @@ function injectBotViewIntoPage({
   html,
   mountSelector,
   rootId,
-  slotPrimaryId,
-  slotSecondaryId,
+  slotIds = [],
   statusId,
   tooltipId,
   state,
@@ -74,8 +77,8 @@ function injectBotViewIntoPage({
 
     return (
       root instanceof HTMLElement
-      && root.querySelector(`#${slotPrimaryId}`) instanceof HTMLElement
-      && root.querySelector(`#${slotSecondaryId}`) instanceof HTMLElement
+      && Array.isArray(slotIds)
+      && slotIds.every((slotId) => root.querySelector(`#${slotId}`) instanceof HTMLElement)
     )
   }
 
@@ -319,8 +322,7 @@ async function ensureInjectedGameBotViewForTarget(target, state = 'running') {
       html,
       mountSelector: BOT_VIEW_MOUNT_SELECTOR,
       rootId: BOT_VIEW_ROOT_ID,
-      slotPrimaryId: BOT_VIEW_SLOT_PRIMARY_ID,
-      slotSecondaryId: BOT_VIEW_SLOT_SECONDARY_ID,
+      slotIds: BOT_VIEW_SLOT_IDS,
       statusId: BOT_VIEW_STATUS_ID,
       tooltipId: BOT_VIEW_TOOLTIP_ID,
       state,

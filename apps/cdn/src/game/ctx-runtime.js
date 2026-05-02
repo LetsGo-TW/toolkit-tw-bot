@@ -255,16 +255,16 @@ export function installCtxRuntime({
 
   const render = () => {
     const botView = getBotView()
-    const primarySlot = botView?.primarySlot
-    if (!(primarySlot instanceof HTMLElement)) return
+    const plannerSlot = botView?.plannerSlot
+    if (!(plannerSlot instanceof HTMLElement)) return
 
-    removeCtxButtons(primarySlot)
+    removeCtxButtons(plannerSlot)
 
     const activeTarget = state.mapTarget || state.anchorTarget
     if (!activeTarget) return
 
     const targetLabel = formatTargetLabel(activeTarget)
-    const sendButton = createBtnCrossedSwords(primarySlot, {
+    const sendButton = createBtnCrossedSwords(plannerSlot, {
       size: 20,
       className: 'go-bot-view-ctx-send',
       title: targetLabel ? `Planner: enviar para ${targetLabel}` : 'Planner: enviar',
@@ -276,7 +276,7 @@ export function installCtxRuntime({
     decorateCtxButton(sendButton, targetLabel ? `Planner: enviar para ${targetLabel}` : 'Planner: enviar')
 
     if (isPlannerScheduleEnabled()) {
-      const scheduleButton = createBtnCalendar(primarySlot, {
+      const scheduleButton = createBtnCalendar(plannerSlot, {
         size: 20,
         className: 'go-bot-view-ctx-schedule',
         title: targetLabel ? `Planner: agendar para ${targetLabel}` : 'Planner: agendar',
@@ -354,6 +354,6 @@ export function installCtxRuntime({
     }
 
     const botView = getBotView()
-    removeCtxButtons(botView?.primarySlot)
+    removeCtxButtons(botView?.plannerSlot)
   }
 }

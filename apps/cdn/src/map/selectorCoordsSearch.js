@@ -2,7 +2,7 @@ const VIEW_ID = 'go-map-collector-view'
 const STYLE_ID = 'go-map-collector-view-style'
 const MARKERS_ID = 'go-map-collector-markers'
 const AREA_HINT_ID = 'go-map-collector-area-hint'
-const COLLECTOR_SAFE_UI_SELECTOR = `#${VIEW_ID}, #go-map-collector-launcher, #go-slot-primary-config, .go-bot-view-config-popover`
+const COLLECTOR_SAFE_UI_SELECTOR = `#${VIEW_ID}, #go-map-collector-launcher, #go-slot-config, .go-bot-view-config-popover`
 import {
   createBtnCalendar,
   ICON_CALENDAR

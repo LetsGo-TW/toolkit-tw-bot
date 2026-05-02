@@ -12,9 +12,9 @@ export default async() => {
   const url = new URL(window.location.href)
   if (url.searchParams.get('intro')) return
   if (url.searchParams.get('screen') !== 'settings') return
-  if (document.querySelector('#go-slot-primary-config')) return
-  const slotPrimary = document.querySelector('#go-extension-bot-view-slot-primary')
-  if (!slotPrimary) return
+  if (document.querySelector('#go-slot-config')) return
+  const slotConfig = document.querySelector('#go-extension-bot-view-slot-config')
+  if (!slotConfig) return
 
   const destroySettings = {
     notify: null,
@@ -22,7 +22,7 @@ export default async() => {
   }
 
   const btnConfig = document.createElement('button')
-  btnConfig.id = 'go-slot-primary-config'
+  btnConfig.id = 'go-slot-config'
   btnConfig.type = 'button'
   btnConfig.setAttribute('aria-label', 'Mostrar/ocultar configurações.')
   btnConfig.setAttribute('data-go-bot-view-tooltip', 'Mostrar/ocultar configurações.')
@@ -68,7 +68,7 @@ export default async() => {
     btnConfig.removeEventListener('click', btnConfigOnClick)
   }
 
-  slotPrimary.insertAdjacentElement('beforeend', btnConfig)
+  slotConfig.insertAdjacentElement('beforeend', btnConfig)
 
   return {
     destroy: removeListner,

@@ -23,8 +23,10 @@ const GAME_CONTROLLER_STOP_EVENT = 'toolkit:game:controller:stop'
 const GAME_START_HANDLER_KEY = '__toolkitTwBotGameStageStartHandlerInstalled__'
 const GAME_STOP_HANDLER_KEY = '__toolkitTwBotGameStageStopHandlerInstalled__'
 const BOT_VIEW_ROOT_ID = 'go-extension-bot-view'
-const BOT_VIEW_SLOT_PRIMARY_ID = 'go-extension-bot-view-slot-primary'
-const BOT_VIEW_SLOT_SECONDARY_ID = 'go-extension-bot-view-slot-secondary'
+const BOT_VIEW_SLOT_CONFIG_ID = 'go-extension-bot-view-slot-config'
+const BOT_VIEW_SLOT_COLLECTOR_ID = 'go-extension-bot-view-slot-collector'
+const BOT_VIEW_SLOT_PLANNER_ID = 'go-extension-bot-view-slot-planner'
+const BOT_VIEW_SLOT_DRAFT_ID = 'go-extension-bot-view-slot-draft'
 const BOT_VIEW_STATUS_SCRIPT_ID = 'go-extension-bot-view-status-script'
 const BOT_VIEW_STATUS_EXECUTION_ID = 'go-extension-bot-view-status-execution'
 const BOT_VIEW_STATUS_NEXT_ID = 'go-extension-bot-view-status-next'
@@ -279,24 +281,30 @@ function normalizeExecutionReportError(error) {
 
 function getInjectedBotViewElements() {
   const root = document.getElementById(BOT_VIEW_ROOT_ID)
-  const primarySlot = document.getElementById(BOT_VIEW_SLOT_PRIMARY_ID)
-  const secondarySlot = document.getElementById(BOT_VIEW_SLOT_SECONDARY_ID)
+  const configSlot = document.getElementById(BOT_VIEW_SLOT_CONFIG_ID)
+  const collectorSlot = document.getElementById(BOT_VIEW_SLOT_COLLECTOR_ID)
+  const plannerSlot = document.getElementById(BOT_VIEW_SLOT_PLANNER_ID)
+  const draftSlot = document.getElementById(BOT_VIEW_SLOT_DRAFT_ID)
   const statusScript = document.getElementById(BOT_VIEW_STATUS_SCRIPT_ID)
   const statusExecution = document.getElementById(BOT_VIEW_STATUS_EXECUTION_ID)
   const statusNext = document.getElementById(BOT_VIEW_STATUS_NEXT_ID)
 
   if (
     !(root instanceof HTMLElement)
-    || !(primarySlot instanceof HTMLElement)
-    || !(secondarySlot instanceof HTMLElement)
+    || !(configSlot instanceof HTMLElement)
+    || !(collectorSlot instanceof HTMLElement)
+    || !(plannerSlot instanceof HTMLElement)
+    || !(draftSlot instanceof HTMLElement)
   ) {
     return null
   }
 
   return {
-    primarySlot,
+    configSlot,
+    collectorSlot,
+    draftSlot,
+    plannerSlot,
     root,
-    secondarySlot,
     statusExecution: statusExecution instanceof HTMLElement ? statusExecution : null,
     statusNext: statusNext instanceof HTMLElement ? statusNext : null,
     statusScript: statusScript instanceof HTMLElement ? statusScript : null,
