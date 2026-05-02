@@ -216,6 +216,15 @@
     box-shadow 120ms ease;
 }
 
+#go-slot-primary-config {
+  order: 10;
+}
+
+#go-slot-primary-collector,
+#go-map-collector-launcher {
+  order: 20;
+}
+
 #go-extension-bot-view [data-go-bot-view-slot] > button[hidden] {
   display: none !important;
 }
