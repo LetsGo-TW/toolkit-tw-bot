@@ -12,23 +12,18 @@ const BOT_VIEW_TOOLTIP_ID = 'go-extension-bot-view-tooltip-popup'
 
 let botViewHtmlPromise = null
 
-function getTabTarget(sender) {
-  const tabId = sender?.tab?.id
-
+function getTopTabTarget(tabId) {
   if (typeof tabId !== 'number' || !Number.isFinite(tabId)) {
     return null
-  }
-
-  if (typeof sender.frameId === 'number' && Number.isFinite(sender.frameId)) {
-    return {
-      tabId,
-      frameIds: [sender.frameId],
-    }
   }
 
   return {
     tabId,
   }
+}
+
+function getSenderTarget(sender) {
+  return getTopTabTarget(sender?.tab?.id)
 }
 
 async function readBotViewHtml(iconUrl) {
@@ -292,9 +287,25 @@ function injectBotViewIntoPage({
   }
 }
 
-export async function ensureInjectedGameBotView(sender, state = 'running') {
-  const target = getTabTarget(sender)
+function removeBotViewFromPage({
+  rootId,
+  statusId,
+  tooltipId,
+}) {
+  const nodes = [
+    document.getElementById(rootId),
+    document.getElementById(statusId),
+    document.getElementById(tooltipId),
+  ].filter((node) => node instanceof HTMLElement)
 
+  nodes.forEach((node) => node.remove())
+
+  return {
+    removed: nodes.length > 0,
+  }
+}
+
+async function ensureInjectedGameBotViewForTarget(target, state = 'running') {
   if (!target) {
     return false
   }
@@ -324,4 +335,67 @@ export async function ensureInjectedGameBotView(sender, state = 'running') {
   }
 
   return results.some((result) => result.result?.hasSlots === true)
+}
+
+async function removeInjectedGameBotViewForTarget(target) {
+  if (!target) {
+    return false
+  }
+
+  const results = await chrome.scripting.executeScript({
+    target,
+    func: removeBotViewFromPage,
+    args: [{
+      rootId: BOT_VIEW_ROOT_ID,
+      statusId: BOT_VIEW_STATUS_ID,
+      tooltipId: BOT_VIEW_TOOLTIP_ID,
+    }],
+  })
+
+  const removed = results.some((result) => result.result?.removed === true)
+
+  if (removed) {
+    try {
+      await chrome.scripting.removeCSS({
+        target,
+        files: [BOT_VIEW_CSS_PATH],
+      })
+    } catch (_) {}
+  }
+
+  return removed
+}
+
+export async function ensureInjectedGameBotView(sender, state = 'running') {
+  return await ensureInjectedGameBotViewForTarget(getSenderTarget(sender), state)
+}
+
+export async function removeInjectedGameBotView(sender) {
+  return await removeInjectedGameBotViewForTarget(getSenderTarget(sender))
+}
+
+export async function syncInjectedGameBotView(sender, {
+  visible = false,
+  state = 'running',
+} = {}) {
+  if (visible) {
+    return await ensureInjectedGameBotViewForTarget(getSenderTarget(sender), state)
+  }
+
+  await removeInjectedGameBotViewForTarget(getSenderTarget(sender))
+  return false
+}
+
+export async function syncInjectedGameBotViewByTabId(tabId, {
+  visible = false,
+  state = 'running',
+} = {}) {
+  const target = getTopTabTarget(tabId)
+
+  if (visible) {
+    return await ensureInjectedGameBotViewForTarget(target, state)
+  }
+
+  await removeInjectedGameBotViewForTarget(target)
+  return false
 }

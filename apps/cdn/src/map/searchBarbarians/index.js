@@ -209,10 +209,11 @@ export function searchBarbarians() {
     let savedFilters = [];
 
     const filterConfig = {
-      'attacked_checkbox': { param: 'show_attacked', action: 'toggle_show_attacked_villages', target: 1 },
+      'all_village_checkbox': { param: 'all_villages', action: 'toggle_show_all_villages', target: 0 },
+      'attacked_checkbox': { param: 'show_attacked', action: 'toggle_show_attacked', target: 1 },
       'full_losses_checkbox': { param: 'full_losses', action: 'toggle_show_full_losses', target: 1 },
       'partial_losses_checkbox': { param: 'partial_losses', action: 'toggle_show_partial_losses', target: 1 },
-      'full_hauls_checkbox': { param: 'full_hauls', action: 'toggle_show_full_hauls', target: 0 }
+      'full_hauls_checkbox': { param: 'only_full_hauls', action: 'toggle_only_full_hauls', target: 0 }
     };
 
     for (let id in filterConfig) {

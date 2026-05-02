@@ -1105,6 +1105,7 @@ async function stopGame(detail = {}) {
   }
 
   if (!gameState.active) {
+    ConfigSolver.destroy?.()
     gameState.runnerControllerCleanup?.()
     return
   }
@@ -1116,9 +1117,14 @@ async function stopGame(detail = {}) {
     await window.toolkitTwBotOnRunnerStop(detail)
   }
 
-  await destroyGameExecution(detail, { skipReport: true })
-  gameState.runnerControllerCleanup?.()
-  setGameStatus('inactive')
+  try {
+    await destroyGameExecution(detail, { skipReport: true })
+  } finally {
+    ConfigSolver.destroy?.()
+    gameState.runnerControllerCleanup?.()
+    setGameStatus('inactive')
+  }
+
   await reportExecutionState({
     action: 'deactivate',
     detail,

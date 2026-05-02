@@ -10,6 +10,7 @@ import {
   getPreparedContextScopeKeys,
   getTabContext,
 } from './prepared-context'
+import { syncInjectedGameBotViewByTabId } from './prepared-context/view'
 import { hasErrorAlarmForTab } from './prepared-context/error-tabId'
 import { scheduleProbeAlarm } from './prepared-context/probe-scoped'
 import {
@@ -300,6 +301,20 @@ export async function reconcileActiveRunner(
             data: nextData,
           })
 
+          try {
+            await syncInjectedGameBotViewByTabId(nextRunner.tabId, {
+              visible: nextData.enabledByUser && nextData.isAllowedByLicense,
+              state: nextData.enabledByUser && nextData.isAllowedByLicense ? 'running' : 'stopped',
+            })
+          } catch (error) {
+            console.warn('[SW][Runner] syncInjectedGameBotViewByTabId failed', {
+              tabId: nextRunner.tabId,
+              scopeKey: nextRunner.scopeKey,
+              visible: nextData.enabledByUser && nextData.isAllowedByLicense,
+              error,
+            })
+          }
+
           void scheduleProbeAlarm(nextRunner.scopeKey).catch((error) => {
             console.error('[probe schedule][refresh-runner]', error)
           })
@@ -343,6 +358,19 @@ export async function reconcileActiveRunner(
         }),
       })
 
+      try {
+        await syncInjectedGameBotViewByTabId(previousRunner.tabId, {
+          visible: false,
+          state: 'stopped',
+        })
+      } catch (error) {
+        console.warn('[SW][Runner] removeInjectedGameBotView failed', {
+          tabId: previousRunner.tabId,
+          scopeKey: previousRunner.scopeKey,
+          error,
+        })
+      }
+
       void scheduleProbeAlarm(previousRunner.scopeKey).catch((error) => {
         console.error('[probe schedule][previous-runner]', error)
       })
@@ -359,6 +387,20 @@ export async function reconcileActiveRunner(
           : STOP_MESSAGE_TYPE,
         data: nextData,
       })
+
+      try {
+        await syncInjectedGameBotViewByTabId(nextRunner.tabId, {
+          visible: nextData.enabledByUser && nextData.isAllowedByLicense,
+          state: nextData.enabledByUser && nextData.isAllowedByLicense ? 'running' : 'stopped',
+        })
+      } catch (error) {
+        console.warn('[SW][Runner] syncInjectedGameBotViewByTabId failed', {
+          tabId: nextRunner.tabId,
+          scopeKey: nextRunner.scopeKey,
+          visible: nextData.enabledByUser && nextData.isAllowedByLicense,
+          error,
+        })
+      }
 
       void scheduleProbeAlarm(nextRunner.scopeKey).catch((error) => {
         console.error('[probe schedule][next-runner]', error)

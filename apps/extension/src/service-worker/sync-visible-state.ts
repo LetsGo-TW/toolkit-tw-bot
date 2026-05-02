@@ -18,6 +18,7 @@ import { START_MESSAGE_TYPE, STOP_MESSAGE_TYPE } from './message/types'
 import { getRunnerByScope, type RunnerRecord } from './runner-tabs'
 import { evaluateWorldPlayerState } from './resolved-state'
 import { reconcileActiveRunner } from './runtime'
+import { syncInjectedGameBotView } from './prepared-context/view'
 import {
   getWorldPlayerByScopeKey,
   upsertWorldPlayer,
@@ -305,6 +306,22 @@ export async function syncSenderVisibleState({
     scopeKey: tabContext.scopeKey,
     data,
   })
+
+  try {
+    const shouldShowBotView = tabContext.context === 'GAME' && shouldStart
+    await syncInjectedGameBotView(sender, {
+      visible: shouldShowBotView,
+      state: shouldShowBotView ? 'running' : 'stopped',
+    })
+  } catch (error) {
+    console.warn('[SW][CTX] syncInjectedGameBotView failed', {
+      tabId: tabContext.tabId,
+      scopeKey: tabContext.scopeKey,
+      shouldStart,
+      context: tabContext.context,
+      error,
+    })
+  }
 
   const relatedTabIds = (
     evaluatedState.world

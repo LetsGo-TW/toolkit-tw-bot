@@ -1,14 +1,3 @@
-/* section.go-search-barbarians {
-  border: solid 0.01rem #603000;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-
-  h4 {
-    color: #603000;
-    margin: 0;
-  }
-} */
-
 button#go__start_search,
 button#go__stop_search,
 button#go__finish_search {

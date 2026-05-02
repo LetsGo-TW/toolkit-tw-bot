@@ -134,6 +134,11 @@ export const ConfigSolver = {
     }
   },
 
+  destroy() {
+    document.querySelector("#config-solver")?.remove?.()
+    ConfigSolver.images = null
+  },
+
   async get() {
     if (!await ConfigSolver.storage.exists()) {
       await ConfigSolver.set(ConfigSolver.config)
@@ -157,12 +162,15 @@ export const ConfigSolver = {
   },
 
   ["set-images"] : () => {
+    if (!ConfigSolver.images?.active || !ConfigSolver.images?.disable) return
     ConfigSolver.images.active.style.display = ConfigSolver.active ? "" : "none"
     ConfigSolver.images.disable.style.display = ConfigSolver.active ? "none" : ""
   },
 
   ["set-disable"] : () => {
-    document.querySelector("#label-active").textContent = ConfigSolver.active ? " ligado" : " desligado"
+    const labelActive = document.querySelector("#label-active")
+    if (!labelActive) return
+    labelActive.textContent = ConfigSolver.active ? " ligado" : " desligado"
     const color = ConfigSolver.active ? "#603000" : "#9f764d"
     const cursor = ConfigSolver.active ? "pointer" : "default"
     Array.from(document.getElementsByName("set-disable")).map(e => Array.from(e.childNodes).map(c => {
