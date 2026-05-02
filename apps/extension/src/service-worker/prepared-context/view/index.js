@@ -12,7 +12,6 @@ const BOT_VIEW_HTML_PATH = 'service-worker/prepared-context/view/index.html'
 const BOT_VIEW_CSS_PATH = 'service-worker/prepared-context/view/style.css'
 const BOT_VIEW_MOUNT_SELECTOR = '#main_layout tbody tr.shadedBG td.maincell div'
 const BOT_VIEW_STATUS_ID = 'go-extension-bot-view-status-bar'
-const BOT_VIEW_TOOLTIP_ID = 'go-extension-bot-view-tooltip-popup'
 
 let botViewHtmlPromise = null
 
@@ -57,12 +56,8 @@ function injectBotViewIntoPage({
   rootId,
   slotIds = [],
   statusId,
-  tooltipId,
   state,
 }) {
-  const TOOLTIP_TARGET_SELECTOR = '[data-go-bot-view-tooltip], [aria-label], [title]'
-  const TOOLTIP_POPUP_SELECTOR = '[data-go-bot-view-tooltip-popup="1"]'
-
   function createBotViewRoot(templateHtml) {
     const template = document.createElement('template')
     template.innerHTML = templateHtml.trim()
@@ -82,44 +77,6 @@ function injectBotViewIntoPage({
     )
   }
 
-  function resolveTooltipTarget(node, root) {
-    if (!(root instanceof HTMLElement) || !(node instanceof Element)) return null
-    const target = node.closest(TOOLTIP_TARGET_SELECTOR)
-    if (!(target instanceof HTMLElement) || !root.contains(target)) return null
-    if (target.getAttribute('data-go-bot-view-tooltip-disabled') === '1') return null
-    return target
-  }
-
-  function resolveTooltipText(target) {
-    if (!(target instanceof HTMLElement)) return ''
-
-    const dataText = String(target.getAttribute('data-go-bot-view-tooltip') || '').trim()
-    if (dataText) return dataText
-
-    const ariaText = String(target.getAttribute('aria-label') || '').trim()
-    if (ariaText) return ariaText
-
-    const titleText = String(target.getAttribute('title') || '').trim()
-    if (titleText) {
-      target.setAttribute('data-go-bot-view-tooltip', titleText)
-      target.removeAttribute('title')
-      return titleText
-    }
-
-    return ''
-  }
-
-  function getTooltipPopup(root) {
-    const detachedPopup = document.getElementById(tooltipId)
-    if (detachedPopup instanceof HTMLElement) {
-      return detachedPopup
-    }
-
-    return root.querySelector(TOOLTIP_POPUP_SELECTOR) instanceof HTMLElement
-      ? root.querySelector(TOOLTIP_POPUP_SELECTOR)
-      : null
-  }
-
   function separateStatusBar(root) {
     if (!(root instanceof HTMLElement) || !(document.body instanceof HTMLElement)) return
 
@@ -133,100 +90,6 @@ function injectBotViewIntoPage({
 
     status.id = statusId
     document.body.append(status)
-  }
-
-  function separateTooltipPopup(root) {
-    if (!(root instanceof HTMLElement) || !(document.body instanceof HTMLElement)) return
-
-    const popup = root.querySelector(TOOLTIP_POPUP_SELECTOR)
-    if (!(popup instanceof HTMLElement)) return
-
-    const existing = document.getElementById(tooltipId)
-    if (existing instanceof HTMLElement && existing !== popup) {
-      existing.remove()
-    }
-
-    popup.id = tooltipId
-    document.body.append(popup)
-  }
-
-  function hideTooltip(root) {
-    const popup = getTooltipPopup(root)
-    if (!(popup instanceof HTMLElement)) return
-    popup.hidden = true
-    popup.textContent = ''
-    delete root.dataset.goBotViewTooltipTarget
-  }
-
-  function showTooltip(root, target) {
-    const popup = getTooltipPopup(root)
-    if (!(root instanceof HTMLElement) || !(popup instanceof HTMLElement) || !(target instanceof HTMLElement)) {
-      return
-    }
-
-    const text = resolveTooltipText(target)
-    if (!text) {
-      hideTooltip(root)
-      return
-    }
-
-    const targetRect = target.getBoundingClientRect()
-
-    popup.textContent = text
-    popup.hidden = false
-    popup.style.top = '0px'
-    popup.style.left = '0px'
-
-    const popupRect = popup.getBoundingClientRect()
-    const margin = 6
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
-    const centeredTop = targetRect.top + (targetRect.height / 2) - (popupRect.height / 2)
-    const maxTop = Math.max(4, viewportHeight - popupRect.height - 4)
-    const top = Math.min(Math.max(centeredTop, 4), maxTop)
-
-    let left = targetRect.right + margin
-    if (left + popupRect.width > viewportWidth - 4) {
-      left = Math.max(4, targetRect.left - popupRect.width - margin)
-    }
-
-    popup.style.top = `${Math.round(top)}px`
-    popup.style.left = `${Math.round(left)}px`
-    root.dataset.goBotViewTooltipTarget = text
-  }
-
-  function bindTooltip(root) {
-    if (!(root instanceof HTMLElement) || root.dataset.goBotViewTooltipBound === '1') return
-
-    root.addEventListener('pointerover', (event) => {
-      const target = resolveTooltipTarget(event.target, root)
-      if (!(target instanceof HTMLElement)) return
-      showTooltip(root, target)
-    }, true)
-
-    root.addEventListener('pointerout', (event) => {
-      const fromTarget = resolveTooltipTarget(event.target, root)
-      const toTarget = resolveTooltipTarget(event.relatedTarget, root)
-      if (!(fromTarget instanceof HTMLElement) || fromTarget === toTarget) return
-      hideTooltip(root)
-    }, true)
-
-    root.addEventListener('focusin', (event) => {
-      const target = resolveTooltipTarget(event.target, root)
-      if (!(target instanceof HTMLElement)) return
-      showTooltip(root, target)
-    }, true)
-
-    root.addEventListener('focusout', (event) => {
-      const nextTarget = resolveTooltipTarget(event.relatedTarget, root)
-      if (nextTarget instanceof HTMLElement) {
-        showTooltip(root, nextTarget)
-        return
-      }
-      hideTooltip(root)
-    }, true)
-
-    root.dataset.goBotViewTooltipBound = '1'
   }
 
   const mountTarget = document.querySelector(mountSelector)
@@ -281,8 +144,6 @@ function injectBotViewIntoPage({
   root.style.left = '-65px'
   root.setAttribute('data-go-bot-view-state', state)
   separateStatusBar(root)
-  separateTooltipPopup(root)
-  bindTooltip(root)
 
   return {
     hasSlots: hasBotViewSlots(),
@@ -293,12 +154,10 @@ function injectBotViewIntoPage({
 function removeBotViewFromPage({
   rootId,
   statusId,
-  tooltipId,
 }) {
   const nodes = [
     document.getElementById(rootId),
     document.getElementById(statusId),
-    document.getElementById(tooltipId),
   ].filter((node) => node instanceof HTMLElement)
 
   nodes.forEach((node) => node.remove())
@@ -324,7 +183,6 @@ async function ensureInjectedGameBotViewForTarget(target, state = 'running') {
       rootId: BOT_VIEW_ROOT_ID,
       slotIds: BOT_VIEW_SLOT_IDS,
       statusId: BOT_VIEW_STATUS_ID,
-      tooltipId: BOT_VIEW_TOOLTIP_ID,
       state,
     }],
   })
@@ -350,7 +208,6 @@ async function removeInjectedGameBotViewForTarget(target) {
     args: [{
       rootId: BOT_VIEW_ROOT_ID,
       statusId: BOT_VIEW_STATUS_ID,
-      tooltipId: BOT_VIEW_TOOLTIP_ID,
     }],
   })
 

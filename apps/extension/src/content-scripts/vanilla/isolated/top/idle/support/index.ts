@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
+import Tooltip from "@toolkit-tw-bot/document/tooltip"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { SUPPORT_SYNC_CTX_MESSAGE_TYPE } from "../../../../../../service-worker/message/types"
@@ -22,6 +23,7 @@ import { maybeHandleLoginReconnect } from './loginReconnect'
 
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupport__'
 const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
+const BOT_VIEW_TOOLTIP_SELECTOR = '#go-extension-bot-view [data-go-bot-view-tooltip]'
 
 type ToolkitWindow = Window & {
   [BOOTSTRAP_KEY]?: boolean
@@ -30,6 +32,7 @@ type ToolkitWindow = Window & {
 let probedBotProtectState: boolean | null = null
 let syncedBotProtectState: boolean | null = null
 let botProtectStateSyncTimer: ReturnType<typeof setTimeout> | null = null
+let unbindBotViewTooltip: (() => void) | null = null
 
 function getPageMessageData(event: MessageEvent<unknown>) {
   if (event.source !== window) {
@@ -139,6 +142,19 @@ function installBotProtectObserver() {
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
+  })
+}
+
+function ensureBotViewTooltipOnce() {
+  if (unbindBotViewTooltip) {
+    return
+  }
+
+  const tooltip = new Tooltip()
+
+  unbindBotViewTooltip = tooltip.bind(document, BOT_VIEW_TOOLTIP_SELECTOR, (el) => {
+    const value = String(el?.getAttribute?.('data-go-bot-view-tooltip') || '').trim()
+    return value || null
   })
 }
 
@@ -299,6 +315,7 @@ async function bootstrap() {
   chrome.runtime.onMessage.addListener(onExtensionMessage)
   chrome.storage.onChanged.addListener(onStorageChanged)
   window.addEventListener('message', onPreparedBootstrapStateMessage, true)
+  ensureBotViewTooltipOnce()
 
   if (await maybeHandleLoginReconnect()) {
     return
