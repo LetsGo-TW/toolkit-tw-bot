@@ -1,11 +1,11 @@
 import { getGameData } from '@toolkit-tw-bot/document'
-import { printMessage } from '../components/printMessage'
-import { createBtnCalendar } from '../components/go-buttons/calendar'
+import { printMessage } from '../../components/printMessage'
+import { createBtnCalendar } from '../../components/go-buttons/calendar'
 import {
   createBtnCrossedSwords,
   ICON_CROSSED_SWORDS_CENTERED,
-} from '../components/go-buttons/crossed-swords'
-import { isPlannerScheduleEnabled } from '../planner/featureFlags'
+} from '../../components/go-buttons/crossed-swords'
+import { isPlannerScheduleEnabled } from '../../planner/featureFlags'
 
 const CTX_BUTTON_ATTR = 'data-go-ctx-runtime-button'
 const CLICK_SCHEDULE_SYNC_DELAY_MS = 24
@@ -181,6 +181,7 @@ function readMapCtxTarget() {
 
   return null
 }
+
 function removeCtxButtons(slot = null) {
   if (!(slot instanceof HTMLElement)) return
   slot.querySelectorAll(`[${CTX_BUTTON_ATTR}="1"]`).forEach((node) => node.remove())

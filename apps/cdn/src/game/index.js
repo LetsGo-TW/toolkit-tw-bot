@@ -15,9 +15,9 @@ import {
 } from "./ctx-menu"
 import {
   destroyGamePlannerActionsRunning,
+  PLANNER_CTX_OPEN_EVENT,
   syncGamePlannerActionsRunning,
 } from "./planner-actions"
-import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
 const CDN = 'GAME.STAGE'
 const RUNNER_BOT_PROTECT = 'BOT_RUNNER_BOT_PROTECT'
