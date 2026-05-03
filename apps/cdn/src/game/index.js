@@ -3,9 +3,12 @@ import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
-import ConfigSolver from "../hCaptcha/config"
 import { useGoTiming } from "../hooks/useGoTiming"
-import { bootGameCollectorLauncherRunning } from "./collector-launcher"
+import {
+  destroyGameCollectorLauncherRunning,
+  syncGameCollectorLauncherRunning,
+} from "./collector-launcher"
+import { destroyGameComposerRunning, syncGameComposerRunning } from "./composer"
 import { bootGameCtxMenuRunning } from "./ctx-menu"
 import { bootGamePlannerActionsRunning } from "./planner-actions"
 import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
@@ -32,6 +35,7 @@ const BOT_VIEW_STATUS_SCRIPT_ID = 'go-extension-bot-view-status-script'
 const BOT_VIEW_STATUS_EXECUTION_ID = 'go-extension-bot-view-status-execution'
 const BOT_VIEW_STATUS_NEXT_ID = 'go-extension-bot-view-status-next'
 const GET_BOT_VIEW_STATUS = 'GET_BOT_VIEW_STATUS'
+const OTHERS_MODULE_NAME = 'others'
 const RUNNER_HANDLE_STOP_KEYS = ['stop', 'stopExecution', 'destroy', 'dispose', 'cleanup', 'unbind', 'teardown']
 const RUNNER_HANDLE_DESTROY_KEYS = ['destroy', 'dispose', 'cleanup', 'unbind', 'teardown', 'stop', 'stopExecution']
 const RUNNER_HANDLE_PAUSE_KEYS = ['pause', 'pauseExecution']
@@ -858,9 +862,22 @@ async function requestStageInstruction(detail = {}) {
   console.log(`[${CDN}]: `, response)
 
   if (!response || response.ok !== true) {
+    await destroyGameCollectorLauncherRunning()
+    await destroyGameComposerRunning()
     setGameStatus('idle')
     return null
   }
+
+  await syncGameCollectorLauncherRunning()
+
+  await syncGameComposerRunning({
+    registry: Array.isArray(response?.registry) ? response.registry : null,
+  }, {
+    getBotView: getInjectedBotViewElements,
+    getState: getGameStateSnapshot,
+    clearBotViewExecutionStatusText,
+    setBotViewExecutionStatusText,
+  })
 
   const botView = getInjectedBotViewElements()
 
@@ -915,21 +932,27 @@ async function ensurePageRunner({
     reason: 'module-replaced',
   })
 
-  const pageRunner = await getDynamicModule(moduleName)
+  let resolvedModuleName = moduleName
+  let pageRunner = await getDynamicModule(moduleName)
+
+  if (!pageRunner && moduleName !== OTHERS_MODULE_NAME) {
+    resolvedModuleName = OTHERS_MODULE_NAME
+    pageRunner = await getDynamicModule(OTHERS_MODULE_NAME)
+  }
 
   if (!pageRunner) {
-    gameState.currentPageName = moduleName
+    gameState.currentPageName = resolvedModuleName
     touchGameState()
     return null
   }
 
-  gameState.currentPageName = moduleName
+  gameState.currentPageName = resolvedModuleName
   touchGameState()
 
   return await executeRunner({
     data,
     kind: 'page',
-    name: moduleName,
+    name: resolvedModuleName,
     runner: pageRunner,
     runId,
   })
@@ -961,8 +984,6 @@ async function runInstruction(
   gameState.currentStageResponse = raw
   clearGameError()
   setGameStatus('running')
-
-  await ConfigSolver.init()
 
   await ensurePageRunner({
     data,
@@ -1114,7 +1135,6 @@ async function stopGame(detail = {}) {
   }
 
   if (!gameState.active) {
-    ConfigSolver.destroy?.()
     gameState.runnerControllerCleanup?.()
     return
   }
@@ -1129,7 +1149,7 @@ async function stopGame(detail = {}) {
   try {
     await destroyGameExecution(detail, { skipReport: true })
   } finally {
-    ConfigSolver.destroy?.()
+    await destroyGameCollectorLauncherRunning()
     gameState.runnerControllerCleanup?.()
     setGameStatus('inactive')
   }
@@ -1190,7 +1210,6 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
-void bootGameCollectorLauncherRunning()
 void bootGameCtxMenuRunning()
 void bootGamePlannerActionsRunning()
 void game()

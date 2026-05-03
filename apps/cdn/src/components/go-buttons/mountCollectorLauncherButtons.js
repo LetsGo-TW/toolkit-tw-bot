@@ -1151,4 +1151,37 @@ export function bootCollectorLauncherBotViewRunning() {
   scheduleBotViewCollectorLauncherSync()
 }
 
+export function destroyCollectorLauncherBotViewRunning() {
+  if (botViewCollectorLauncherSyncFrame) {
+    window.cancelAnimationFrame?.(botViewCollectorLauncherSyncFrame)
+    botViewCollectorLauncherSyncFrame = 0
+  }
+
+  if (botViewCollectorLauncherHashListenerBound) {
+    botViewCollectorLauncherHashListenerBound = false
+    window.removeEventListener('hashchange', scheduleBotViewCollectorLauncherSync)
+  }
+
+  if (botViewCollectorLauncherStateListenerBound) {
+    botViewCollectorLauncherStateListenerBound = false
+    document.removeEventListener('go:collector-base:open', scheduleBotViewCollectorLauncherSync, true)
+    document.removeEventListener('go:collector-base:close', scheduleBotViewCollectorLauncherSync, true)
+    document.removeEventListener('go:planner:close', scheduleBotViewCollectorLauncherSync, true)
+  }
+
+  botViewCollectorLauncherBodyObserver?.disconnect?.()
+  botViewCollectorLauncherBodyObserver = null
+
+  botViewCollectorLauncherContentObserver?.disconnect?.()
+  botViewCollectorLauncherContentObserver = null
+  botViewCollectorLauncherObservedContent = null
+
+  collectorPreviewCtx.screen = ''
+  collectorBasePreviewCoordSelector?.stop?.()
+  collectorBasePreviewPopup?.close?.({ notify: false })
+
+  botViewCollectorLauncherBooted = false
+  removeBotViewCollectorLauncher()
+}
+
 export default mountCollectorLauncherButtons
