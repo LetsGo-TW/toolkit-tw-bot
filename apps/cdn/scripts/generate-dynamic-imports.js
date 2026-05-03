@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const modulesMap = require('../entries/dynamic-modules')
 const runtimeMap = require('../entries/dynamic-runtime')
+const bootstrapMap = require('../entries/dynamic-bootstrap')
 
 function generateMethod(moduleKey, config) {
   const exportName = config.exportName || 'default'
@@ -63,6 +64,12 @@ function main() {
     outputFileName: 'dynamic-runtime.js',
     exportName: 'DynamicRuntime',
     registry: runtimeMap,
+  })
+
+  writeGeneratedFile({
+    outputFileName: 'dynamic-bootstrap.js',
+    exportName: 'DynamicBootstrap',
+    registry: bootstrapMap,
   })
 }
 

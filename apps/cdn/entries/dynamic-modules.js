@@ -41,6 +41,12 @@ module.exports = {
     exportName: 'default',
   },
 
+  others: {
+    importPath: './others/index.js',
+    chunkName: 'others',
+    exportName: 'default',
+  },
+
   // overview: {
   //   importPath: '../Overviews',
   //   chunkName: 'overview',

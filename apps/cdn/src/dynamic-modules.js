@@ -16,4 +16,12 @@ export class DynamicModules {
     )
     return mod.default
   }
+
+  static "others" = async () => {
+    const mod = await import(
+      /* webpackChunkName: "others" */
+      './others/index.js'
+    )
+    return mod.default
+  }
 }

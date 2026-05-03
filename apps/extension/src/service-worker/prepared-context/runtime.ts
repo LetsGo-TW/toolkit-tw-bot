@@ -1,5 +1,7 @@
 /// <reference types="chrome" />
 
+import { SCRIPT_REGISTRY } from '@toolkit-tw-bot/release/src/script-registry.js'
+
 import type { SWMessage } from '../../types'
 import {
   dispatchControllerForScope,
@@ -13,7 +15,6 @@ import {
 } from '../message/types'
 import { type PreparedMessageData } from './index'
 import { syncSenderVisibleState } from '../sync-visible-state'
-import { runtimeAllowedByLicense } from '../world-players/runtime'
 import { ensureInjectedGameBotView } from './view'
 
 type PreparedContextRequest = SWMessage & {
@@ -44,6 +45,35 @@ function getScreenFromSenderUrl(sender?: chrome.runtime.MessageSender) {
   } catch {
     return null
   }
+}
+
+function cloneStageRegistryEntry(entry: Record<string, unknown>) {
+  const match = entry.match && typeof entry.match === 'object'
+    ? { ...(entry.match as Record<string, unknown>) }
+    : undefined
+  const goTo = entry.goTo && typeof entry.goTo === 'object'
+    ? { ...(entry.goTo as Record<string, unknown>) }
+    : undefined
+  const hostPage = entry.hostPage && typeof entry.hostPage === 'object'
+    ? { ...(entry.hostPage as Record<string, unknown>) }
+    : undefined
+
+  return {
+    ...entry,
+    match,
+    goTo,
+    hostPage,
+  }
+}
+
+function createStageRegistry(shouldStart = false) {
+  if (shouldStart !== true || !Array.isArray(SCRIPT_REGISTRY) || SCRIPT_REGISTRY.length === 0) {
+    return null
+  }
+
+  return SCRIPT_REGISTRY
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => cloneStageRegistryEntry(entry as Record<string, unknown>))
 }
 
 export async function registerPreparedCtx(
@@ -247,8 +277,11 @@ export async function syncGameStage(
     senderTabId: sender.tab?.id ?? null,
     senderWindowId: sender.tab?.windowId ?? null,
   })
+  const registry = createStageRegistry(
+    isActive && data?.enabledByUser === true && data?.isAllowedByLicense === true,
+  )
 
-  if (instruction) {
+  if (instruction || (Array.isArray(registry) && registry.length > 0)) {
     const hasBotView = await ensureInjectedGameBotView(sender, 'running')
 
     if (!hasBotView) {
@@ -266,6 +299,7 @@ export async function syncGameStage(
     ok: result?.data?.isAllowedByLicense === true,
     type: GAME_STAGE_MESSAGE_TYPE,
     scopeKey: tabContext?.scopeKey ?? null,
+    registry,
     machine: instruction?.machine ?? null,
     module: instruction?.module ?? null,
     data: instruction?.data ?? null,

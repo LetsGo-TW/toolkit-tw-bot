@@ -1,40 +1,26 @@
 // eslint-disable-next-line no-undef
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM=';
 
-import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { insertConfigCopyToClipboard } from "../clipboard/view";
 import { insertNotify } from "../notify";
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from "../shared/bot-view-status";
-
-const SETTINGS_GEAR_ICON_URL = `chrome-extension://${RELEASE_EXTENSION_ID}/icons/gear.green.svg`
+import { SETTINGS_CONFIG_TOGGLE_EVENT } from './events';
 
 export default async() => {
   const url = new URL(window.location.href)
   if (url.searchParams.get('intro')) return
   if (url.searchParams.get('screen') !== 'settings') return
-  if (document.querySelector('#go-slot-config')) return
-  const slotConfig = document.querySelector('#go-extension-bot-view-slot-config')
-  if (!slotConfig) return
 
   const destroySettings = {
     notify: null,
     copyToClipboard: null
   }
-
-  const btnConfig = document.createElement('button')
-  btnConfig.id = 'go-slot-config'
-  btnConfig.type = 'button'
-  btnConfig.setAttribute('aria-label', 'Mostrar/ocultar configurações.')
-  btnConfig.setAttribute('data-go-bot-view-tooltip', 'Mostrar/ocultar configurações.')
-
-  const btnConfigImg = document.createElement('img')
-  btnConfigImg.src = SETTINGS_GEAR_ICON_URL
-  btnConfigImg.alt = ''
-  btnConfigImg.width = 16
-  btnConfigImg.height = 16
-  btnConfig.append(btnConfigImg)
   
   const render = async () => {
+    if (document.querySelector("#go_contairner")) {
+      return
+    }
+
     setBotViewExecutionStatus('Configurando')
     destroySettings.notify = await insertNotify()
     destroySettings.copyToClipboard = insertConfigCopyToClipboard()
@@ -52,25 +38,35 @@ export default async() => {
     }
   }
 
-  const btnConfigOnClick = () => {
+  const onToggleConfig = (event) => {
+    const action = String(event?.detail?.action || 'toggle').trim().toLowerCase()
     const goContainer = document.querySelector("#go_contairner")
-    if (goContainer) {
+
+    if (action === 'close') {
       destroy()
       return
     }
-    render()
+
+    if (goContainer) {
+      if (action === 'open') {
+        return
+      }
+
+      destroy()
+      return
+    }
+
+    void render()
   }
 
-  btnConfig.addEventListener('click', btnConfigOnClick)
+  window.addEventListener(SETTINGS_CONFIG_TOGGLE_EVENT, onToggleConfig)
   
-  const removeListner = () => {
+  const removeListener = () => {
     destroy()
-    btnConfig.removeEventListener('click', btnConfigOnClick)
+    window.removeEventListener(SETTINGS_CONFIG_TOGGLE_EVENT, onToggleConfig)
   }
-
-  slotConfig.insertAdjacentElement('beforeend', btnConfig)
 
   return {
-    destroy: removeListner,
+    destroy: removeListener,
   }
 }
