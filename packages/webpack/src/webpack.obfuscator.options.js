@@ -59,6 +59,24 @@ const PRESETS = {
     transformObjectKeys: true,
   }),
 
+  mediumSafe: () => ({
+    ...COMMON_OPTIONS,
+    controlFlowFlattening: false,
+    deadCodeInjection: false,
+    numbersToExpressions: false,
+    renameGlobals: false,
+    splitStrings: true,
+    splitStringsChunkLength: 10,
+    stringArrayCallsTransform: true,
+    stringArrayCallsTransformThreshold: 0.6,
+    stringArrayEncoding: ['base64'],
+    stringArrayWrappersCount: 2,
+    stringArrayWrappersParametersMaxCount: 3,
+    stringArrayWrappersType: 'function',
+    stringArrayThreshold: 0.75,
+    transformObjectKeys: true,
+  }),
+
   low: () => ({
     ...COMMON_OPTIONS,
     controlFlowFlattening: false,

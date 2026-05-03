@@ -26,6 +26,8 @@
     "build:obfuscate:low": "OBFUSCATE=true OBFUSCATE_LEVEL=low webpack --config webpack/webpack.config.js --env env=prod",
     "prebuild:obfuscate:medium": "yarn generate:dynamic-imports",
     "build:obfuscate:medium": "OBFUSCATE=true OBFUSCATE_LEVEL=medium webpack --config webpack/webpack.config.js --env env=prod",
+    "prebuild:obfuscate:medium-safe": "yarn generate:dynamic-imports",
+    "build:obfuscate:medium-safe": "OBFUSCATE=true OBFUSCATE_LEVEL=mediumSafe webpack --config webpack/webpack.config.js --env env=prod",
     "generate:dynamic-imports": "node scripts/generate-dynamic-imports.js"
   },
   "devDependencies": {

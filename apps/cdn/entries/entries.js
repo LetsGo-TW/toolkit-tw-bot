@@ -10,7 +10,7 @@ module.exports = {
     'game.staged': {
       entry: '../src/game/index.js',
       build: {
-        obfuscationLevel: 'high',
+        obfuscationLevel: 'mediumSafe',
       },
     },
   },
