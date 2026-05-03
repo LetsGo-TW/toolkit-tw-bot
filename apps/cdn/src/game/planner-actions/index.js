@@ -1,16 +1,41 @@
-let bootGamePlannerActionsPromise = null
+import { DynamicBootstrap } from '../../dynamic-bootstrap'
 
-export async function bootGamePlannerActionsRunning() {
-  if (!bootGamePlannerActionsPromise) {
-    bootGamePlannerActionsPromise = import('../../components/go-buttons/mountPlannerActionButtons.js')
-      .then((module) => {
-        module?.bootPlannerActionBotViewRunning?.()
+let plannerActionsModulePromise = null
+
+async function getPlannerActionsModule() {
+  if (!plannerActionsModulePromise) {
+    plannerActionsModulePromise = Promise.resolve()
+      .then(async() => {
+        const plannerActionsLoader = DynamicBootstrap['planner-actions']
+
+        if (typeof plannerActionsLoader !== 'function') {
+          return null
+        }
+
+        return await plannerActionsLoader()
       })
       .catch((error) => {
-        bootGamePlannerActionsPromise = null
+        plannerActionsModulePromise = null
         console.error('[GO][game planner-actions] boot failed', error)
+        return null
       })
   }
 
-  await bootGamePlannerActionsPromise
+  return await plannerActionsModulePromise
+}
+
+export async function syncGamePlannerActionsRunning() {
+  const module = await getPlannerActionsModule()
+  await module?.syncPlannerActionsRunning?.()
+}
+
+export async function destroyGamePlannerActionsRunning() {
+  const module = plannerActionsModulePromise
+    ? await plannerActionsModulePromise
+    : null
+  await module?.destroyPlannerActionsRunning?.()
+}
+
+export async function bootGamePlannerActionsRunning() {
+  await syncGamePlannerActionsRunning()
 }

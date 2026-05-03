@@ -14,4 +14,9 @@ module.exports = {
     chunkName: 'bootstrap-ctx-menu',
     exportName: 'default',
   },
+  'planner-actions': {
+    importPath: './bootstrap/planner-actions/index.js',
+    chunkName: 'bootstrap-planner-actions',
+    exportName: 'default',
+  },
 }

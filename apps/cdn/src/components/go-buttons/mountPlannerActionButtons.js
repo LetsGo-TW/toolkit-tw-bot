@@ -39,6 +39,28 @@ let botViewPlannerSlotsSyncFrame = 0
 let botViewPlannerSlotsController = null
 let botViewPlannerSlotsForceRefresh = false
 
+function onPlannerSlotsHashChange() {
+  scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+}
+
+function onPlannerSlotsPlannerStateChange() {
+  scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+}
+
+function onPlannerSlotsWindowFocus() {
+  scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+}
+
+function onPlannerSlotsVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+  }
+}
+
+function onPlannerSlotsBodyMutation() {
+  scheduleBotViewPlannerSlotsSync()
+}
+
 async function loadPlannerModule() {
   if (!plannerModulePromise) {
     plannerModulePromise = import('../../planner')
@@ -1275,37 +1297,23 @@ function scheduleBotViewPlannerSlotsSync({
 export function bootPlannerActionBotViewRunning() {
   if (!botViewPlannerSlotsHashListenerBound) {
     botViewPlannerSlotsHashListenerBound = true
-    window.addEventListener('hashchange', () => {
-      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
-    }, { passive: true })
+    window.addEventListener('hashchange', onPlannerSlotsHashChange, { passive: true })
   }
 
   if (!botViewPlannerSlotsStateListenersBound) {
     botViewPlannerSlotsStateListenersBound = true
-    document.addEventListener('go:planner:open', () => {
-      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
-    }, true)
-    document.addEventListener('go:planner:close', () => {
-      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
-    }, true)
+    document.addEventListener('go:planner:open', onPlannerSlotsPlannerStateChange, true)
+    document.addEventListener('go:planner:close', onPlannerSlotsPlannerStateChange, true)
   }
 
   if (!botViewPlannerSlotsFocusListenersBound) {
     botViewPlannerSlotsFocusListenersBound = true
-    window.addEventListener('focus', () => {
-      scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
-    }, { passive: true })
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
-      }
-    }, true)
+    window.addEventListener('focus', onPlannerSlotsWindowFocus, { passive: true })
+    document.addEventListener('visibilitychange', onPlannerSlotsVisibilityChange, true)
   }
 
   if (!botViewPlannerSlotsBodyObserver) {
-    botViewPlannerSlotsBodyObserver = new MutationObserver(() => {
-      scheduleBotViewPlannerSlotsSync()
-    })
+    botViewPlannerSlotsBodyObserver = new MutationObserver(onPlannerSlotsBodyMutation)
     if (!document.body) {
       botViewPlannerSlotsBodyObserver = null
     } else {
@@ -1323,6 +1331,38 @@ export function bootPlannerActionBotViewRunning() {
 
   botViewPlannerSlotsBooted = true
   scheduleBotViewPlannerSlotsSync({ forceRefresh: true })
+}
+
+export function destroyPlannerActionBotViewRunning() {
+  if (botViewPlannerSlotsSyncFrame) {
+    window.cancelAnimationFrame?.(botViewPlannerSlotsSyncFrame)
+    botViewPlannerSlotsSyncFrame = 0
+  }
+
+  if (botViewPlannerSlotsHashListenerBound) {
+    botViewPlannerSlotsHashListenerBound = false
+    window.removeEventListener('hashchange', onPlannerSlotsHashChange)
+  }
+
+  if (botViewPlannerSlotsStateListenersBound) {
+    botViewPlannerSlotsStateListenersBound = false
+    document.removeEventListener('go:planner:open', onPlannerSlotsPlannerStateChange, true)
+    document.removeEventListener('go:planner:close', onPlannerSlotsPlannerStateChange, true)
+  }
+
+  if (botViewPlannerSlotsFocusListenersBound) {
+    botViewPlannerSlotsFocusListenersBound = false
+    window.removeEventListener('focus', onPlannerSlotsWindowFocus)
+    document.removeEventListener('visibilitychange', onPlannerSlotsVisibilityChange, true)
+  }
+
+  botViewPlannerSlotsBodyObserver?.disconnect?.()
+  botViewPlannerSlotsBodyObserver = null
+
+  botViewPlannerSlotsForceRefresh = false
+  botViewPlannerSlotsBooted = false
+  botViewPlannerSlotsController?.destroy?.()
+  botViewPlannerSlotsController = null
 }
 
 export function mountPlannerActionButtons(data) {

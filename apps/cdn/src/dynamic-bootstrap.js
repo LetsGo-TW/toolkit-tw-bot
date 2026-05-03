@@ -24,4 +24,12 @@ export class DynamicBootstrap {
     )
     return mod.default
   }
+
+  static "planner-actions" = async () => {
+    const mod = await import(
+      /* webpackChunkName: "bootstrap-planner-actions" */
+      './bootstrap/planner-actions/index.js'
+    )
+    return mod.default
+  }
 }
