@@ -12,6 +12,10 @@ function createAbortError(reason = 'Solver aborted') {
   return error;
 }
 
+function isAbortError(error) {
+  return error?.name === 'AbortError';
+}
+
 export async function run(data) {
   const {
     control = null,
@@ -96,6 +100,17 @@ export async function run(data) {
 
     return await new Promise(resolve => setTimeout(resolve, ms));
   };
+  const runDetached = (task, label = 'task') => {
+    void Promise.resolve()
+      .then(task)
+      .catch((error) => {
+        if (isAbortError(error)) {
+          return;
+        }
+
+        console.error(`[HCAPTCHA][${label}]`, error);
+      });
+  };
 
   // Instancia o StorageLocal com ofuscação automática da chave e do valor
   const storageFailureBlocks = StorageLocalCompat.create({
@@ -158,16 +173,24 @@ export async function run(data) {
   }
 
   const reload = async(message=null, time=5000 ) => {
-    if (isAborted()) return;
+    try {
+      if (isAborted()) return;
 
-    if (message) {
-      printMessage.error(message, time)
+      if (message) {
+        printMessage.error(message, time)
+      }
+
+      await sleep(time);
+      if (isAborted()) return;
+
+      window.self.location.reload();
+    } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+
+      throw error;
     }
-
-    await sleep(time);
-    if (isAborted()) return;
-
-    window.self.location.reload();
   }
 
   let isFinished = false;
@@ -196,7 +219,7 @@ export async function run(data) {
       },
     });
 
-    void reload();
+    runDetached(() => reload(), 'reload-after-success');
   };
 
   const handleFailure = async (customMessage = null, customReloadTime = 5000) => {
@@ -264,7 +287,7 @@ export async function run(data) {
 
     sessionStorage.setItem('hCaptcha_retry', 'true'); // Sinaliza que o próximo load é uma retentativa nossa
     const msg = customMessage || `Desafio visual exigido! (Tentativa ${attempts} de 3)`;
-    reload(msg, customReloadTime);
+    runDetached(() => reload(msg, customReloadTime), 'reload-after-failure');
   };
 
   let validateButtonClickTimeout = null;
@@ -302,7 +325,7 @@ export async function run(data) {
     if (forcedOk === null && !ok) {
       console.log('Timeout aguardando renderização do captcha. Forçando reload...');
       ReportSession.updateError('Timeout aguardando renderização do captcha');
-      handleFailure();
+      runDetached(() => handleFailure(), 'button-render-timeout');
     }
   };
 
@@ -315,7 +338,7 @@ export async function run(data) {
 
   // Trava para impedir que mensagens repetidas do iframe reiniciem a animação de scroll
   let isHandlingActive = false;
-  const messageReceived = async (event) => {
+  const handleMessageReceived = async (event) => {
     if (isAborted()) return;
 
     // Caminho 2: Mensagem nativa do hCaptcha de que as imagens foram vencidas
@@ -325,7 +348,7 @@ export async function run(data) {
         if (data && data.source === 'hcaptcha' && (data.label === 'challenge-passed' || data.label === 'challenge-closed')) {
           console.log('✅ hCaptcha resolvido (detectado via postMessage nativo)!');
           ReportSession.updateCaptcha({ ok: true, isTrusted: true, timestamp: getCaptchaNowMs() });
-          handleSuccess('Resolvido (Token gerado na janela)');
+          runDetached(() => handleSuccess('Resolvido (Token gerado na janela)'), 'success-native-postmessage');
         }
       } catch (e) {}
       return;
@@ -374,7 +397,7 @@ export async function run(data) {
       secureTimeout = setTrackedTimeout(() => {
         console.log('❌ Timeout aguardando o clique no checkbox do hCaptcha. Forçando reload...');
         ReportSession.updateError('Falha no clique do checkbox (errou o alvo)');
-        handleFailure();
+        runDetached(() => handleFailure(), 'checkbox-click-timeout');
       }, 15000);
     }
     if (event.data.execute) {
@@ -385,7 +408,7 @@ export async function run(data) {
 
       if (event.data.isChecked) {
         console.log('Captcha passou direto sem desafio! Aguardando 5s para recarregar a página...');
-        handleSuccess('Passou direto (Check Verde)');
+        runDetached(() => handleSuccess('Passou direto (Check Verde)'), 'success-check-green');
         return;
       }
 
@@ -397,11 +420,11 @@ export async function run(data) {
         if (textarea && textarea.value.trim() !== '') {
           console.log('✅ hCaptcha token gerado (detectado no textarea)!');
           ReportSession.updateCaptcha({ ok: true, isTrusted: true, timestamp: getCaptchaNowMs() });
-          handleSuccess('Resolvido (Token inserido no form)');
+          runDetached(() => handleSuccess('Resolvido (Token inserido no form)'), 'success-textarea');
         } else if (!divCaptcha() || divCaptcha()?.innerHTML.trim() === '') {
           console.log('✅ hCaptcha sumiu da tela (DOM limpo)!');
           ReportSession.updateCaptcha({ ok: true, isTrusted: true, timestamp: getCaptchaNowMs() });
-          handleSuccess('Resolvido (Iframe ocultado)');
+          runDetached(() => handleSuccess('Resolvido (Iframe ocultado)'), 'success-dom-clean');
         }
       }, 500);
 
@@ -410,10 +433,13 @@ export async function run(data) {
         if (divCaptcha() && divCaptcha()?.innerHTML) {
           console.log('❌ Timeout aguardando resolução. Forçando reload...');
           ReportSession.updateError('Timeout aguardando resolução das imagens');
-          handleFailure();
+          runDetached(() => handleFailure(), 'resolve-timeout');
         }
       }, 30000);
     }
+  }
+  const messageReceived = (event) => {
+    runDetached(() => handleMessageReceived(event), 'message-received');
   }
   const execute = async() => {
     throwIfAborted();
@@ -593,7 +619,10 @@ export async function run(data) {
     setBotViewExecutionStatus('Recarregando')
     ReportSession.updateError('Nenhum botão ou captcha encontrado');
     const reloadTime = Math.floor(Math.random() * 5000) + 5000; // Tempo aleatório entre 5000ms e 10000ms
-    handleFailure('Captcha não identificado na página. Aguarde o reload...', reloadTime);
+    runDetached(
+      () => handleFailure('Captcha não identificado na página. Aguarde o reload...', reloadTime),
+      'captcha-missing',
+    );
   }
   try {
     await execute()

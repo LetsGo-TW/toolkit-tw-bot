@@ -13,6 +13,10 @@ import { BotViewExecutionStatus } from "../../shared/bot-view-status"
 
 const MSG_SOLVER_DISABLED = 'Resolve-auto: Desligado. Somente ação do usuário.'
 
+function isAbortError(error) {
+  return error?.name === 'AbortError'
+}
+
 export const getCaptchaNowMs = () => {
   if (useGoTiming.isReady()) {
     return Number(useGoTiming.getEffectiveServerNowMs())
@@ -30,11 +34,20 @@ export default async function show({ data, context, control }) {
 
   if (!isCaptchaActive) {
     const pendingReport = ReportSession.get()
-    if (pendingReport) {
-      const successMessage = 'Resolvido e validado pelo jogo'
+    const successMessage = pendingReport
+      ? 'Resolvido e validado pelo jogo'
+      : 'Captcha não está mais ativo'
 
+    if (pendingReport) {
       await ReportSession.finish('success', successMessage)
     }
+
+    await context?.reportState?.({
+      status: 'completed',
+      detail: {
+        message: successMessage,
+      },
+    })
   }
 
   if (ProtectingBot.screen.indexOf(gameData.screen) === -1) {
@@ -108,16 +121,28 @@ export default async function show({ data, context, control }) {
     BotViewExecutionStatus.set(MSG_SOLVER_DISABLED);
   }
 
-  async function onChangeConfig(e) {
-    const { id } = e.target
-    await control?.sleepMs?.(250)
-    control?.throwIfAborted?.()
-    if (id === 'active-solver') {
-      if (ConfigSolver.active) {
-        await optionEnableSolver()
-      } else {
-        optionDisableSolver()
+  function onChangeConfig(e) {
+    void handleConfigChange(e)
+  }
+
+  async function handleConfigChange(e) {
+    try {
+      const { id } = e.target
+      await control?.sleepMs?.(250)
+      control?.throwIfAborted?.()
+      if (id === 'active-solver') {
+        if (ConfigSolver.active) {
+          await optionEnableSolver()
+        } else {
+          optionDisableSolver()
+        }
       }
+    } catch (error) {
+      if (isAbortError(error)) {
+        return
+      }
+
+      console.error('[SOLVER][config-change]', error)
     }
   }
 }
