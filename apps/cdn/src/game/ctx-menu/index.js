@@ -1,16 +1,41 @@
-let bootGameCtxMenuPromise = null
+import { DynamicBootstrap } from '../../dynamic-bootstrap'
 
-export async function bootGameCtxMenuRunning() {
-  if (!bootGameCtxMenuPromise) {
-    bootGameCtxMenuPromise = import('../../map/menu/villageContextMenu.js')
-      .then((module) => {
-        module?.bootCtxMenuRunning?.()
+let ctxMenuModulePromise = null
+
+async function getCtxMenuModule() {
+  if (!ctxMenuModulePromise) {
+    ctxMenuModulePromise = Promise.resolve()
+      .then(async() => {
+        const ctxMenuLoader = DynamicBootstrap['ctx-menu']
+
+        if (typeof ctxMenuLoader !== 'function') {
+          return null
+        }
+
+        return await ctxMenuLoader()
       })
       .catch((error) => {
-        bootGameCtxMenuPromise = null
+        ctxMenuModulePromise = null
         console.error('[GO][game ctx-menu] boot failed', error)
+        return null
       })
   }
 
-  await bootGameCtxMenuPromise
+  return await ctxMenuModulePromise
+}
+
+export async function syncGameCtxMenuRunning() {
+  const module = await getCtxMenuModule()
+  await module?.syncCtxMenuRunning?.()
+}
+
+export async function destroyGameCtxMenuRunning() {
+  const module = ctxMenuModulePromise
+    ? await ctxMenuModulePromise
+    : null
+  await module?.destroyCtxMenuBootstrapRunning?.()
+}
+
+export async function bootGameCtxMenuRunning() {
+  await syncGameCtxMenuRunning()
 }

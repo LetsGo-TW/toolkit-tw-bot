@@ -9,4 +9,9 @@ module.exports = {
     chunkName: 'bootstrap-collector',
     exportName: 'default',
   },
+  'ctx-menu': {
+    importPath: './bootstrap/ctx-menu/index.js',
+    chunkName: 'bootstrap-ctx-menu',
+    exportName: 'default',
+  },
 }

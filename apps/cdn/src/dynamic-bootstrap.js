@@ -16,4 +16,12 @@ export class DynamicBootstrap {
     )
     return mod.default
   }
+
+  static "ctx-menu" = async () => {
+    const mod = await import(
+      /* webpackChunkName: "bootstrap-ctx-menu" */
+      './bootstrap/ctx-menu/index.js'
+    )
+    return mod.default
+  }
 }

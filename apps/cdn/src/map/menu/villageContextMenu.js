@@ -24,6 +24,7 @@ let lastVillageCtxTriggerEl = null
 let lastVillageCtxSessionId = 0
 let lockedVillageCtxLayout = null
 let syncingVillageCtxLayout = null
+let villageCtxTimerId = null
 
 const VILLAGE_CTX_LOCK_STABLE_COUNT = 2
 const VILLAGE_CTX_LOCK_DELTA_PX = 2
@@ -223,41 +224,43 @@ function computeVillageCtxCenter(links) {
   return { cx: sum.x / links.length, cy: sum.y / links.length }
 }
 
+function onVillageCtxAnchorTrackingClick(event) {
+  const target = event.target
+  if (!target) return
+  const trigger = target.closest?.('a.ctx, .village_anchor > .ctx')
+  if (!trigger) return
+  const anchorWrap = trigger.closest?.('.village_anchor.contexted, .village_anchor')
+  const linkInfo = anchorWrap?.querySelector?.('a[href*="screen=info_village"]')
+  const villageIdData = Number(anchorWrap?.dataset?.id)
+  const playerIdData = Number(anchorWrap?.dataset?.player)
+  const villageIdHref = parseParam(linkInfo?.href || '', 'id')
+  const currentVillageHref = parseParam(linkInfo?.href || location.href, 'village')
+  const villageId = Number.isFinite(villageIdData) ? villageIdData : (Number.isFinite(villageIdHref) ? villageIdHref : null)
+  const playerId = Number.isFinite(playerIdData) ? playerIdData : null
+  const rect = trigger.getBoundingClientRect()
+  lastVillageCtxSessionId += 1
+  lockedVillageCtxLayout = null
+  syncingVillageCtxLayout = null
+  lastVillageCtxTriggerEl = trigger
+
+  lastVillageCtxAnchorData = {
+    villageId,
+    playerId,
+    currentVillageId: Number.isFinite(currentVillageHref) ? currentVillageHref : getCurrentVillageIdFromUrl(),
+    at: Date.now()
+  }
+
+  lastVillageCtxAnchorPoint = {
+    cx: rect.left + (rect.width / 2),
+    cy: rect.top + (rect.height / 2),
+    at: Date.now()
+  }
+}
+
 function bindVillageCtxAnchorTrackingOnce() {
   if (villageCtxAnchorTrackingBound) return
   villageCtxAnchorTrackingBound = true
-  document.addEventListener('click', (event) => {
-    const target = event.target
-    if (!target) return
-    const trigger = target.closest?.('a.ctx, .village_anchor > .ctx')
-    if (!trigger) return
-    const anchorWrap = trigger.closest?.('.village_anchor.contexted, .village_anchor')
-    const linkInfo = anchorWrap?.querySelector?.('a[href*="screen=info_village"]')
-    const villageIdData = Number(anchorWrap?.dataset?.id)
-    const playerIdData = Number(anchorWrap?.dataset?.player)
-    const villageIdHref = parseParam(linkInfo?.href || '', 'id')
-    const currentVillageHref = parseParam(linkInfo?.href || location.href, 'village')
-    const villageId = Number.isFinite(villageIdData) ? villageIdData : (Number.isFinite(villageIdHref) ? villageIdHref : null)
-    const playerId = Number.isFinite(playerIdData) ? playerIdData : null
-    const rect = trigger.getBoundingClientRect()
-    lastVillageCtxSessionId += 1
-    lockedVillageCtxLayout = null
-    syncingVillageCtxLayout = null
-    lastVillageCtxTriggerEl = trigger
-
-    lastVillageCtxAnchorData = {
-      villageId,
-      playerId,
-      currentVillageId: Number.isFinite(currentVillageHref) ? currentVillageHref : getCurrentVillageIdFromUrl(),
-      at: Date.now()
-    }
-
-    lastVillageCtxAnchorPoint = {
-      cx: rect.left + (rect.width / 2),
-      cy: rect.top + (rect.height / 2),
-      at: Date.now()
-    }
-  }, true)
+  document.addEventListener('click', onVillageCtxAnchorTrackingClick, true)
 }
 
 function getCurrentVillageIdFromUrl() {
@@ -519,13 +522,40 @@ export function bootCtxMenuRunning() {
   injectVillageCtxCssOnce()
   ensureVillageCtxTooltipOnce()
   let tries = 0
-  const timer = setInterval(() => {
+  villageCtxTimerId = setInterval(() => {
     tries++
     ensureVillageCtxButtons()
-    if (tries > 2000) clearInterval(timer)
+    if (tries > 2000) {
+      clearInterval(villageCtxTimerId)
+      villageCtxTimerId = null
+    }
     if (ProtectingBot['bot-protect-all-in-game'].active()) {
-      clearInterval(timer)
-      throw ProtectingBot.error()
+      clearInterval(villageCtxTimerId)
+      villageCtxTimerId = null
     }
   }, 150)
+}
+
+export function destroyCtxMenuRunning() {
+  if (villageCtxTimerId != null) {
+    clearInterval(villageCtxTimerId)
+    villageCtxTimerId = null
+  }
+
+  if (villageCtxAnchorTrackingBound) {
+    villageCtxAnchorTrackingBound = false
+    document.removeEventListener('click', onVillageCtxAnchorTrackingClick, true)
+  }
+
+  unbindVillageCtxTooltip?.()
+  unbindVillageCtxTooltip = null
+
+  document.getElementById('go-village-ctx-buttons')?.remove?.()
+
+  villageCtxBooted = false
+  lastVillageCtxAnchorData = null
+  lastVillageCtxAnchorPoint = null
+  lastVillageCtxTriggerEl = null
+  lockedVillageCtxLayout = null
+  syncingVillageCtxLayout = null
 }

@@ -9,7 +9,10 @@ import {
   syncGameCollectorLauncherRunning,
 } from "./collector-launcher"
 import { destroyGameComposerRunning, syncGameComposerRunning } from "./composer"
-import { bootGameCtxMenuRunning } from "./ctx-menu"
+import {
+  destroyGameCtxMenuRunning,
+  syncGameCtxMenuRunning,
+} from "./ctx-menu"
 import { bootGamePlannerActionsRunning } from "./planner-actions"
 import { PLANNER_CTX_OPEN_EVENT } from "./ctx-runtime"
 
@@ -864,11 +867,13 @@ async function requestStageInstruction(detail = {}) {
   if (!response || response.ok !== true) {
     await destroyGameCollectorLauncherRunning()
     await destroyGameComposerRunning()
+    await destroyGameCtxMenuRunning()
     setGameStatus('idle')
     return null
   }
 
   await syncGameCollectorLauncherRunning()
+  await syncGameCtxMenuRunning()
 
   await syncGameComposerRunning({
     registry: Array.isArray(response?.registry) ? response.registry : null,
@@ -1150,6 +1155,7 @@ async function stopGame(detail = {}) {
     await destroyGameExecution(detail, { skipReport: true })
   } finally {
     await destroyGameCollectorLauncherRunning()
+    await destroyGameCtxMenuRunning()
     gameState.runnerControllerCleanup?.()
     setGameStatus('inactive')
   }
@@ -1210,7 +1216,6 @@ const game = () => null
 
 installLifecycleListeners()
 installRuntime()
-void bootGameCtxMenuRunning()
 void bootGamePlannerActionsRunning()
 void game()
 
