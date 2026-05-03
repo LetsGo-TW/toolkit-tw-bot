@@ -22,7 +22,7 @@ import { createCollectorBasePopup } from '../components/collector-base'
 import { printMessage } from '../components/printMessage'
 import '../components/go-buttons/planner-action-buttons.css'
 import { createTargetsDraftButton } from '../planner/targets-draft/button'
-import { createTargetsDraftCore } from '../planner/targets-draft/core.js'
+import { createTargetsDraftCore, subscribeTargetsDraftSync } from '../planner/targets-draft/core.js'
 import { orderCoordsFromCoords } from '../planner/manyTomany/orderCoordsFromCoords.js'
 import { consoleDev } from '@toolkit-tw-bot/utils'
 import { getGameData } from '@toolkit-tw-bot/document'
@@ -74,7 +74,9 @@ const state = {
   targetsDraftListButton: null,
   targetsDraftButton: null,
   overwriteDraftMenuOpen: false,
-  overwriteDraftMenuMode: null
+  overwriteDraftMenuMode: null,
+  draftSyncBound: false,
+  draftFocusBound: false
 }
 let plannerOneToManyModulePromise = null
 let collectorDraftCoreReadyPromise = null
@@ -94,10 +96,15 @@ const targetsDraftCore = createTargetsDraftCore()
 
 function ensureCollectorDraftCoreReady() {
   if (!collectorDraftCoreReadyPromise) {
-    collectorDraftCoreReadyPromise = Promise.resolve(targetsDraftCore.ready?.())
+    collectorDraftCoreReadyPromise = Promise.resolve(
+      targetsDraftCore.refresh?.() || targetsDraftCore.ready?.()
+    )
       .catch((error) => {
         console.debug('[planner:collector:draft:ready]', error)
         return null
+      })
+      .finally(() => {
+        collectorDraftCoreReadyPromise = null
       })
   }
   return collectorDraftCoreReadyPromise
@@ -111,6 +118,39 @@ function refreshCollectorDraftUiAfterReady(view = null) {
   syncCollectorTargetsDraftButton(currentView)
   state.collectorPopup?.refreshLayout?.()
   positionSelectorView(currentView)
+}
+
+function refreshCollectorDraftUiFromStorage(view = null) {
+  void ensureCollectorDraftCoreReady().then(() => {
+    refreshCollectorDraftUiAfterReady(view)
+  })
+}
+
+function bindCollectorDraftUiSyncOnce() {
+  if (state.draftSyncBound) return
+  state.draftSyncBound = true
+  subscribeTargetsDraftSync({
+    onSync: ({ state: nextState } = {}) => {
+      targetsDraftCore.applySyncState?.(nextState)
+      refreshCollectorDraftUiAfterReady()
+    }
+  })
+}
+
+function onCollectorDraftWindowFocus() {
+  refreshCollectorDraftUiFromStorage()
+}
+
+function onCollectorDraftVisibilityChange() {
+  if (document.visibilityState !== 'visible') return
+  refreshCollectorDraftUiFromStorage()
+}
+
+function bindCollectorDraftUiFocusOnce() {
+  if (state.draftFocusBound) return
+  state.draftFocusBound = true
+  window.addEventListener('focus', onCollectorDraftWindowFocus, { passive: true })
+  document.addEventListener('visibilitychange', onCollectorDraftVisibilityChange, true)
 }
 
 function getCollectorSavedDraftPayload() {
@@ -1996,6 +2036,8 @@ export function selectorCoordsSearch(payload = {}) {
   }
   bindMapClickCollectorOnce()
   bindMapObserversOnce()
+  bindCollectorDraftUiSyncOnce()
+  bindCollectorDraftUiFocusOnce()
   if (state.collectorPopup?.root?.() === view) {
     state.collectorPopup.open?.()
   } else {
@@ -2020,6 +2062,11 @@ export function selectorCoordsSearch(payload = {}) {
     selectedCoordsCount: state.selectedCoords.size,
     selectedCoords: selectedCoordsSnapshot()
   }, { label: '[GO][MapCollector]' })
+}
+
+export function destroySelectorCoordsSearch() {
+  closeSelectorView({ showLauncher: false })
+  targetsDraftCore.resetStorageCache?.()
 }
 
 export default selectorCoordsSearch

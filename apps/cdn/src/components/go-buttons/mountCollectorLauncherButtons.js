@@ -13,7 +13,7 @@ import {
   openPlannerFromNamedDraft,
   saveLastDraftAsNamed
 } from './mountPlannerActionButtons'
-import { createTargetsDraftCore } from '../../planner/targets-draft/core'
+import { createTargetsDraftCore, subscribeTargetsDraftSync } from '../../planner/targets-draft/core'
 import './planner-action-buttons.css'
 import { getGameData } from '@toolkit-tw-bot/document'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
@@ -49,6 +49,7 @@ let plannerOneToManyModulePromise = null
 let botViewCollectorLauncherBooted = false
 let botViewCollectorLauncherHashListenerBound = false
 let botViewCollectorLauncherStateListenerBound = false
+let botViewCollectorLauncherFocusListenersBound = false
 let botViewCollectorLauncherBodyObserver = null
 let botViewCollectorLauncherContentObserver = null
 let botViewCollectorLauncherObservedContent = null
@@ -193,6 +194,28 @@ function ensureCollectorLauncherTooltipOnce() {
       return renderBotTooltip(value)
     }
   )
+}
+
+function refreshCollectorPreviewDraftUiFromStorage() {
+  void (collectorPreviewTargetsDraftCore.refresh?.() || collectorPreviewTargetsDraftCore.ready?.())
+    .then(() => {
+      refreshCollectorPreviewPlannerUi()
+      collectorBasePreviewPopup?.refreshLayout?.()
+    })
+    .catch((error) => {
+      console.debug('[planner:collector:preview:draft:refresh]', error)
+    })
+}
+
+function onCollectorLauncherWindowFocus() {
+  refreshCollectorPreviewDraftUiFromStorage()
+  scheduleBotViewCollectorLauncherSync()
+}
+
+function onCollectorLauncherVisibilityChange() {
+  if (document.visibilityState !== 'visible') return
+  refreshCollectorPreviewDraftUiFromStorage()
+  scheduleBotViewCollectorLauncherSync()
 }
 
 function stopLauncherEvent(event) {
@@ -468,7 +491,7 @@ async function openPlannerFromCollectorPreviewTargets({
 }
 
 async function openPlannerFromCollectorPreviewSavedDraft({ mergeWithCurrent = false } = {}) {
-  await collectorPreviewTargetsDraftCore.ready?.()
+  await (collectorPreviewTargetsDraftCore.refresh?.() || collectorPreviewTargetsDraftCore.ready?.())
   const draft = collectorPreviewTargetsDraftCore.readDraft?.() || null
   const draftItems = collectorPreviewTargetsDraftCore.parseDraftTargetsItems?.(draft) || []
   if (!draft || draftItems.length <= 1) {
@@ -678,11 +701,18 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
 
   let draftListUi = null
   let draftUi = null
+  const unbindDraftSync = subscribeTargetsDraftSync({
+    onSync: ({ state } = {}) => {
+      collectorPreviewTargetsDraftCore.applySyncState?.(state)
+      refreshDraftButtons()
+      popup?.refreshLayout?.()
+    }
+  })
   const refreshDraftButtons = () => {
     draftListUi?.refresh?.()
     draftUi?.refresh?.()
   }
-  void collectorPreviewTargetsDraftCore.ready?.()
+  void (collectorPreviewTargetsDraftCore.refresh?.() || collectorPreviewTargetsDraftCore.ready?.())
     .then(() => {
       refreshDraftButtons()
     })
@@ -751,6 +781,7 @@ function ensureCollectorBasePreviewPlannerActions(popup) {
     draftUi,
     refresh: refreshCollectorPreviewPlannerUi,
     destroy: () => {
+      unbindDraftSync?.()
       closeOverwriteDraftMenu()
       popupRoot?.removeEventListener?.('pointerdown', onPopupPointerDownCloseOverwriteMenu, true)
       overwriteDraftMenuEl.removeEventListener('click', onOverwriteDraftMenuClick, true)
@@ -1136,6 +1167,12 @@ export function bootCollectorLauncherBotViewRunning() {
     document.addEventListener('go:planner:close', scheduleBotViewCollectorLauncherSync, true)
   }
 
+  if (!botViewCollectorLauncherFocusListenersBound) {
+    botViewCollectorLauncherFocusListenersBound = true
+    window.addEventListener('focus', onCollectorLauncherWindowFocus, { passive: true })
+    document.addEventListener('visibilitychange', onCollectorLauncherVisibilityChange, true)
+  }
+
   bindBotViewCollectorLauncherObserversOnce()
 
   if (!screen || isMapScreen(screen)) {
@@ -1169,6 +1206,12 @@ export function destroyCollectorLauncherBotViewRunning() {
     document.removeEventListener('go:planner:close', scheduleBotViewCollectorLauncherSync, true)
   }
 
+  if (botViewCollectorLauncherFocusListenersBound) {
+    botViewCollectorLauncherFocusListenersBound = false
+    window.removeEventListener('focus', onCollectorLauncherWindowFocus)
+    document.removeEventListener('visibilitychange', onCollectorLauncherVisibilityChange, true)
+  }
+
   botViewCollectorLauncherBodyObserver?.disconnect?.()
   botViewCollectorLauncherBodyObserver = null
 
@@ -1179,6 +1222,7 @@ export function destroyCollectorLauncherBotViewRunning() {
   collectorPreviewCtx.screen = ''
   collectorBasePreviewCoordSelector?.stop?.()
   collectorBasePreviewPopup?.close?.({ notify: false })
+  collectorPreviewTargetsDraftCore.resetStorageCache?.()
 
   botViewCollectorLauncherBooted = false
   removeBotViewCollectorLauncher()

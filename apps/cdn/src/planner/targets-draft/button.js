@@ -208,21 +208,25 @@ export function createTargetsDraftButton(container, {
       if (root.hidden) return
       toggleMenu()
     })
-    menuEl?.addEventListener('click', (event) => {
+    menuEl?.addEventListener('click', async(event) => {
       const button = event.target?.closest?.('[data-draft-action]')
       if (!button) return
       event.preventDefault()
       event.stopPropagation()
       const action = String(button.getAttribute('data-draft-action') || '').trim()
       if (!action) return
-      const result = onAction?.(action, {
-        event,
-        root,
-        menuEl,
-        actionButton: button
-      })
-      if (result === false) return
-      closeMenu()
+      try {
+        const result = await onAction?.(action, {
+          event,
+          root,
+          menuEl,
+          actionButton: button
+        })
+        if (result === false) return
+        closeMenu()
+      } catch (error) {
+        console.error('[planner:targets-draft:button:action]', error)
+      }
     })
     document.addEventListener('pointerdown', onDocumentPointerDown, true)
     document.addEventListener('click', onDocumentClick, true)

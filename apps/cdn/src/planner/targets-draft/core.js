@@ -1,6 +1,58 @@
 import { getGameData } from "@toolkit-tw-bot/document";
 import StorageLocalCompat from "../../shared/indexdb/storage-local-compat.js";
 
+export const TARGETS_DRAFT_SYNC_EVENT = 'go:planner:targets-draft:sync'
+
+function createTargetsDraftSyncScope(storageKey = 'planner-targets-draft') {
+  try {
+    const gameData = getGameData()
+    const world = String(gameData?.world || window?.game_data?.world || '').trim() || 'unknown-world'
+    const playerId = Number(gameData?.player?.id || window?.game_data?.player?.id)
+    const safePlayerId = Number.isFinite(playerId) ? String(playerId) : 'unknown-player'
+    return `${storageKey}:${world}:${safePlayerId}`
+  } catch (_) {
+    return `${storageKey}:unknown-world:unknown-player`
+  }
+}
+
+function dispatchTargetsDraftSync({
+  scope = '',
+  origin = '',
+  state = null
+} = {}) {
+  if (!scope || typeof document === 'undefined') return
+  document.dispatchEvent(new CustomEvent(TARGETS_DRAFT_SYNC_EVENT, {
+    detail: {
+      scope,
+      origin: String(origin || '').trim() || null,
+      state: cloneDraftStoreValue(state)
+    }
+  }))
+}
+
+export function subscribeTargetsDraftSync({
+  storageKey = 'planner-targets-draft',
+  onSync = null
+} = {}) {
+  if (typeof document === 'undefined' || typeof onSync !== 'function') {
+    return () => {}
+  }
+  const scope = createTargetsDraftSyncScope(storageKey)
+  const handler = (event) => {
+    const detail = event?.detail
+    if (!detail || typeof detail !== 'object') return
+    if (String(detail.scope || '').trim() !== scope) return
+    onSync({
+      ...detail,
+      state: cloneDraftStoreValue(detail.state || null)
+    })
+  }
+  document.addEventListener(TARGETS_DRAFT_SYNC_EVENT, handler)
+  return () => {
+    document.removeEventListener(TARGETS_DRAFT_SYNC_EVENT, handler)
+  }
+}
+
 function cloneDraftStoreValue(value = null) {
   if (!value || typeof value !== 'object') return value
   try {
@@ -101,7 +153,13 @@ function createDraftStorage({
     readyPromise = null
   }
 
-  return { getStorage, read, write, remove, ready, resetCache }
+  const refresh = async() => {
+    rawStateCache = null
+    readyPromise = null
+    return await ready()
+  }
+
+  return { getStorage, read, write, remove, ready, refresh, resetCache }
 }
 
 function sanitizeDraftName(name = '') {
@@ -451,6 +509,8 @@ export function createTargetsDraftCore({
   storageKey = 'planner-targets-draft'
 } = {}) {
   const storage = createDraftStorage({ ttlMs, storageKey })
+  const syncScope = createTargetsDraftSyncScope(storageKey)
+  const instanceId = `tdc:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
   let stateCache = normalizeDraftStoreState(null)
   let hydrated = false
   let hydratePromise = null
@@ -464,6 +524,11 @@ export function createTargetsDraftCore({
     lastDraft: state?.lastDraft || null,
     savedDrafts: Array.isArray(state?.savedDrafts) ? state.savedDrafts : []
   })
+
+  const syncStateCache = (state = {}) => {
+    stateCache = normalizeWritableState(state)
+    return cloneState()
+  }
 
   const schedulePersist = (state = {}) => {
     const snapshot = normalizeWritableState(state)
@@ -479,6 +544,11 @@ export function createTargetsDraftCore({
       .catch((error) => {
         console.warn('[planner:draft:storage:persist]', error?.message || error)
       })
+    dispatchTargetsDraftSync({
+      scope: syncScope,
+      origin: instanceId,
+      state: snapshot
+    })
     return snapshot
   }
 
@@ -489,22 +559,30 @@ export function createTargetsDraftCore({
     } else {
       schedulePersist(nextState)
     }
-    stateCache = nextState
-    return cloneState()
+    return syncStateCache(nextState)
   }
 
-  const ready = async() => {
+  const ready = async({ force = false } = {}) => {
+    if (force) {
+      hydrated = false
+      hydratePromise = null
+    }
     if (hydrated) return cloneState()
     if (!hydratePromise) {
       hydratePromise = (async() => {
-        let nextState = normalizeDraftStoreState(await storage.ready())
+        await persistPromise.catch(() => null)
+        let nextState = normalizeDraftStoreState(
+          force
+            ? await storage.refresh()
+            : await storage.ready()
+        )
         if (pendingMutations.length) {
           pendingMutations.splice(0).forEach((mutator) => {
             nextState = normalizeWritableState(mutator(cloneState(nextState)) || nextState)
           })
           schedulePersist(nextState)
         }
-        stateCache = nextState
+        syncStateCache(nextState)
         hydrated = true
         return cloneState()
       })()
@@ -515,9 +593,21 @@ export function createTargetsDraftCore({
         })
         .finally(() => {
           hydratePromise = null
-        })
+      })
     }
     return await hydratePromise
+  }
+
+  const refresh = async() => await ready({ force: true })
+  const flush = async() => {
+    await persistPromise.catch(() => null)
+    return cloneState()
+  }
+  const applySyncState = (state = null) => {
+    syncStateCache(state)
+    hydrated = true
+    hydratePromise = null
+    return cloneState()
   }
 
   const readState = () => cloneState()
@@ -528,8 +618,7 @@ export function createTargetsDraftCore({
     } else {
       schedulePersist(nextState)
     }
-    stateCache = nextState
-    return cloneState()
+    return syncStateCache(nextState)
   }
   const readDraft = () => readState().lastDraft || null
   const readNamedDraft = (draftId = '') => {
@@ -664,10 +753,26 @@ export function createTargetsDraftCore({
     return { ok: true, draft: resultDraft, state: nextState }
   }
   const promoteLastDraftToNamed = (name = '') => saveNamedDraft({ name, source: 'last' })
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener(TARGETS_DRAFT_SYNC_EVENT, (event) => {
+      const detail = event?.detail
+      if (!detail || typeof detail !== 'object') return
+      if (String(detail.scope || '').trim() !== syncScope) return
+      if (String(detail.origin || '').trim() === instanceId) return
+      syncStateCache(detail.state || null)
+      hydrated = true
+      hydratePromise = null
+    })
+  }
+
   void ready()
   return {
     storage,
     ready,
+    refresh,
+    flush,
+    applySyncState,
     readState,
     writeState,
     readDraft,

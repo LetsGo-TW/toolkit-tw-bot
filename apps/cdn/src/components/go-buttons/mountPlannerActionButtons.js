@@ -5,7 +5,7 @@ import { isPlannerScheduleEnabled, PLANNER_SCHEDULE_DISABLED_MESSAGE } from '../
 import { ICON_CALENDAR } from './calendar';
 import { ICON_CROSSED_SWORDS_CENTERED } from './crossed-swords';
 import { svgToDataUri } from './util';
-import { createTargetsDraftCore } from '../../planner/targets-draft/core';
+import { createTargetsDraftCore, subscribeTargetsDraftSync } from '../../planner/targets-draft/core';
 import { createTargetsDraftButton } from '../../planner/targets-draft/button';
 import {
   applyUnexpectedInterruptionRecovery,
@@ -341,7 +341,7 @@ function buildDraftPromptDefaultName(draft = null) {
 }
 
 async function getUnexpectedInterruptionRecoveryState() {
-  await sharedTargetsDraftCore.ready?.()
+  await (sharedTargetsDraftCore.refresh?.() || sharedTargetsDraftCore.ready?.())
   return await getUnexpectedInterruptionState({
     report: await readPlannerLastReport(),
     draftCore: sharedTargetsDraftCore
@@ -473,10 +473,11 @@ export function promptSaveLastDraftAsNamed({ onSaved = null } = {}) {
   return saveLastDraftAsNamed(rawName, { onSaved })
 }
 
-export function deleteNamedDraftById(draftId = '', { silent = false } = {}) {
+export async function deleteNamedDraftById(draftId = '', { silent = false } = {}) {
   const id = String(draftId || '').trim()
   if (!id) return false
   sharedTargetsDraftCore.removeNamedDraft?.(id)
+  await sharedTargetsDraftCore.flush?.()
   if (!silent) printMessage.warn('Draft excluído da lista.', 2000)
   return true
 }
@@ -488,7 +489,7 @@ export async function openPlannerFromNamedDraft(draftId = '') {
     return false
   }
   try {
-    await sharedTargetsDraftCore.ready?.()
+    await (sharedTargetsDraftCore.refresh?.() || sharedTargetsDraftCore.ready?.())
     await recoverUnexpectedInterruptionIfNeeded(id)
     const draft = sharedTargetsDraftCore.readNamedDraft?.(id)
     if (!draft) {
@@ -531,7 +532,7 @@ export function mountPlannerDraftListButton(container, {
     menuPortalTarget,
     menuClassName,
     menuZIndex,
-    onAction: (action) => {
+    onAction: async(action) => {
       const raw = String(action || '').trim()
       if (!raw) return
       if (raw.startsWith(ACTION_OPEN_PREFIX)) {
@@ -547,7 +548,7 @@ export function mountPlannerDraftListButton(container, {
       } else if (raw.startsWith(ACTION_DELETE_PREFIX)) {
         const draftId = raw.slice(ACTION_DELETE_PREFIX.length)
         const draft = sharedTargetsDraftCore.readNamedDraft?.(draftId) || null
-        if (deleteNamedDraftById(draftId, { silent: true })) {
+        if (await deleteNamedDraftById(draftId, { silent: true })) {
           onDelete?.({ draftId, draft })
           printMessage.warn('Draft excluído da lista.', 2000)
         }
@@ -623,13 +624,14 @@ export function mountPlannerDraftButton(container, {
     menuPortalTarget,
     menuClassName,
     menuZIndex,
-    onAction: (action, details = {}) => {
+    onAction: async(action, details = {}) => {
       const payload = readSavedTargetsDraftList()
       if (!payload?.draft) return
       if (action === 'recover') onRecover?.(payload)
       if (action === 'merge') onMerge?.(payload)
       if (action === 'discard') {
         sharedTargetsDraftCore.removeDraft?.()
+        await sharedTargetsDraftCore.flush?.()
         onDelete?.(payload)
       }
       if (action === 'save_named') {
@@ -705,7 +707,7 @@ export function mountPlannerDraftButton(container, {
 
 export async function openPlannerFromSavedDraft() {
   try {
-    await sharedTargetsDraftCore.ready?.()
+    await (sharedTargetsDraftCore.refresh?.() || sharedTargetsDraftCore.ready?.())
     await recoverUnexpectedInterruptionIfNeeded()
     const payload = readSavedTargetsDraftList()
     if (!payload?.draft) {
@@ -929,6 +931,7 @@ function createBotViewPlannerSlotsController({
   let btnCal = null
   let btnSword = null
   let draftRefreshToken = 0
+  let unbindDraftSync = null
 
   const onWarmupIntent = () => {
     void warmupPlannerModule('intent')
@@ -1121,9 +1124,15 @@ function createBotViewPlannerSlotsController({
     })
   }
 
-  const refreshDraftButtons = async() => {
+  const refreshDraftButtons = async({
+    forceStorage = false
+  } = {}) => {
     const currentToken = ++draftRefreshToken
-    await sharedTargetsDraftCore.ready?.()
+    await (
+      forceStorage
+        ? (sharedTargetsDraftCore.refresh?.() || sharedTargetsDraftCore.ready?.())
+        : sharedTargetsDraftCore.ready?.()
+    )
     if (destroyed || currentToken !== draftRefreshToken) return
     draftListUi?.refresh?.()
     draftUi?.refresh?.()
@@ -1134,8 +1143,10 @@ function createBotViewPlannerSlotsController({
     syncDraftSlotVisibility()
   }
 
-  const queueDraftRefresh = () => {
-    void refreshDraftButtons()
+  const queueDraftRefresh = ({
+    forceStorage = false
+  } = {}) => {
+    void refreshDraftButtons({ forceStorage })
   }
 
   const ensureDraftButtons = () => {
@@ -1215,10 +1226,16 @@ function createBotViewPlannerSlotsController({
 
   bindPlaceTrackerIfNeeded()
   ensureDraftButtons()
+  unbindDraftSync = subscribeTargetsDraftSync({
+    onSync: ({ state } = {}) => {
+      sharedTargetsDraftCore.applySyncState?.(state)
+      queueDraftRefresh()
+    }
+  })
   syncDraftSlotTooltips()
   syncDraftSlotVisibility()
   syncPlannerButtonsState()
-  queueDraftRefresh()
+  queueDraftRefresh({ forceStorage: true })
 
   return {
     matches: ({ nextPlannerSlot = null, nextDraftSlot = null, nextPageContextKey = '' } = {}) => (
@@ -1230,11 +1247,12 @@ function createBotViewPlannerSlotsController({
       if (destroyed) return
       bindPlaceTrackerIfNeeded()
       syncPlannerButtonsState()
-      queueDraftRefresh()
+      queueDraftRefresh({ forceStorage: true })
     },
     destroy: () => {
       if (destroyed) return
       destroyed = true
+      unbindDraftSync?.()
       unbindPlaceTracker?.()
       placeTargetTracker?.destroy?.()
       draftListUi?.destroy?.()
@@ -1363,6 +1381,7 @@ export function destroyPlannerActionBotViewRunning() {
   botViewPlannerSlotsBooted = false
   botViewPlannerSlotsController?.destroy?.()
   botViewPlannerSlotsController = null
+  sharedTargetsDraftCore.resetStorageCache?.()
 }
 
 export function mountPlannerActionButtons(data) {
@@ -1487,7 +1506,13 @@ export function mountPlannerActionButtons(data) {
     draftListUi?.refresh?.()
     draftUi?.refresh?.()
   }
-  void sharedTargetsDraftCore.ready?.()
+  const unbindDraftSync = subscribeTargetsDraftSync({
+    onSync: ({ state } = {}) => {
+      sharedTargetsDraftCore.applySyncState?.(state)
+      refreshDraftButtons()
+    }
+  })
+  void (sharedTargetsDraftCore.refresh?.() || sharedTargetsDraftCore.ready?.())
     .then(() => {
       refreshDraftButtons()
     })
@@ -1562,6 +1587,7 @@ export function mountPlannerActionButtons(data) {
   parent.insertBefore(buttonsWrap, target);
   return () => {
     cancelPlannerWarmupIdle()
+    unbindDraftSync?.()
     unbindPlaceTracker?.()
     placeTargetTracker?.destroy?.()
     unbindTooltip?.()

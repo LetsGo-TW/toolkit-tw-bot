@@ -25,6 +25,7 @@ let mapCollectorLauncherBooted = false
 let mapCollectorLauncherHashListenerBound = false
 let mapCollectorLauncherStateListenerBound = false
 let selectorCoordsSearchModulePromise = null
+let selectorCoordsSearchDestroyModulePromise = null
 
 function getCurrentScreenName() {
   try {
@@ -54,6 +55,23 @@ async function loadSelectorCoordsSearch() {
     throw new Error('[GO][Collector] selectorCoordsSearch not available')
   }
   return selectorCoordsSearch
+}
+
+async function loadSelectorCoordsSearchDestroy() {
+  if (!selectorCoordsSearchDestroyModulePromise) {
+    selectorCoordsSearchDestroyModulePromise = import('../selectorCoordsSearch.js')
+      .then((module) => module?.destroySelectorCoordsSearch)
+      .catch((error) => {
+        selectorCoordsSearchDestroyModulePromise = null
+        throw error
+      })
+  }
+  const destroySelectorCoordsSearch = await selectorCoordsSearchDestroyModulePromise
+  if (typeof destroySelectorCoordsSearch !== 'function') {
+    selectorCoordsSearchDestroyModulePromise = null
+    return null
+  }
+  return destroySelectorCoordsSearch
 }
 
 function shouldRenderBotIconInCollectorTooltip(el) {
@@ -216,6 +234,11 @@ function ensureMapCollectorLauncher() {
 }
 
 export function destroyMapCollectorLauncher() {
+  void loadSelectorCoordsSearchDestroy()
+    .then((destroySelectorCoordsSearch) => {
+      destroySelectorCoordsSearch?.()
+    })
+    .catch(() => {})
   removeMapCollectorLauncher()
 }
 
