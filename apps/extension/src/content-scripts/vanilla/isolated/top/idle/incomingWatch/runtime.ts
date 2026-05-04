@@ -1,7 +1,7 @@
 /// <reference types="chrome" />
 
 import { v4 as uuidv4 } from 'uuid'
-import { combineAbortControllerSignals, makeAjaxHeadersGetDoc, StorageLocalCompat } from '@toolkit-tw-bot/browser'
+import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersGetDoc, StorageLocalCompat } from '@toolkit-tw-bot/browser'
 import { Distance, getParamsUrl, nDateTime, strTimeToSec } from '@toolkit-tw-bot/core'
 import {
   assertNoCaptchaInGame,
@@ -17,6 +17,22 @@ import {
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { INCOMING_WATCH_MESSAGE_TYPE, NOTIFY_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
+import { collectNotPremiumIncomings } from './collectors/not-premium'
+import { collectPremiumIncomings } from './collectors/premium'
+
+/**
+ * Incoming Watch
+ *
+ * Responsabilidades principais deste arquivo:
+ * - Ler o contador de ataques chegando (#incomings_amount).
+ * - Comparar o total anterior salvo no storage com o total atual da tela.
+ * - Buscar as vilas que possuem ataques chegando.
+ * - Entrar nos detalhes de cada comando novo para identificar atacante, vila origem,
+ *   horário de chegada, unidade provável, envio e retorno.
+ * - Salvar o estado dos incomings no storage local da extensão.
+ * - Gerar notificação Telegram/ntfy quando novos ataques forem identificados.
+ * - Sincronizar ícones/tooltip visual na tela para mostrar detalhes do ticket.
+ */
 
 type IncomingAttackEntry = {
   power: string | null
@@ -97,6 +113,66 @@ const INCOMING_PENDING_TICKET_MARKER_BY_MARKET: Record<string, string> = {
 
 const unitsByKey = new Map<string, any>()
 
+/**
+ * Estilo padrão dos logs de identificação no console.
+ * Usado para destacar em vermelho os pontos importantes do Incoming Watch.
+ */
+const INCOMING_WATCH_RED_LOG_STYLE = 'color: red; font-weight: bold;'
+
+/**
+ * Log vermelho para mudança no contador total de incomings.
+ * Mostra quantos ataques tinham antes, quantos existem agora e a diferença.
+ */
+function logIncomingWatchCountChange({
+  previousCount,
+  currentCount,
+  diffCount,
+  observedAt = Date.now(),
+  context = 'incoming-watch',
+}: {
+  previousCount: number
+  currentCount: number
+  diffCount: number
+  observedAt?: number
+  context?: string
+}) {
+  console.log(
+    `%c[${context}] Identificado mudança nos incomings | Antes: ${previousCount} | Agora: ${currentCount} | Diferença: ${diffCount} | ${new Date(observedAt).toLocaleString('pt-BR')}`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+  )
+}
+
+/**
+ * Log vermelho para cada comando novo identificado durante a leitura detalhada.
+ */
+function logIncomingWatchAttackIdentified({
+  commandId,
+  power,
+  attacker,
+  attackerCoord,
+  targetVillageName,
+  targetVillageId,
+  arrivalText,
+  ticket,
+}: {
+  commandId: string
+  power: string | null
+  attacker: string | null
+  attackerCoord: string | null
+  targetVillageName: string | null
+  targetVillageId: string | null
+  arrivalText: string | null
+  ticket: string | null
+}) {
+  console.log(
+    `%c[incoming-watch] Ataque identificado | Comando: ${commandId} | Força: ${power || 'unknown'} | Atacante: ${attacker || 'não identificado'} | Origem: ${attackerCoord || 'sem coord'} | Alvo: ${targetVillageName || targetVillageId || 'sem alvo'} | Chegada: ${arrivalText || 'sem chegada'} | Ticket: ${ticket || 'sem ticket'}`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+  )
+}
+
+/**
+ * Retorna o game_data atual da página.
+ */
 function getCurrentGameData() {
   return getGameData()
 }
@@ -114,6 +190,10 @@ function getCurrentPlayerId() {
   return Number.isFinite(raw) && raw > 0 ? raw : null
 }
 
+/**
+ * Cria o acesso ao storage local onde o estado dos incomings é salvo.
+ * O storage é separado por mundo e jogador.
+ */
 function createIncomingStorage() {
   return StorageLocalCompat.create({
     world: getCurrentWorld(),
@@ -219,6 +299,9 @@ function createIncomingStateBase(): IncomingState {
   }
 }
 
+/**
+ * Normaliza o estado salvo dos incomings para garantir uma estrutura segura.
+ */
 function normalizeIncomingState(value: any = null): IncomingState {
   const base = createIncomingStateBase()
   const villagesRaw = value?.villages && typeof value.villages === 'object'
@@ -236,6 +319,10 @@ function normalizeIncomingState(value: any = null): IncomingState {
   return base
 }
 
+/**
+ * Remove comandos antigos/expirados do estado salvo.
+ * Isso evita manter ataques que já chegaram há mais tempo que a tolerância.
+ */
 function pruneExpiredIncomingState(
   state: IncomingState,
   nowMs = Date.now(),
@@ -259,6 +346,9 @@ function pruneExpiredIncomingState(
   return nextState
 }
 
+/**
+ * Conta quantos tickets ainda estão pendentes de aplicação/renomeação.
+ */
 function countPendingIncomingTags(state: IncomingState) {
   return Object.values(normalizeIncomingState(state).villages)
     .reduce((total, villageState) => (
@@ -338,28 +428,59 @@ export function isIncomingWatchTransientError(error: unknown) {
   )
 }
 
+/**
+ * Lê o número atual exibido no contador #incomings_amount.
+ */
 function readCurrentIncomingAmount(root: ParentNode = document) {
   const totalRaw = Number(root.querySelector('#incomings_amount')?.textContent)
   return Number.isFinite(totalRaw) ? totalRaw : null
 }
 
-export async function getIncomingBootstrapDetail() {
+/**
+ * Compara o total atual de incomings da tela com o último total salvo.
+ *
+ * Quando existe diferença, retorna o detail usado pelo restante do fluxo
+ * e também registra no console, em vermelho, quantos tinham e quantos tem agora.
+ */
+export async function getIncomingBootstrapDetail({
+  force = false,
+}: {
+  force?: boolean
+} = {}) {
   const currentCount = readCurrentIncomingAmount(document)
   if (currentCount === null) return null
 
   const state = await readIncomingState()
   const previousCount = Math.max(0, Math.floor(Number(state.lastIncomingCount ?? 0) || 0))
 
-  if (currentCount === previousCount) {
+  // O fluxo original só bootstrapava quando o contador total mudava.
+  // Isso perde o caso em que um incoming novo entra e outro sai/chega junto:
+  // o total fica igual, mas a fila real mudou e ainda precisamos reconciliar.
+  //
+  // `force=true` é usado por uma reconciliação periódica leve; nesses casos
+  // ainda devolvemos o detail quando existe qualquer incoming conhecido, mesmo
+  // sem delta no contador.
+  if (currentCount === previousCount && force !== true) {
     return null
   }
 
-  return {
+  if (force === true && currentCount <= 0 && previousCount <= 0) {
+    return null
+  }
+
+  const detail = {
     observedAt: Date.now(),
     previousCount,
     currentCount,
     diffCount: currentCount - previousCount,
   }
+
+  logIncomingWatchCountChange({
+    ...detail,
+    context: force === true ? 'incoming-watch:bootstrap-force' : 'incoming-watch:bootstrap',
+  })
+
+  return detail
 }
 
 function getIncomingAttackEntryByCommandId(
@@ -408,6 +529,9 @@ function stripIncomingTicketMarker(segment = '') {
   return parts.join(' ').trim()
 }
 
+/**
+ * Monta o HTML do tooltip visual que aparece ao lado do comando.
+ */
 function buildIncomingVisualTooltipHtml(ticket = '') {
   const segments = splitNotifySegments(ticket)
   if (!segments.length) return ''
@@ -568,6 +692,10 @@ function ensureIncomingVisualTooltipBinding() {
   }
 }
 
+/**
+ * Sincroniza os ícones/tooltip visuais na tela de comandos chegando.
+ * Se a conta tiver premium ativo, limpa os ícones extras porque o próprio jogo já possui recursos visuais.
+ */
 export async function syncIncomingVisualTags({
   state = null,
   root = document,
@@ -619,6 +747,9 @@ function dispatchIncomingVisualSyncEvent() {
   }
 }
 
+/**
+ * Lê o estado dos incomings no storage local da extensão.
+ */
 async function readIncomingState(): Promise<IncomingState> {
   try {
     const storage = createIncomingStorage()
@@ -631,6 +762,9 @@ async function readIncomingState(): Promise<IncomingState> {
   }
 }
 
+/**
+ * Salva o estado dos incomings no storage local e dispara sincronização visual.
+ */
 async function writeIncomingState(state: IncomingState) {
   const nextState = pruneExpiredIncomingState(normalizeIncomingState(state))
   let stored = false
@@ -718,6 +852,9 @@ async function sendNotifyExtensionMessage({
   return response
 }
 
+/**
+ * Envia a notificação de incoming via Telegram ou ntfy, conforme configuração salva.
+ */
 async function sendIncomingNotify(body = '') {
   const playerId = getCurrentPlayerId()
   const world = getCurrentWorld()
@@ -780,6 +917,9 @@ function stripLeadingEmojiLabel(value = '') {
     .trim()
 }
 
+/**
+ * Converte o texto de chegada do Tribal Wars em timestamp.
+ */
 function parseArrivalData(arrivalText = '') {
   const raw = String(arrivalText || '').trim()
   if (!raw) return null
@@ -826,6 +966,9 @@ async function ensureUnitMapLoaded() {
   Object.entries(dataUnitsJson).forEach(([key, value]) => unitsByKey.set(key, value))
 }
 
+/**
+ * Calcula distância, tempo de viagem e unidade provável do ataque.
+ */
 function resolveIncomingTravelMeta({
   sourceCoord = '',
   targetCoord = '',
@@ -867,6 +1010,9 @@ function resolveIncomingTravelMeta({
   }
 }
 
+/**
+ * Monta o ticket/texto salvo no comando, contendo unidade provável, registro, envio e retorno.
+ */
 function buildIncomingTicket({
   arrivalParts = null,
   travel = 0,
@@ -888,6 +1034,9 @@ function buildIncomingTicket({
   return `${attackMarker} ${unitName} | 📝 ${currentDate[0] || ''}/${currentDate[1] || ''} ${timeServer()} | 🚀 ${getLaunchTime(travel, arrivalParts)} | 🏠 ${getBackTime(travel, arrivalParts)} |`
 }
 
+/**
+ * Coleta na visão geral todas as vilas que possuem incoming.
+ */
 function collectIncomingVillages(html: Document = document) {
   const rows = Array.from(html.querySelectorAll('tr.nowrap'))
   return rows.reduce((arr, row) => {
@@ -945,6 +1094,9 @@ function buildInfoVillageUrl(villageId: string | null) {
   }
 }
 
+/**
+ * Gera o corpo da mensagem enviada para Telegram/ntfy.
+ */
 function generateIncomingNotifyBody({
   notifyData,
   newAttack,
@@ -1022,6 +1174,10 @@ function generateIncomingNotifyBody({
   return lines.join('\n').trim()
 }
 
+/**
+ * Faz uma requisição AJAX autenticada para uma tela do jogo e devolve o HTML parseado.
+ * Também valida CAPTCHA, atualização do jogo e possíveis bloqueios.
+ */
 async function getDoc(screen: string, villageId: string | number | null = null, { signal }: { signal?: AbortSignal } = {}) {
   const gameData = getCurrentGameData()
   const url = new URL(`${gameData?.link_base_pure}${screen}`, window.origin)
@@ -1057,6 +1213,92 @@ async function getDoc(screen: string, villageId: string | number | null = null, 
   }
 }
 
+/**
+ * Executa uma request já montada e devolve o HTML parseado.
+ *
+ * Usado pelo POST de troca de page_size do caminho premium.
+ */
+async function fetchHtmlByRequest(
+  request: Request,
+  {
+    preCaptchaContext = '',
+    postCaptchaContext = '',
+  }: {
+    preCaptchaContext?: string
+    postCaptchaContext?: string
+  } = {},
+) {
+  assertNoCaptchaInGame(document, preCaptchaContext)
+
+  const response = await fetch(request)
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  const text = await response.text()
+  const html = new DOMParser().parseFromString(text, 'text/html')
+
+  assertNoCaptchaInGame(html, postCaptchaContext)
+  assertNoGameUpdateOrBlockedRequest(html, { context: postCaptchaContext })
+
+  return html
+}
+
+/**
+ * Altera o page_size da tela premium de incomings.
+ *
+ * O premium usa page=-1 para buscar a primeira página inteira.
+ * Quando existem mais de 1000 comandos, o collector premium ajusta page_size
+ * para 1000 e então busca apenas as páginas extras.
+ */
+async function postChangePageSize(
+  pageSize: number | null,
+  screen: string,
+  newPageSize = 1000,
+  { signal }: { signal?: AbortSignal } = {},
+) {
+  if (!pageSize || Number(pageSize) === Number(newPageSize)) return
+
+  const gameData = getCurrentGameData()
+  const url = new URL(`${gameData?.link_base_pure}${screen}&action=change_page_size`, window.origin)
+
+  const body = makeAjaxBody({
+    page_size: newPageSize,
+    h: gameData?.csrf,
+  })
+
+  const headers = makeAjaxHeadersGetDoc()
+  const timeoutCtrl = new AbortController()
+  const timeoutId = setTimeout(() => timeoutCtrl.abort(new Error('timeout')), 8000)
+
+  const combinedSignal = signal
+    ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
+    : timeoutCtrl.signal
+
+  const req = new Request(url.toString(), {
+    method: 'POST',
+    headers,
+    body,
+    credentials: 'include',
+    referrerPolicy: 'origin',
+    cache: 'no-store',
+    signal: combinedSignal,
+  })
+
+  try {
+    await fetchHtmlByRequest(req, {
+      preCaptchaContext: 'incoming-watch:setPageSize:pre-fetch',
+      postCaptchaContext: 'incoming-watch:setPageSize:html-response',
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Pergunta ao service worker se este contexto/aba deve executar o fluxo de incoming watch.
+ */
 export async function requestIncomingWatchDecision(detail: {
   observedAt: number
   previousCount: number
@@ -1099,6 +1341,9 @@ export async function requestIncomingApplyQueue({
   })
 }
 
+/**
+ * Instala a sincronização visual que reage a mudanças no DOM e ao evento customizado.
+ */
 export function installIncomingVisualSync() {
   let destroyed = false
   let pendingTimer: ReturnType<typeof setTimeout> | null = null
@@ -1184,174 +1429,65 @@ export function installIncomingVisualSync() {
   }
 }
 
+/**
+ * Fluxo principal de leitura, identificação, salvamento e notificação dos incomings.
+ *
+ * Passos principais:
+ * 1. Carrega dados das unidades.
+ * 2. Busca as vilas com incoming na visão geral.
+ * 3. Para cada vila, lê os comandos chegando.
+ * 4. Para cada comando novo, abre os detalhes, identifica origem, chegada e unidade provável.
+ * 5. Salva no storage e envia notificação quando houver novos ataques.
+ */
 export async function readSaveNotifyIncomings() {
   await ensureUnitMapLoaded()
 
-  const overviewVillagesHtml = await getDoc('overview_villages')
-  const incomingVillages = collectIncomingVillages(overviewVillagesHtml)
-  const incomingVillageIdSet = new Set(incomingVillages.map(({ id }) => String(id)))
-  const state = await readIncomingState()
-  const notifyData: IncomingNotifyRow[] = []
-  let newAttack = 0
-  let newSnob = 0
+  const premiumActive = isPremiumAccountActive()
 
-  Object.keys(state.villages).forEach((villageId) => {
-    if (!incomingVillageIdSet.has(villageId)) {
-      delete state.villages[villageId]
-    }
-  })
+  console.log(
+    `%c[incoming-watch:runtime] Iniciando coleta de incomings | premiumActive: ${premiumActive}`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+  )
 
-  if (!incomingVillages.length) {
-    const totalRaw = Number(document.querySelector('#incomings_amount')?.textContent)
-    state.lastIncomingCount = Number.isFinite(totalRaw) ? totalRaw : 0
-    const nextState = await writeIncomingState(state)
-    return {
-      state: nextState,
-      notifyData,
-      newAttack,
-      newSnob,
-      pendingTagCount: countPendingIncomingTags(nextState),
-    }
+  const collectorContext = {
+    getDoc,
+    postChangePageSize,
+    readIncomingState,
+
+    normalizeIncomingVillageState,
+    normalizeIncomingAttackEntry,
+    pruneExpiredIncomingState,
+
+    collectIncomingVillages,
+
+    attackPower,
+    normalizeInlineText,
+
+    parseArrivalData,
+    resolveIncomingTravelMeta,
+    buildIncomingTicket,
+
+    logIncomingWatchAttackIdentified,
   }
 
-  for (const incomingVillage of incomingVillages) {
-    const villageId = String(incomingVillage.id)
-    const previousVillageState = state.villages[villageId] || normalizeIncomingVillageState()
-    const nextVillageState = normalizeIncomingVillageState({
-      ...previousVillageState,
-      name: incomingVillage.name ?? previousVillageState.name,
-      coord: incomingVillage.coord ?? previousVillageState.coord,
-    })
-    const overviewHtml = await getDoc('overview', villageId)
-    const commandsTable = overviewHtml.querySelector('#commands_incomings')
+  const collectResult = premiumActive
+    ? await collectPremiumIncomings(collectorContext)
+    : await collectNotPremiumIncomings(collectorContext)
 
-    if (!commandsTable) {
-      delete state.villages[villageId]
-      continue
-    }
+  const {
+    state,
+    notifyData,
+    newAttack,
+    newSnob,
+  } = collectResult
 
-    const comingAttack = { ...nextVillageState.comingAttack }
-    const arrAttackID = Array.from(commandsTable.querySelectorAll('tr.command-row'))
-      .reduce((arr, row) => {
-        const power = attackPower(row)
-        const attId = String((row.querySelector('span.quickedit') as HTMLElement | null)?.dataset?.id || '').trim()
-        const currentComment = normalizeInlineText(
-          row.querySelector('span.quickedit-label')?.textContent
-          || row.querySelector('span.quickedit-content')?.textContent
-          || '',
-        )
-        if (!attId) return arr
-        arr.push({ attId, power, currentComment: currentComment || null })
-        return arr
-      }, [] as Array<{ attId: string; power: string | null; currentComment: string | null }>)
-
-    Object.keys(comingAttack).forEach((commandId) => {
-      if (!arrAttackID.find(({ attId }) => Number(attId) === Number(commandId))) {
-        delete comingAttack[commandId]
-      }
-    })
-
-    for (const { attId, power, currentComment } of arrAttackID) {
-      if (Object.prototype.hasOwnProperty.call(comingAttack, attId)) continue
-
-      const infoCommandHtml = await getDoc(`info_command&id=${attId}&type=other`, villageId)
-      const rows = Array.from(
-        infoCommandHtml.querySelector('#content_value > table.vis > tbody')?.querySelectorAll?.('tr') || [],
-      )
-
-      if (rows.length < 3) continue
-
-      const row1Cells = Array.from(rows[1]?.querySelectorAll('td') || [])
-      const row2Cells = Array.from(rows[2]?.querySelectorAll('td') || [])
-      const lastPlayerCell = row1Cells[row1Cells.length - 1]
-      const lastVillageCell = row2Cells[row2Cells.length - 1]
-      const attacker = normalizeInlineText(lastPlayerCell?.textContent || '')
-      const attackerID = String(lastPlayerCell?.querySelector?.('a')?.href?.split('=')?.pop() || '').trim() || null
-      const attackerVillageName = normalizeInlineText(lastVillageCell?.textContent || '')
-      const attackerCoord = attackerVillageName.match(/\d+\|\d+/ig)?.[0] || null
-      const attackerVillageID = String(lastVillageCell?.querySelector?.('a')?.href?.split('=')?.pop() || '').trim() || null
-      const defenderCoord = nextVillageState.coord || incomingVillage.coord || null
-      const defenderVillageName = normalizeInlineText(nextVillageState.name || incomingVillage.name || incomingVillage.label || `Vila ${villageId}`)
-      const regExp = getCurrentGameData()?.market === 'pt'
-        ? /[(][0-9]{2}[:][0-9]{2}[:][0-9]{2}[)][:][0-9]{3}$/ig
-        : /[0-9]{2}[:][0-9]{2}[:][0-9]{2}[:][0-9]{3}$/ig
-      const index = rows.reduce<number | null>((ind, row, i) => {
-        if (String(row.textContent || '').match(regExp)) {
-          return i
-        }
-        return ind
-      }, null)
-
-      if (index == null || !rows[index] || !rows[index + 1] || !defenderCoord || !attackerCoord) {
-        continue
-      }
-
-      const arrivalText = String(Array.from(rows[index].querySelectorAll('td'))[1]?.textContent || '').trim()
-      const arrivalData = parseArrivalData(arrivalText)
-      if (!arrivalData) continue
-
-      const { arrival, arrivalParts } = arrivalData
-      const travelText = String(rows[index + 1]?.querySelectorAll('td')?.[1]?.textContent || '').trim()
-      const travelMeta = resolveIncomingTravelMeta({
-        sourceCoord: attackerCoord,
-        targetCoord: defenderCoord,
-        travelText,
-      })
-
-      if (!travelMeta) continue
-
-      const { unitSlower, travel } = travelMeta
-      const ticket = buildIncomingTicket({
-        arrivalParts,
-        travel,
-        unitSlower,
-        currentComment,
-      })
-
-      if (!ticket) continue
-
-      comingAttack[attId] = {
-        ...normalizeIncomingAttackEntry(),
-        power,
-        ticket,
-        currentComment: currentComment || null,
-        attacker,
-        attackerID,
-        attackerCoord,
-        attackerVillageID,
-        arrival,
-      }
-
-      newAttack++
-      if (unitSlower === 'snob') newSnob++
-      notifyData.push({
-        power,
-        ticket,
-        targetVillageId: villageId,
-        targetVillageName: defenderVillageName,
-        sourceName: attacker,
-        sourceVillageName: attackerVillageName,
-        arrivalText,
-        arrival,
-      })
-    }
-
-    nextVillageState.comingAttack = pruneExpiredIncomingState({
-      lastIncomingCount: state.lastIncomingCount,
-      villages: {
-        [villageId]: {
-          ...nextVillageState,
-          comingAttack,
-        },
-      },
-    }).villages[villageId]?.comingAttack || {}
-
-    state.villages[villageId] = normalizeIncomingVillageState(nextVillageState)
-  }
-
-  const totalRaw = Number(document.querySelector('#incomings_amount')?.textContent)
-  state.lastIncomingCount = Number.isFinite(totalRaw) ? totalRaw : state.lastIncomingCount
   const nextState = await writeIncomingState(state)
+  const pendingTagCount = countPendingIncomingTags(nextState)
+
+  console.log(
+    `%c[incoming-watch:runtime] Coleta finalizada | premiumActive: ${premiumActive} | newAttack: ${newAttack} | newSnob: ${newSnob} | notifyRows: ${notifyData.length} | pendingTagCount: ${pendingTagCount}`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+  )
 
   if (notifyData.length) {
     const body = generateIncomingNotifyBody({
@@ -1376,6 +1512,6 @@ export async function readSaveNotifyIncomings() {
     notifyData,
     newAttack,
     newSnob,
-    pendingTagCount: countPendingIncomingTags(nextState),
+    pendingTagCount,
   }
 }
