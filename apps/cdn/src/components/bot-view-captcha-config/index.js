@@ -8,6 +8,19 @@ import {
   writeHCaptchaSolverConfig,
 } from "../../hCaptcha/config/model"
 
+/**
+ * O relatório agora é tratado como janela independente do composer.
+ *
+ * Motivo:
+ * - o composer deve fechar ao clicar fora
+ * - o report precisa continuar vivo para drag/focus
+ * - se o report fosse "filho" do painel secundário, ele morreria junto
+ *
+ * Então mantemos uma única instância compartilhada por módulo, fora do
+ * lifecycle do dropdown.
+ */
+let sharedHCaptchaReportView = null
+
 function stopEvent(event) {
   event?.preventDefault?.()
   event?.stopPropagation?.()
@@ -93,20 +106,32 @@ export function createBotViewCaptchaConfig(container, sectionApi = {}) {
   container.append(root)
 
   let currentConfig = null
-  let reportView = null
   const onReportClick = (event) => {
     stopEvent(event)
+    sectionApi?.close?.()
 
-    if (!reportView) {
-      reportView = createReportView({
-        title: 'hCaptcha-Solver',
-        reportType: 'hcaptcha',
-        startOpen: true,
-      })
-      return
-    }
+    /**
+     * Fechamos o composer primeiro e só então abrimos o report.
+     *
+     * O `setTimeout(0)` garante que o dropdown seja desmontado antes da
+     * janela do relatório ser aberta, evitando conflito de "click outside".
+     */
+    window.setTimeout(() => {
+      const root = sharedHCaptchaReportView?.root?.()
+      const isAlive = root instanceof HTMLElement && root.isConnected
 
-    reportView.toggle()
+      if (!isAlive) {
+        sharedHCaptchaReportView = createReportView({
+          title: 'hCaptcha-Solver',
+          reportType: 'hcaptcha',
+          startOpen: true,
+        })
+        return
+      }
+
+      sharedHCaptchaReportView.setReportType?.('hcaptcha')
+      sharedHCaptchaReportView.open?.()
+    }, 0)
   }
 
   const setStatusFromConfig = (config = {}) => {
@@ -175,7 +200,6 @@ export function createBotViewCaptchaConfig(container, sectionApi = {}) {
     destroy() {
       unsubscribe?.()
       reportBtn.removeEventListener('click', onReportClick, true)
-      reportView?.destroy?.()
       autoSolverRow.destroy()
       alarmRow.destroy()
       root.remove()

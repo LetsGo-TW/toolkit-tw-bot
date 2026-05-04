@@ -12,8 +12,20 @@ function normalizeSection(section, index) {
     groupId: String(source.groupId || source.group || '').trim(),
     statusLabel: String(source.statusLabel || source.status || '').trim(),
     statusTone: String(source.statusTone || source.statusKind || '').trim().toLowerCase(),
-    defaultOpen: Boolean(source.defaultOpen),
+    /**
+     * `detail`
+     *   Opens the second dropdown and mounts the script UI there.
+     *
+     * `row-action`
+     *   Clicking the row acts directly (ex.: toggle TW page config).
+     *
+     * `button-action`
+     *   Keeps an action button inside the primary menu row (ex.: "Ir").
+     */
+    renderMode: String(source.renderMode || 'detail').trim().toLowerCase(),
     mount: typeof source.mount === 'function' ? source.mount : null,
+    onAction: typeof source.onAction === 'function' ? source.onAction : null,
+    actionLabel: String(source.actionLabel || '').trim(),
   }
 }
 
@@ -63,8 +75,6 @@ export function createBotViewConfigPopover({
   title = '',
   sections = [],
   groups = [],
-  accordion = null,
-  singleOpen = true,
   offset = 10,
   onOpen = null,
   onClose = null,
@@ -79,10 +89,11 @@ export function createBotViewConfigPopover({
     ? groups.map(normalizeGroup).filter(Boolean)
     : []
 
-  const useAccordion = accordion == null
-    ? normalizedSections.length > 1
-    : Boolean(accordion)
-
+  /**
+   * Primary dropdown:
+   * - only a stable menu/index
+   * - does not expand with script content
+   */
   const menu = document.createElement('div')
   menu.hidden = true
   menu.className = 'go-bot-view-config-popover'
@@ -94,79 +105,114 @@ export function createBotViewConfigPopover({
       <div class="go-bvcp-sections" data-bvcp-sections></div>
     </div>
   `
-  document.body.append(menu)
+
+  /**
+   * Secondary dropdown:
+   * - appears only for `renderMode === "detail"`
+   * - mounts the selected script view
+   * - keeps the first menu stable and unchanged in size
+   */
+  const detail = document.createElement('div')
+  detail.hidden = true
+  detail.className = 'go-bot-view-config-popover go-bot-view-config-popover-detail'
+  detail.setAttribute('role', 'dialog')
+  detail.setAttribute('aria-modal', 'false')
+  detail.innerHTML = `
+    <div class="go-bvcp-shell">
+      <div class="go-bvcp-detail-header">
+        <div class="go-bvcp-detail-title-wrap">
+          <span class="go-bvcp-detail-title" data-bvcp-detail-title></span>
+          <span class="go-bvcp-section-badge" data-bvcp-detail-badge hidden></span>
+        </div>
+      </div>
+      <div class="go-bvcp-detail-body" data-bvcp-detail-body></div>
+    </div>
+  `
+
+  document.body.append(menu, detail)
 
   const sectionsHost = menu.querySelector('[data-bvcp-sections]')
+  const detailTitle = detail.querySelector('[data-bvcp-detail-title]')
+  const detailBadge = detail.querySelector('[data-bvcp-detail-badge]')
+  const detailBody = detail.querySelector('[data-bvcp-detail-body]')
   const sectionStates = []
   const groupHosts = new Map()
   const ungroupedHost = sectionsHost instanceof HTMLElement
     ? document.createElement('div')
     : null
-  let isOpen = false
 
-  const mountSection = (sectionState) => {
-    if (!sectionState || sectionState.mounted || !(sectionState.body instanceof HTMLElement)) return
-    sectionState.mounted = true
+  let isOpen = false
+  let isDetailOpen = false
+  let activeDetailSectionId = ''
+  let activeDetailCleanup = null
+
+  const findSectionState = (sectionId = '') => (
+    sectionStates.find((sectionState) => sectionState.id === sectionId) || null
+  )
+
+  const closeDetail = () => {
+    isDetailOpen = false
+    activeDetailSectionId = ''
+    detail.hidden = true
+    try {
+      activeDetailCleanup?.()
+    } catch (_) {}
+    activeDetailCleanup = null
+    if (detailTitle instanceof HTMLElement) detailTitle.textContent = ''
+    applySectionBadge(detailBadge, '', '')
+    if (detailBody instanceof HTMLElement) {
+      detailBody.innerHTML = ''
+    }
+    sectionStates.forEach((sectionState) => {
+      sectionState.item?.classList?.remove?.('is-selected')
+    })
+  }
+
+  /**
+   * Mounts only one detail section at a time.
+   *
+   * This keeps the second dropdown simple and deterministic:
+   * selecting another menu item destroys the previous mounted view
+   * and mounts the next one in the same detail host.
+   */
+  const openDetail = (sectionState) => {
+    if (!sectionState || !(detailBody instanceof HTMLElement)) return
+
+    if (isDetailOpen && activeDetailSectionId === sectionState.id) {
+      closeDetail()
+      return
+    }
+
+    closeDetail()
+    isDetailOpen = true
+    activeDetailSectionId = sectionState.id
+    detail.hidden = false
+
+    sectionStates.forEach((state) => {
+      state.item?.classList?.toggle?.('is-selected', state.id === sectionState.id)
+    })
+
+    if (detailTitle instanceof HTMLElement) {
+      detailTitle.textContent = sectionState.label
+    }
+    applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone)
+
     const sectionApi = {
       setStatus(label = '', tone = '') {
-        applySectionBadge(sectionState.badge, label, tone)
+        sectionState.statusLabel = String(label || '').trim()
+        sectionState.statusTone = String(tone || '').trim().toLowerCase()
+        applySectionBadge(sectionState.badge, sectionState.statusLabel, sectionState.statusTone)
+        if (activeDetailSectionId === sectionState.id) {
+          applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone)
+        }
       },
       close() {
         close()
       },
     }
-    sectionState.cleanup = resolveCleanup(sectionState.mount?.(sectionState.body, sectionApi))
-  }
 
-  const syncAccordionState = () => {
-    sectionStates.forEach((sectionState) => {
-      if (!(sectionState.item instanceof HTMLElement) || !(sectionState.body instanceof HTMLElement)) return
-      sectionState.item.classList.toggle('is-open', Boolean(sectionState.open))
-      sectionState.body.hidden = !sectionState.open
-      sectionState.trigger?.setAttribute('aria-expanded', sectionState.open ? 'true' : 'false')
-      if (sectionState.open) mountSection(sectionState)
-    })
-  }
-
-  const openSection = (sectionId) => {
-    let nextFound = false
-    sectionStates.forEach((sectionState) => {
-      const isTarget = sectionState.id === sectionId
-      if (isTarget) nextFound = true
-      sectionState.open = isTarget ? !sectionState.open : (singleOpen ? false : sectionState.open)
-      if (!isTarget && !singleOpen) return
-    })
-    if (!nextFound) return
-    syncAccordionState()
-  }
-
-  const ensureDefaultOpenSections = () => {
-    if (!useAccordion) {
-      sectionStates.forEach((sectionState) => mountSection(sectionState))
-      return
-    }
-
-    const alreadyOpen = sectionStates.some((sectionState) => sectionState.open)
-    if (alreadyOpen) {
-      syncAccordionState()
-      return
-    }
-
-    const firstDefaultOpen = sectionStates.find((sectionState) => sectionState.defaultOpen)
-    if (!firstDefaultOpen) {
-      syncAccordionState()
-      return
-    }
-
-    if (singleOpen) {
-      sectionStates.forEach((sectionState) => {
-        sectionState.open = sectionState.id === firstDefaultOpen.id
-      })
-    } else {
-      firstDefaultOpen.open = true
-    }
-
-    syncAccordionState()
+    activeDetailCleanup = resolveCleanup(sectionState.mount?.(detailBody, sectionApi))
+    positionPanels(sectionState)
   }
 
   if (sectionsHost instanceof HTMLElement) {
@@ -194,7 +240,7 @@ export function createBotViewConfigPopover({
     })
   }
 
-  normalizedSections.forEach((section, index) => {
+  normalizedSections.forEach((section) => {
     if (!(sectionsHost instanceof HTMLElement)) return
 
     const parentHost = (
@@ -204,85 +250,80 @@ export function createBotViewConfigPopover({
       ? groupHosts.get(section.groupId)
       : (ungroupedHost instanceof HTMLElement ? ungroupedHost : sectionsHost)
 
-    if (!useAccordion) {
-      const panel = document.createElement('section')
-      panel.className = 'go-bvcp-panel'
-      panel.innerHTML = `
-        ${section.label ? `
-          <div class="go-bvcp-panel-title">
-            <span class="go-bvcp-panel-title-text">${section.label}</span>
+    const item = document.createElement('section')
+    item.className = 'go-bvcp-menu-item'
+    item.innerHTML = `
+      <div class="go-bvcp-menu-row">
+        <button
+          type="button"
+          class="go-bvcp-menu-row-main"
+          data-bvcp-menu-main="${section.id}"
+          ${section.renderMode === 'button-action' ? 'disabled' : ''}
+        >
+          <span class="go-bvcp-menu-row-label-wrap">
+            <span class="go-bvcp-menu-row-label">${section.label}</span>
             <span
               class="go-bvcp-section-badge is-${section.statusTone || 'neutral'}"
               data-bvcp-section-badge
               ${section.statusLabel ? '' : 'hidden'}
             >${section.statusLabel || ''}</span>
-          </div>
-        ` : ''}
-        <div class="go-bvcp-panel-body" data-bvcp-section-body></div>
-      `
-
-      const body = panel.querySelector('[data-bvcp-section-body]')
-      const badge = panel.querySelector('[data-bvcp-section-badge]')
-      parentHost.append(panel)
-      sectionStates.push({
-        ...section,
-        body,
-        badge,
-        panel,
-        item: panel,
-        trigger: null,
-        cleanup: null,
-        mounted: false,
-        open: true,
-      })
-      return
-    }
-
-    const item = document.createElement('section')
-    item.className = 'go-bvcp-accordion-item'
-    item.innerHTML = `
-      <button
-        type="button"
-        class="go-bvcp-accordion-trigger"
-        data-bvcp-accordion-trigger="${section.id}"
-        aria-expanded="false"
-      >
-        <span class="go-bvcp-accordion-label-wrap">
-          <span class="go-bvcp-accordion-label">${section.label}</span>
+          </span>
           <span
-            class="go-bvcp-section-badge is-${section.statusTone || 'neutral'}"
-            data-bvcp-section-badge
-            ${section.statusLabel ? '' : 'hidden'}
-          >${section.statusLabel || ''}</span>
-        </span>
-        <span class="go-bvcp-accordion-caret">▾</span>
-      </button>
-      <div class="go-bvcp-accordion-body" data-bvcp-accordion-body hidden></div>
+            class="go-bvcp-menu-row-caret"
+            data-bvcp-menu-caret
+            ${section.renderMode === 'detail' ? '' : 'hidden'}
+          >▸</span>
+        </button>
+        <button
+          type="button"
+          class="go-bvcp-menu-row-action"
+          data-bvcp-menu-action="${section.id}"
+          ${section.renderMode === 'button-action' ? '' : 'hidden'}
+        >${section.actionLabel || 'Ir'}</button>
+      </div>
     `
 
-    const trigger = item.querySelector('[data-bvcp-accordion-trigger]')
-    const body = item.querySelector('[data-bvcp-accordion-body]')
+    const mainButton = item.querySelector('[data-bvcp-menu-main]')
+    const actionButton = item.querySelector('[data-bvcp-menu-action]')
     const badge = item.querySelector('[data-bvcp-section-badge]')
-    parentHost.append(item)
 
     const sectionState = {
       ...section,
-      body,
-      badge,
       item,
-      trigger,
-      panel: null,
-      cleanup: null,
-      mounted: false,
-      open: Boolean(section.defaultOpen && (singleOpen ? index === 0 || !sectionStates.some((state) => state.open) : true)),
+      mainButton,
+      actionButton,
+      badge,
     }
 
-    trigger?.addEventListener('click', (event) => {
+    /**
+     * The main menu row now behaves according to section type:
+     * - detail      => opens the second dropdown
+     * - row-action  => executes immediately on click
+     * - button-action => the row itself does nothing; only the small button acts
+     */
+    mainButton?.addEventListener('click', (event) => {
       event.preventDefault()
       event.stopPropagation()
-      openSection(section.id)
+
+      if (sectionState.renderMode === 'detail') {
+        openDetail(sectionState)
+        return
+      }
+
+      if (sectionState.renderMode === 'row-action') {
+        sectionState.onAction?.()
+        close()
+      }
     }, true)
 
+    actionButton?.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      sectionState.onAction?.()
+      close()
+    }, true)
+
+    parentHost.append(item)
     sectionStates.push(sectionState)
   })
 
@@ -290,65 +331,121 @@ export function createBotViewConfigPopover({
     ungroupedHost.remove()
   }
 
-  const positionMenu = () => {
+  function positionPanels(activeSectionState = null) {
     const padding = 8
     const viewportWidth = window.visualViewport?.width || window.innerWidth
     const viewportHeight = window.visualViewport?.height || window.innerHeight
-    const wasHidden = menu.hidden
 
-    if (wasHidden) {
+    const wasMenuHidden = menu.hidden
+    const wasDetailHidden = detail.hidden
+
+    if (wasMenuHidden) {
       menu.hidden = false
       menu.style.visibility = 'hidden'
     }
 
-    const rect = btn.getBoundingClientRect()
+    if (!detail.hidden) {
+      detail.style.visibility = 'hidden'
+    }
+
+    const btnRect = btn.getBoundingClientRect()
     const menuRect = menu.getBoundingClientRect()
 
-    let left = Math.round(rect.right + offset)
-    if (left + menuRect.width > viewportWidth - padding) {
-      left = Math.round(rect.left - offset - menuRect.width)
+    let menuLeft = Math.round(btnRect.right + offset)
+    if (menuLeft + menuRect.width > viewportWidth - padding) {
+      menuLeft = Math.round(btnRect.left - offset - menuRect.width)
     }
-    left = Math.max(padding, Math.min(left, viewportWidth - menuRect.width - padding))
+    menuLeft = Math.max(padding, Math.min(menuLeft, viewportWidth - menuRect.width - padding))
 
-    let top = Math.round(rect.top)
-    if (top + menuRect.height > viewportHeight - padding) {
-      top = Math.round(viewportHeight - menuRect.height - padding)
+    let menuTop = Math.round(btnRect.top)
+    if (menuTop + menuRect.height > viewportHeight - padding) {
+      menuTop = Math.round(viewportHeight - menuRect.height - padding)
     }
-    top = Math.max(padding, top)
+    menuTop = Math.max(padding, menuTop)
 
-    menu.style.left = `${left}px`
-    menu.style.top = `${top}px`
+    menu.style.left = `${menuLeft}px`
+    menu.style.top = `${menuTop}px`
 
-    if (wasHidden) {
+    if (!detail.hidden) {
+      const detailRect = detail.getBoundingClientRect()
+      const anchorRect = activeSectionState?.item instanceof HTMLElement
+        ? activeSectionState.item.getBoundingClientRect()
+        : menu.getBoundingClientRect()
+
+      let detailLeft = Math.round(menuRect.right + 8)
+      if (detailLeft + detailRect.width > viewportWidth - padding) {
+        detailLeft = Math.round(menuRect.left - 8 - detailRect.width)
+      }
+      detailLeft = Math.max(padding, Math.min(detailLeft, viewportWidth - detailRect.width - padding))
+
+      let detailTop = Math.round(anchorRect.top)
+      if (detailTop + detailRect.height > viewportHeight - padding) {
+        detailTop = Math.round(viewportHeight - detailRect.height - padding)
+      }
+      detailTop = Math.max(padding, detailTop)
+
+      detail.style.left = `${detailLeft}px`
+      detail.style.top = `${detailTop}px`
+      detail.style.visibility = ''
+    }
+
+    if (wasMenuHidden) {
       menu.hidden = true
       menu.style.visibility = ''
+    }
+
+    if (wasDetailHidden) {
+      detail.hidden = true
     }
   }
 
   const onViewportChange = () => {
     if (!isOpen) return
-    positionMenu()
+    positionPanels(findSectionState(activeDetailSectionId))
+  }
+
+  const shouldIgnoreOutsideClose = (event) => {
+    const targetNode = event.target
+    if (!(targetNode instanceof Node)) return false
+    if (btn.contains(targetNode)) return true
+    if (menu.contains(targetNode)) return true
+    if (detail.contains(targetNode)) return true
+    return false
+  }
+
+  const onDocumentPointerDown = (event) => {
+    if (shouldIgnoreOutsideClose(event)) return
+    close()
+  }
+
+  const onDocumentFocusIn = (event) => {
+    if (shouldIgnoreOutsideClose(event)) return
+    close()
   }
 
   const open = () => {
     if (isOpen) return
     isOpen = true
-    ensureDefaultOpenSections()
     menu.hidden = false
-    positionMenu()
     btn.setAttribute('aria-expanded', 'true')
+    positionPanels()
     window.addEventListener('resize', onViewportChange, true)
     window.addEventListener('scroll', onViewportChange, true)
+    document.addEventListener('pointerdown', onDocumentPointerDown, true)
+    document.addEventListener('focusin', onDocumentFocusIn, true)
     if (typeof onOpen === 'function') onOpen(menu)
   }
 
   const close = () => {
     if (!isOpen) return
     isOpen = false
+    closeDetail()
     menu.hidden = true
     btn.setAttribute('aria-expanded', 'false')
     window.removeEventListener('resize', onViewportChange, true)
     window.removeEventListener('scroll', onViewportChange, true)
+    document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+    document.removeEventListener('focusin', onDocumentFocusIn, true)
     if (typeof onClose === 'function') onClose(menu)
   }
 
@@ -371,21 +468,15 @@ export function createBotViewConfigPopover({
   const destroy = () => {
     close()
     btn.removeEventListener('click', onButtonClick, true)
-    sectionStates.forEach((sectionState) => {
-      try {
-        sectionState.cleanup?.()
-      } catch (_) {}
-      sectionState.cleanup = null
-    })
     menu.remove()
+    detail.remove()
   }
 
   return {
-    root: () => menu,
-    open,
     close,
-    toggle,
     destroy,
+    open,
+    toggle,
   }
 }
 

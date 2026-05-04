@@ -13,10 +13,6 @@ import { BotViewExecutionStatus } from "../../shared/bot-view-status"
 
 const MSG_SOLVER_DISABLED = 'Resolve-auto: Desligado. Somente ação do usuário.'
 
-function isAbortError(error) {
-  return error?.name === 'AbortError'
-}
-
 export const getCaptchaNowMs = () => {
   if (useGoTiming.isReady()) {
     return Number(useGoTiming.getEffectiveServerNowMs())
@@ -25,7 +21,7 @@ export const getCaptchaNowMs = () => {
   return Number(nDateTime(dateServer(), timeServer()))
 }
 
-export default async function show({ data, context, control }) {
+export default async function show({ context, control }) {
   control?.throwIfAborted?.()
 
   const gameData = getGameData();
@@ -60,20 +56,20 @@ export default async function show({ data, context, control }) {
 
   BotViewExecutionStatus.set('Aguarde...')
 
+  /**
+   * `ConfigSolver` agora é headless.
+   *
+   * Ele continua existindo como wrapper do estado/config do solver, mas não
+   * injeta mais a barra antiga `#config-solver` no DOM. A UI oficial do
+   * captcha passou a viver só no composer/bot-view.
+   */
   await ConfigSolver.init()
+  control?.onAbort?.(() => {
+    ConfigSolver.destroy()
+  })
   control?.throwIfAborted?.()
 
-  const configSolverNode = document.querySelector("#config-solver")
-
   Sounds.use("solver")
-  Sounds.listner("#sound-solver")
-
-  if (configSolverNode) {
-    configSolverNode.addEventListener('change', onChangeConfig)
-    control?.onAbort?.(() => {
-      configSolverNode.removeEventListener('change', onChangeConfig)
-    })
-  }
 
   const soundInteractive = () => {
     if (ConfigSolver.sound) {
@@ -119,30 +115,5 @@ export default async function show({ data, context, control }) {
   function optionDisableSolver() {
     console.log('Disable!');
     BotViewExecutionStatus.set(MSG_SOLVER_DISABLED);
-  }
-
-  function onChangeConfig(e) {
-    void handleConfigChange(e)
-  }
-
-  async function handleConfigChange(e) {
-    try {
-      const { id } = e.target
-      await control?.sleepMs?.(250)
-      control?.throwIfAborted?.()
-      if (id === 'active-solver') {
-        if (ConfigSolver.active) {
-          await optionEnableSolver()
-        } else {
-          optionDisableSolver()
-        }
-      }
-    } catch (error) {
-      if (isAbortError(error)) {
-        return
-      }
-
-      console.error('[SOLVER][config-change]', error)
-    }
   }
 }

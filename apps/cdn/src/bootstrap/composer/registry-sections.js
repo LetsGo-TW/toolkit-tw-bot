@@ -62,65 +62,65 @@ function buildGoToUrl(goTo = {}) {
   return url.toString()
 }
 
-function createActionSection({
+/**
+ * Section type used by the new composer menu.
+ *
+ * `renderMode: "detail"`:
+ * - stays in the primary menu as a simple row
+ * - clicking the row opens the secondary dropdown/panel
+ * - the section content is mounted only inside that secondary panel
+ *
+ * `renderMode: "row-action"`:
+ * - clicking the row executes an action directly
+ * - used for cases like "settings", where the real UI is injected into the TW page
+ *
+ * `renderMode: "button-action"`:
+ * - row stays in the primary menu
+ * - a small action button ("Ir") is rendered on the row itself
+ * - used for `others`, because those should not open the secondary panel
+ */
+function createMenuSection({
   id,
   label,
   groupId = '',
-  buttonLabel = 'Abrir',
+  statusLabel = '',
+  statusTone = '',
+  renderMode = 'detail',
+  mount = null,
   onAction = null,
-  copy = '',
+  actionLabel = '',
 } = {}) {
   return {
-    id,
-    label,
-    groupId,
-    mount: (container, sectionApi = {}) => {
-      if (!(container instanceof HTMLElement)) {
-        return null
-      }
-
-      const root = document.createElement('div')
-      root.className = 'go-bvcp-action'
-
-      if (copy) {
-        const text = document.createElement('p')
-        text.className = 'go-bvcp-action-copy'
-        text.textContent = copy
-        root.append(text)
-      }
-
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = 'go-bvcp-action-button'
-      button.textContent = buttonLabel
-      root.append(button)
-      container.append(root)
-
-      const onClick = (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        onAction?.()
-        sectionApi?.close?.()
-      }
-
-      button.addEventListener('click', onClick, true)
-
-      return {
-        destroy() {
-          button.removeEventListener('click', onClick, true)
-          root.remove()
-        },
-      }
-    },
+    id: String(id || '').trim(),
+    label: String(label || id || '').trim(),
+    groupId: String(groupId || '').trim(),
+    statusLabel: String(statusLabel || '').trim(),
+    statusTone: String(statusTone || '').trim().toLowerCase(),
+    renderMode: String(renderMode || 'detail').trim().toLowerCase(),
+    mount: typeof mount === 'function' ? mount : null,
+    onAction: typeof onAction === 'function' ? onAction : null,
+    actionLabel: String(actionLabel || '').trim(),
   }
 }
 
 async function createInlineSection(entry, context = {}) {
   switch (String(entry?.id || '').trim()) {
-    case 'hcaptcha':
-      return await createHCaptchaBotViewSection(context)
-    case 'search-barbarians':
-      return createSearchBarbariansConfigSection(context)
+    case 'hcaptcha': {
+      const section = await createHCaptchaBotViewSection(context)
+      return createMenuSection({
+        ...section,
+        renderMode: 'detail',
+      })
+    }
+
+    case 'search-barbarians': {
+      const section = createSearchBarbariansConfigSection(context)
+      return createMenuSection({
+        ...section,
+        renderMode: 'detail',
+      })
+    }
+
     default:
       return null
   }
@@ -131,15 +131,14 @@ function createPageActionSection(entry, {
 } = {}) {
   const id = String(entry?.id || '').trim()
   const label = String(entry?.label || id).trim() || id
-  const actionLabel = String(entry?.actionLabel || 'Abrir').trim() || 'Abrir'
 
   switch (id) {
     case 'settings-config':
-      return createActionSection({
+      return createMenuSection({
         id,
         label,
         groupId,
-        buttonLabel: actionLabel,
+        renderMode: 'row-action',
         onAction: () => {
           window.dispatchEvent(new CustomEvent(SETTINGS_CONFIG_TOGGLE_EVENT, {
             detail: {
@@ -148,6 +147,7 @@ function createPageActionSection(entry, {
           }))
         },
       })
+
     default:
       return null
   }
@@ -164,11 +164,12 @@ function createGoToSection(entry, {
     return null
   }
 
-  return createActionSection({
+  return createMenuSection({
     id: `${id}-goto`,
     label,
     groupId,
-    buttonLabel: 'Ir',
+    renderMode: 'button-action',
+    actionLabel: 'Ir',
     onAction: () => {
       window.location.assign(nextUrl)
     },
@@ -189,6 +190,11 @@ export async function createComposerSectionsFromRegistry(registry = [], context 
       continue
     }
 
+    /**
+     * Globals always exist in the menu.
+     * If they are `inline`, they open in the secondary panel.
+     * If they are page-based in the future, they act directly on click.
+     */
     if (type === 'global') {
       if (viewMode === 'inline') {
         const section = await createInlineSection(entry, context)
@@ -208,6 +214,14 @@ export async function createComposerSectionsFromRegistry(registry = [], context 
       continue
     }
 
+    /**
+     * Screen scripts have 2 behaviors:
+     * - in the matching screen:
+     *   - `inline` => opens the secondary panel
+     *   - `page`   => toggles a TW-page injected UI directly
+     * - outside the matching screen:
+     *   - falls back to `Others` with a direct "Ir" button
+     */
     if (type === 'screen') {
       if (isMatch) {
         if (viewMode === 'inline') {
