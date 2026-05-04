@@ -429,6 +429,52 @@ export function isIncomingWatchTransientError(error: unknown) {
 }
 
 /**
+ * Identifica erros esperados de proteção do jogo/CAPTCHA.
+ *
+ * Esses erros não devem ir para console.error, porque a tela de erros
+ * da extensão captura console.error e exibe como falha crítica.
+ */
+export function isIncomingWatchBotProtectionError(error: unknown) {
+  const message = getErrorMessage(error).trim().toLowerCase()
+
+  return (
+    message.includes('bot protection')
+    || message.includes('captcha')
+    || message.includes('hcaptcha')
+    || message.includes('protectingbot')
+  )
+}
+
+/**
+ * Loga erros do runtime sem estourar erro crítico para casos esperados
+ * de bot protection/CAPTCHA/context invalidated.
+ */
+function logIncomingWatchRuntimeError(
+  context: string,
+  error: unknown,
+  fallbackMessage = 'Incoming watch runtime failed',
+) {
+  if (isIncomingWatchExtensionContextInvalidated(error)) {
+    return
+  }
+
+  if (isIncomingWatchBotProtectionError(error)) {
+    console.warn(
+      `%c[incoming-watch][${context}] Bot protection/CAPTCHA detectado. Ignorando como erro crítico.`,
+      'color: orange; font-weight: bold;',
+      error,
+    )
+    return
+  }
+
+  console.error(
+    `%c[incoming-watch][${context}]`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+    error || fallbackMessage,
+  )
+}
+
+/**
  * Lê o número atual exibido no contador #incomings_amount.
  */
 function readCurrentIncomingAmount(root: ParentNode = document) {
@@ -1500,9 +1546,7 @@ export async function readSaveNotifyIncomings() {
       try {
         await sendIncomingNotify(body)
       } catch (error) {
-        if (!isIncomingWatchExtensionContextInvalidated(error)) {
-          console.error('[incoming-watch][notify]', error)
-        }
+        logIncomingWatchRuntimeError('notify', error)
       }
     }
   }

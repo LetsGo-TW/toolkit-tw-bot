@@ -317,6 +317,56 @@ function logIncomingFlow(message: string, data: Record<string, unknown> = {}) {
 }
 
 /**
+ * Identifica erros esperados de proteção do jogo/CAPTCHA.
+ *
+ * Esses erros não devem ir para console.error, porque a tela de erros
+ * da extensão captura console.error e exibe como falha crítica.
+ */
+function isIncomingWatchBotProtectionError(error: unknown) {
+  const message = error instanceof Error
+    ? error.message
+    : String(error || '')
+
+  const normalized = message.trim().toLowerCase()
+
+  return (
+    normalized.includes('bot protection')
+    || normalized.includes('captcha')
+    || normalized.includes('hcaptcha')
+    || normalized.includes('protectingbot')
+  )
+}
+
+/**
+ * Loga erros do Incoming Watch sem estourar erro crítico para casos esperados
+ * de bot protection/CAPTCHA/context invalidated.
+ */
+function logIncomingWatchError(
+  context: string,
+  error: unknown,
+  fallbackMessage = 'Incoming watch failed',
+) {
+  if (isIncomingWatchExtensionContextInvalidated(error)) {
+    return
+  }
+
+  if (isIncomingWatchBotProtectionError(error)) {
+    console.warn(
+      `%c[CS][INCOMING_WATCH][${context}] Bot protection/CAPTCHA detectado. Ignorando como erro crítico.`,
+      'color: orange; font-weight: bold;',
+      error,
+    )
+    return
+  }
+
+  console.error(
+    `%c[CS][INCOMING_WATCH][${context}]`,
+    'color: red; font-weight: bold;',
+    error || fallbackMessage,
+  )
+}
+
+/**
  * Agenda uma nova tentativa de processar a fila.
  */
 function scheduleDrainRetry(delay = DRAIN_RETRY_MS) {
@@ -455,13 +505,11 @@ async function drainIncomingQueue() {
       })
 
       if (queueResult?.ok !== true) {
-        if (!isIncomingWatchExtensionContextInvalidated(queueResult?.error)) {
-          console.error(
-            '%c[CS][INCOMING_WATCH][QUEUE_APPLY]',
-            'color: red; font-weight: bold;',
-            queueResult?.error || 'Queue apply failed',
-          )
-        }
+        logIncomingWatchError(
+          'QUEUE_APPLY',
+          queueResult?.error || 'Queue apply failed',
+          'Queue apply failed',
+        )
 
         /**
          * Não limpa o pending se o queue-apply falhou.
@@ -480,13 +528,7 @@ async function drainIncomingQueue() {
       await clearIncomingPending()
     }
   } catch (error) {
-    if (!isIncomingWatchExtensionContextInvalidated(error)) {
-      console.error(
-        '%c[CS][INCOMING_WATCH][DRAIN]',
-        'color: red; font-weight: bold;',
-        error,
-      )
-    }
+    logIncomingWatchError('DRAIN', error)
   } finally {
     running = false
 
@@ -529,13 +571,7 @@ async function runPeriodicReconcile() {
   const detail = await getIncomingBootstrapDetail({
     force: true,
   }).catch((error) => {
-    if (!isIncomingWatchExtensionContextInvalidated(error)) {
-      console.error(
-        '%c[CS][INCOMING_WATCH][PERIODIC_RECONCILE]',
-        'color: red; font-weight: bold;',
-        error,
-      )
-    }
+    logIncomingWatchError('PERIODIC_RECONCILE', error)
 
     return null
   })
@@ -591,13 +627,7 @@ async function bootstrap() {
    * Só lê chrome.storage.local.
    */
   const pendingDetail = await getIncomingPendingDetail().catch((error) => {
-    if (!isIncomingWatchExtensionContextInvalidated(error)) {
-      console.error(
-        '%c[CS][INCOMING_WATCH][PENDING_BOOTSTRAP]',
-        'color: red; font-weight: bold;',
-        error,
-      )
-    }
+    logIncomingWatchError('PENDING_BOOTSTRAP', error)
 
     return null
   })
@@ -615,13 +645,7 @@ async function bootstrap() {
    * a cada carregamento.
    */
   const bootstrapDetail = await getIncomingBootstrapDetail().catch((error) => {
-    if (!isIncomingWatchExtensionContextInvalidated(error)) {
-      console.error(
-        '%c[CS][INCOMING_WATCH][BOOTSTRAP_DETAIL]',
-        'color: red; font-weight: bold;',
-        error,
-      )
-    }
+    logIncomingWatchError('BOOTSTRAP_DETAIL', error)
 
     return null
   })
