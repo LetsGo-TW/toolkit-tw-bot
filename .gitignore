@@ -19,3 +19,7 @@ apps/ops/data/
 .pnp.*
 .codex
 .secrets
+
+# Arquivos de ambiente (seguranca)
+!.env*
+!.env*.exemple
