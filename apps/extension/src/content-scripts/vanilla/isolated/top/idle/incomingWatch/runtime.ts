@@ -262,16 +262,20 @@ function parseVillageInfoCell(cell: Element | null) {
 }
 
 function normalizeIncomingAttackEntry(entry: any = null): IncomingAttackEntry {
+  const arrival = normalizeFiniteNumber(entry?.arrival)
+  const taggedAt = normalizeFiniteNumber(entry?.taggedAt)
+  const rawTicket = String(entry?.ticket || '').trim() || null
+
   return {
     power: String(entry?.power || '').trim() || null,
-    ticket: String(entry?.ticket || '').trim() || null,
+    ticket: rawTicket ? stripIncomingTicketMarker(rawTicket) : null,
     currentComment: String(entry?.currentComment || '').trim() || null,
     attacker: String(entry?.attacker || '').trim() || null,
     attackerID: String(entry?.attackerID || '').trim() || null,
     attackerCoord: String(entry?.attackerCoord || '').trim() || null,
     attackerVillageID: String(entry?.attackerVillageID || '').trim() || null,
-    arrival: Number.isFinite(Number(entry?.arrival)) ? Number(entry.arrival) : null,
-    taggedAt: Number.isFinite(Number(entry?.taggedAt)) ? Number(entry.taggedAt) : null,
+    arrival: arrival != null && arrival > 0 ? arrival : null,
+    taggedAt: taggedAt != null && taggedAt > 0 ? taggedAt : null,
   }
 }
 
@@ -360,7 +364,8 @@ function countPendingIncomingTags(state: IncomingState) {
 
 function isIncomingApplyPendingEntry(entry: IncomingAttackEntry | null | undefined) {
   if (!entry?.ticket || entry.taggedAt !== null) return false
-  return INCOMING_PENDING_TICKET_MARKERS.has(getIncomingTicketMarker(entry.ticket))
+  const normalizedComment = normalizeInlineText(entry.currentComment || '').toLowerCase()
+  return INCOMING_PENDING_TICKET_MARKERS.has(normalizedComment)
 }
 
 function getIncomingTicketMarker(ticket = '') {
@@ -370,11 +375,59 @@ function getIncomingTicketMarker(ticket = '') {
   return marker.trim()
 }
 
-function resolveIncomingTicketMarker(currentComment: string | null = '') {
-  const normalizedComment = normalizeInlineText(currentComment || '').toLowerCase()
+function logIncomingPendingDiagnostics(
+  state: IncomingState,
+  {
+    context = 'incoming-watch:pending',
+    maxEntries = 10,
+  }: {
+    context?: string
+    maxEntries?: number
+  } = {},
+) {
+  const entries = Object.entries(normalizeIncomingState(state).villages)
+    .flatMap(([villageId, villageState]) => (
+      Object.entries(villageState.comingAttack).map(([commandId, entry]) => {
+        const normalizedEntry = normalizeIncomingAttackEntry(entry)
+        const marker = getIncomingTicketMarker(normalizedEntry.ticket || '')
+        const isPending = isIncomingApplyPendingEntry(normalizedEntry)
+        const reason = !normalizedEntry.ticket
+          ? 'missing-ticket'
+          : normalizedEntry.taggedAt !== null
+            ? 'already-tagged'
+                  : isPending
+              ? 'pending'
+              : `marker-not-pending:${marker || 'empty'}`
 
-  if (INCOMING_PENDING_TICKET_MARKERS.has(normalizedComment)) {
-    return normalizedComment
+        return {
+          villageId,
+          commandId,
+          marker,
+          isPending,
+          taggedAt: normalizedEntry.taggedAt,
+          arrival: normalizedEntry.arrival,
+          ticket: normalizedEntry.ticket,
+          reason,
+        }
+      })
+    ))
+    .slice(0, Math.max(1, maxEntries))
+  const summary = entries
+    .map((entry) => `${entry.commandId}:${entry.reason}:${entry.marker || 'empty'}:taggedAt=${entry.taggedAt ?? 'null'}`)
+    .join(' || ')
+
+  console.log(
+    `%c[${context}] Diagnóstico de pendência | ${summary || 'sem-entradas'}`,
+    INCOMING_WATCH_RED_LOG_STYLE,
+    entries,
+  )
+}
+
+function resolveIncomingTicketMarker(currentComment: string | null = '') {
+  const marker = getIncomingTicketMarker(currentComment || '')
+
+  if (INCOMING_PENDING_TICKET_MARKERS.has(marker)) {
+    return marker
   }
 
   const market = String(getCurrentGameData()?.market || '').trim().toLowerCase()
@@ -1071,13 +1124,20 @@ function buildIncomingTicket({
   currentComment?: string | null
 }) {
   if (!Array.isArray(arrivalParts) || arrivalParts.length < 2) return null
-  const attackMarker = resolveIncomingTicketMarker(currentComment)
   const unitName = unitsByKey.get(unitSlower)?.name || unitSlower
   const currentDateValue = dateServer()
   const currentDate = typeof currentDateValue === 'string'
     ? currentDateValue.split('/')
     : []
-  return `${attackMarker} ${unitName} | 📝 ${currentDate[0] || ''}/${currentDate[1] || ''} ${timeServer()} | 🚀 ${getLaunchTime(travel, arrivalParts)} | 🏠 ${getBackTime(travel, arrivalParts)} |`
+    
+  const expectedSuffix = `${unitName} | 📝 ${currentDate[0] || ''}/${currentDate[1] || ''} ${timeServer()} | 🚀 ${getLaunchTime(travel, arrivalParts)} | 🏠 ${getBackTime(travel, arrivalParts)} |`
+
+  // Previne o loop de POSTs! Se o texto na página já for a nossa etiqueta limpa, mantemos assim.
+  if (normalizeInlineText(currentComment || '') === expectedSuffix) {
+    return currentComment
+  }
+
+  return expectedSuffix
 }
 
 /**
@@ -1534,6 +1594,12 @@ export async function readSaveNotifyIncomings() {
     `%c[incoming-watch:runtime] Coleta finalizada | premiumActive: ${premiumActive} | newAttack: ${newAttack} | newSnob: ${newSnob} | notifyRows: ${notifyData.length} | pendingTagCount: ${pendingTagCount}`,
     INCOMING_WATCH_RED_LOG_STYLE,
   )
+
+  if (premiumActive && notifyData.length > 0 && pendingTagCount <= 0) {
+    logIncomingPendingDiagnostics(nextState, {
+      context: 'incoming-watch:premium:pending-zero',
+    })
+  }
 
   if (notifyData.length) {
     const body = generateIncomingNotifyBody({

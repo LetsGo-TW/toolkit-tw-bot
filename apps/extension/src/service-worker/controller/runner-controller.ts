@@ -122,6 +122,13 @@ function createDispatchId(scopeKey: string) {
   return `${scopeKey}:${Date.now()}:${Math.random().toString(16).slice(2)}`
 }
 
+function logRunnerController(
+  label: string,
+  detail: Record<string, unknown>,
+) {
+  console.log(`[SW][RUNNER_CONTROLLER][${label}]`, detail)
+}
+
 function getOrCreateScopeRuntimeState(scopeKey: string) {
   const existing = scopeRuntimeStateByScope.get(scopeKey)
 
@@ -226,10 +233,29 @@ async function postRunnerControllerCommand(
   const runner = getRunnerByScope(scopeState.scopeKey)
 
   if (!runner) {
+    logRunnerController('NO_RUNNER', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      payload,
+      lastKnownTabId: scopeState.lastKnownTabId,
+      lastKnownWindowId: scopeState.lastKnownWindowId,
+    })
     return false
   }
 
   try {
+    logRunnerController('SEND', {
+      scopeKey: scopeState.scopeKey,
+      tabId: runner.tabId,
+      windowId: runner.windowId,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      payload,
+    })
+
     await chrome.tabs.sendMessage(runner.tabId, {
       extensionId: RELEASE_EXTENSION_ID,
       type: RUNNER_CONTROLLER_MESSAGE_TYPE,
@@ -239,6 +265,14 @@ async function postRunnerControllerCommand(
 
     scopeState.lastKnownTabId = runner.tabId
     scopeState.lastKnownWindowId = runner.windowId
+
+    logRunnerController('SENT', {
+      scopeKey: scopeState.scopeKey,
+      tabId: runner.tabId,
+      windowId: runner.windowId,
+      status: scopeState.status,
+      payload,
+    })
 
     return true
   } catch (error) {
@@ -374,6 +408,18 @@ function isBotProtectInstruction(instruction: ControllerRunInstruction | null) {
     || instruction.machine === 'solver'
 }
 
+function shouldDeferIncomingApplyPreemption(
+  instruction: ControllerRunInstruction | null,
+) {
+  if (!instruction) {
+    return false
+  }
+
+  return instruction.kind === EXECUTION_KINDS.COMMAND
+    || instruction.kind === EXECUTION_KINDS.MINT
+    || isBotProtectInstruction(instruction)
+}
+
 function applyBotProtectObservation(
   scopeState: ScopeRuntimeState,
   {
@@ -453,6 +499,14 @@ async function dispatchRunInstruction(
   scopeState: ScopeRuntimeState,
   instruction: ControllerRunInstruction,
 ) {
+  logRunnerController('DISPATCH_REQUEST', {
+    scopeKey: scopeState.scopeKey,
+    status: scopeState.status,
+    current: scopeState.current,
+    pending: scopeState.pending,
+    instruction,
+  })
+
   const sent = await postRunnerControllerCommand(scopeState, {
     action: 'run',
     source: instruction.source,
@@ -468,6 +522,13 @@ async function dispatchRunInstruction(
 
   if (!sent) {
     scopeState.pending = instruction
+    logRunnerController('DISPATCH_DEFERRED', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      instruction,
+    })
     return false
   }
 
@@ -476,6 +537,14 @@ async function dispatchRunInstruction(
   scopeState.pauseRequested = false
   scopeState.status = 'running'
   scopeState.lastDispatchAt = Date.now()
+
+  logRunnerController('DISPATCH_RUNNING', {
+    scopeKey: scopeState.scopeKey,
+    status: scopeState.status,
+    current: scopeState.current,
+    pending: scopeState.pending,
+    instruction,
+  })
 
   return true
 }
@@ -725,21 +794,69 @@ async function dispatchControllerForScopeInternal(
   }
 
   if (!executeNow) {
+    logRunnerController('RESOLVED_NO_EXECUTE', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      instruction,
+      reason,
+      source,
+    })
     return instruction
   }
 
   if (!scopeState.current || scopeState.status === 'idle' || scopeState.status === 'paused') {
+    logRunnerController('DISPATCH_DIRECT', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      instruction,
+      reason,
+      source,
+    })
     await dispatchRunInstruction(scopeState, instruction)
     return instruction
   }
 
   if (isSameRunInstruction(scopeState.current, instruction)) {
+    logRunnerController('DISPATCH_SKIPPED_SAME', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      instruction,
+      reason,
+      source,
+    })
     return instruction
   }
 
   scopeState.pending = instruction
+  logRunnerController('PENDING_SET', {
+    scopeKey: scopeState.scopeKey,
+    status: scopeState.status,
+    current: scopeState.current,
+    pending: scopeState.pending,
+    instruction,
+    reason,
+    source,
+  })
 
-  if (instruction.kind === EXECUTION_KINDS.INCOMING_APPLY) {
+  if (
+    instruction.kind === EXECUTION_KINDS.INCOMING_APPLY
+    && shouldDeferIncomingApplyPreemption(scopeState.current)
+  ) {
+    logRunnerController('PENDING_DEFERRED_INCOMING_APPLY', {
+      scopeKey: scopeState.scopeKey,
+      status: scopeState.status,
+      current: scopeState.current,
+      pending: scopeState.pending,
+      instruction,
+      reason,
+      source,
+    })
     return instruction
   }
 
@@ -757,9 +874,12 @@ function extractScopeKeyFromRescheduleDetail(detail: Record<string, unknown>) {
   const previous = asRecord(detail.previous)
   const documentCompose = asRecord(document?.compose)
   const previousCompose = asRecord(previous?.compose)
+  const execution = asRecord(document?.execution)
+  const scope = asRecord(execution?.scope)
 
   return normalizeString(
-    compose?.scopeKey
+    scope?.scopeKey
+    ?? compose?.scopeKey
     ?? documentCompose?.scopeKey
     ?? previousCompose?.scopeKey,
   )
@@ -943,7 +1063,9 @@ async function restoreControllerScopeAlarms() {
   const scopeKeys = Array.from(
     new Set(
       documents
-        .map((document) => normalizeString(document.compose.scopeKey))
+        .map((document) => normalizeString(
+          document.execution?.scope?.scopeKey ?? document.compose.scopeKey
+        ))
         .filter((scopeKey): scopeKey is string => scopeKey !== null),
     ),
   )

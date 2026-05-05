@@ -39,9 +39,19 @@ function hasTicketDetails(value = '') {
     || String(value || '').includes('📝')
 }
 
-function isDefaultIncomingComment(value = '') {
+function normalizeComparableComment(value = '') {
+  return String(value || '')
+    .replace(/\s*[\r\n]+\s*/g, ' ')
+    .replace(/\s*\|\s*/g, ' | ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function isAutoTaggableIncomingComment(value = '') {
   const normalized = normalizeMarkerText(value)
-  if (!normalized || hasTicketDetails(value)) return false
+  if (hasTicketDetails(value)) return false
+  if (!normalized) return true
 
   const [marker = ''] = normalized.split(/\s+/)
   return PREMIUM_DEFAULT_INCOMING_MARKERS.has(marker)
@@ -84,8 +94,33 @@ function findArrivalCell(cells: Element[]) {
     || null
 }
 
-function findTravelCell(cells: Element[]) {
-  return cells[6] || null
+function isTravelDurationText(value = '') {
+  const normalized = String(value || '').trim()
+  if (!normalized) return false
+  if (/[0-9]{3}$/i.test(normalized)) return false
+  if (/[./-]/.test(normalized)) return false
+  return /^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$/i.test(normalized)
+}
+
+function findTravelCell(cells: Element[], arrivalCell: Element | null) {
+  const indexedCell = cells[6] || null
+
+  if (indexedCell && indexedCell !== arrivalCell && isTravelDurationText(indexedCell.textContent || '')) {
+    return indexedCell
+  }
+
+  return cells.find((td) => td !== arrivalCell && isTravelDurationText(td.textContent || '')) || indexedCell
+}
+
+function readCurrentComment(row: Element, cells: Element[], ctx: IncomingCollectorContext) {
+  return ctx.normalizeInlineText(
+    row.querySelector('span.quickedit-label')?.textContent
+    || row.querySelector('span.quickedit-content')?.textContent
+    || cells[0]?.querySelector?.('span.quickedit-label')?.textContent
+    || cells[0]?.querySelector?.('span.quickedit-content')?.textContent
+    || cells[0]?.textContent
+    || '',
+  )
 }
 
 function parsePremiumIncomingRow(
@@ -139,10 +174,10 @@ function parsePremiumIncomingRow(
   const arrivalCell = findArrivalCell(cells)
   const arrivalText = String(arrivalCell?.textContent || '').trim() || null
 
-  const travelCell = findTravelCell(cells)
+  const travelCell = findTravelCell(cells, arrivalCell)
   const travelText = String(travelCell?.textContent || '').trim() || null
 
-  const currentComment = ctx.normalizeInlineText(cells[0]?.textContent || '')
+  const currentComment = readCurrentComment(row, cells, ctx)
 
   return {
     commandId,
@@ -310,8 +345,7 @@ export async function collectPremiumIncomings(
       targetCoord,
       travelText,
     })
-
-    const canBuildTicket = Boolean(arrivalData && travelMeta && isDefaultIncomingComment(currentComment || ''))
+    const canBuildTicket = Boolean(arrivalData && travelMeta && isAutoTaggableIncomingComment(currentComment || ''))
 
     if (!existingEntry && !canBuildTicket) {
       state.villages[targetVillageId] = ctx.normalizeIncomingVillageState({
@@ -341,6 +375,9 @@ export async function collectPremiumIncomings(
     }
 
     const isNewEntry = !existingEntry?.ticket
+    const pageHasTaggedTicket = hasTicketDetails(currentComment || '')
+    const pageTicketMatches = pageHasTaggedTicket
+      && normalizeComparableComment(currentComment || '') === normalizeComparableComment(ticket)
 
     comingAttack[commandId] = {
       ...ctx.normalizeIncomingAttackEntry(existingEntry),
@@ -352,7 +389,11 @@ export async function collectPremiumIncomings(
       attackerCoord: sourceCoord,
       attackerVillageID: sourceVillageId,
       arrival: arrivalData?.arrival ?? existingEntry?.arrival ?? null,
-      taggedAt: existingEntry?.taggedAt ?? null,
+      // No premium, só consideramos concluído quando o comentário retornado
+      // pela própria página bate com o ticket esperado.
+      taggedAt: pageTicketMatches
+        ? existingEntry?.taggedAt ?? Date.now()
+        : null,
     }
 
     if (isNewEntry && arrivalData && travelMeta) {

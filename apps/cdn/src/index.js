@@ -333,6 +333,10 @@ async function startRunner() {
 
     if (runtime) {
       dispatchGameLifecycleEvent(GAME_START_EVENT)
+
+      if (typeof runtime.start === 'function') {
+        await runtime.start()
+      }
     }
   })()
     .catch((error) => {
@@ -381,7 +385,16 @@ async function onConnectMessage(data) {
 async function onStartMessage(data) {
   setConnectionState(data)
   console.log('[PREPARED] START received', data)
+  const wasRunning = runnerState.running
   await startRunner()
+
+  if (!wasRunning) {
+    try {
+      await postCtxToExtension()
+    } catch (error) {
+      console.error('[PREPARED] CTX refresh after START failed', error)
+    }
+  }
 }
 
 async function onStopMessage(data) {

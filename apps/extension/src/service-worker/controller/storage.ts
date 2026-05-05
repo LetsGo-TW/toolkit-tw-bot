@@ -71,7 +71,9 @@ export async function getControllerExecutionDocumentsByScope(scopeKey?: string |
 
   const documents = await getAllControllerExecutionDocuments()
 
-  return documents.filter((document) => document.compose.scopeKey === scopeKey)
+  return documents.filter((document) => 
+    document.execution?.scope?.scopeKey === scopeKey || document.compose.scopeKey === scopeKey
+  )
 }
 
 export async function putControllerExecutionDocument({

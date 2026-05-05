@@ -526,7 +526,7 @@ export async function handleScriptExecutionSync(
   emitControllerExecutionEvent(EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED, {
     action,
     _id: document._id,
-    compose: document.compose,
+    compose,
     previous,
     document,
     decision,

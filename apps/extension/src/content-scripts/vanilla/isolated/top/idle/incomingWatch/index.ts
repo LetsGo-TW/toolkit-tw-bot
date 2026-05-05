@@ -501,6 +501,9 @@ async function drainIncomingQueue() {
       logIncomingFlow('Resultado do queue-apply recebido.', {
         ok: queueResult?.ok,
         error: queueResult?.error ?? null,
+        execute: queueResult?.execute ?? null,
+        queued: queueResult?.queued ?? null,
+        reason: queueResult?.reason ?? null,
         pendingTagCount: readResult?.pendingTagCount ?? 0,
       })
 

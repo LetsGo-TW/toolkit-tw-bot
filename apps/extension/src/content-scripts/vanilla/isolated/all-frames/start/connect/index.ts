@@ -9,6 +9,7 @@ import {
 } from '../../../../shared/preparedBootstrap'
 import { setActiveTitle } from '../../../../shared/setActiveTitle'
 import { removeShit } from "./removeShit"
+import { RUNNER_CONTROLLER_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
 
 const CS = 'CONNECT'
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedAllFramesIdleInstalled__'
@@ -42,11 +43,37 @@ function onExtensionMessage(
   if (sender.id === chrome.runtime.id) {
     console.log('[CS][CONNECT] from SW', received)
 
+    let forwardedMessage = received
+
+    if (received && typeof received === 'object') {
+      const messageData = received as Record<string, unknown>
+      
+      if (messageData.type === RUNNER_CONTROLLER_MESSAGE_TYPE) {
+        console.log('[CS][CONNECT][RUNNER_CONTROLLER] converting and forwarding to page', received)
+        forwardedMessage = {
+          ...messageData,
+          type: 'BOT_RUNNER_CONTROLLER',
+        }
+      } else if (messageData.action === 'run' && messageData.machine) {
+        // Armadilha/Fallback: Se for um comando de run, converte à força!
+        console.warn('[CS][CONNECT][RUNNER_CONTROLLER] Fallback ativado! Convertendo forçadamente.', received)
+        forwardedMessage = {
+          ...messageData,
+          type: 'BOT_RUNNER_CONTROLLER',
+          extensionId: RELEASE_EXTENSION_ID
+        }
+      } else if (messageData.type === 'BOT_RUNNER_CONTROLLER') {
+        console.log('[CS][CONNECT][RUNNER_CONTROLLER] forwarding to page', received)
+      }
+    }
+
+    console.log('[CS][CONNECT] disparando window.postMessage:', forwardedMessage)
     if (window.top === window.self && received && typeof received === 'object') {
       setActiveTitle((received as { data?: Record<string, unknown> }).data || {})
     }
 
-    window.postMessage(received, window.location.origin)
+    window.postMessage(forwardedMessage, window.location.origin)
+
     removeShit(received);
   }
 

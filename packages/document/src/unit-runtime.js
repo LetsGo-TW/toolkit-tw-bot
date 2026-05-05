@@ -194,7 +194,9 @@ function incomingUnitSlow(arrivalSecond, distance) {
   let slow = 'snob'
 
   for (const unit of unitsIncoming) {
-    if (arrivalSecond > distance / cachedUnitData[unit].speed) return slow
+    const travelTime = Math.round(distance / cachedUnitData[unit].speed)
+    // Tolerância de 2s para compensar os milissegundos arredondados do timer visual ("Chega em 0:09:01")
+    if (arrivalSecond > travelTime + 2) return slow
     slow = unit
   }
 

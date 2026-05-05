@@ -19,6 +19,7 @@ import { getRunnerByScope, type RunnerRecord } from './runner-tabs'
 import { evaluateWorldPlayerState } from './resolved-state'
 import { reconcileActiveRunner } from './runtime'
 import { syncInjectedGameBotView } from './prepared-context/view'
+import { dispatchControllerForScope } from './controller/runner-controller'
 import {
   getWorldPlayerByScopeKey,
   upsertWorldPlayer,
@@ -301,11 +302,20 @@ export async function syncSenderVisibleState({
 
   const shouldStart = isActive && data.enabledByUser && data.isAllowedByLicense
 
-  await postRunnerCommandToSender(sender, {
+  const commandSent = await postRunnerCommandToSender(sender, {
     type: shouldStart ? START_MESSAGE_TYPE : STOP_MESSAGE_TYPE,
     scopeKey: tabContext.scopeKey,
     data,
   })
+
+  if (commandSent && shouldStart && tabContext.scopeKey) {
+    await dispatchControllerForScope(tabContext.scopeKey, {
+      allowFallback: false,
+      executeNow: true,
+      reason: `sender-visible-start:${reason}`,
+      source: reason,
+    })
+  }
 
   try {
     const shouldShowBotView = tabContext.context === 'GAME' && shouldStart

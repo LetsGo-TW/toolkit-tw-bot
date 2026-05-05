@@ -11,6 +11,7 @@ import {
   emitControllerEvent,
   handleScriptExecutionSync,
 } from '../controller/runtime'
+import { dispatchControllerForScope } from '../controller/runner-controller'
 import {
   getScriptStorageDocument,
   putScriptStorageDocument,
@@ -372,6 +373,32 @@ async function handleQueueApplyAction(
     queued: shouldQueue,
     queuedAt,
   })
+
+  if (shouldQueue) {
+    console.log('[SW][INCOMING_APPLY][QUEUE]', {
+      scopeKey: context.scopeKey,
+      world: context.world,
+      playerId: context.playerId,
+      pendingTagCount,
+      queuedAt,
+      tabId: context.tabId,
+      windowId: context.windowId,
+    })
+
+    try {
+      await dispatchControllerForScope(context.scopeKey, {
+        allowFallback: false,
+        executeNow: true,
+        reason: 'incoming-apply-queued',
+        source: 'incoming-watch',
+      })
+    } catch (error) {
+      console.error('[SW][INCOMING_APPLY][DISPATCH_ERROR]', {
+        scopeKey: context.scopeKey,
+        error,
+      })
+    }
+  }
 
   return {
     ok: true,

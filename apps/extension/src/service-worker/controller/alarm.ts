@@ -29,7 +29,7 @@ export function parseControllerScopeAlarmName(alarmName?: string | null) {
     return null
   }
 
-  const encodedScopeKey = alarmName.slice(CONTROLLER_SCOPE_ALARM_PREFIX.length)
+  const encodedScopeKey = alarmName?.slice(CONTROLLER_SCOPE_ALARM_PREFIX.length)
 
   if (!encodedScopeKey) {
     return null

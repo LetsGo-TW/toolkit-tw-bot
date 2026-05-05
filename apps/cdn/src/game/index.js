@@ -602,7 +602,15 @@ const installRunnerControllerListener = () => {
       return
     }
 
+    // Log de debug para ver TODAS as mensagens do tipo controller que chegam no MAIN
+    if (event.data && event.data.type === RUNNER_CONTROLLER) {
+      console.log('[GAME][DEBUG_RAW] Mensagem BOT_RUNNER_CONTROLLER interceptada:', event.data)
+    }
+
     if (event.data?.extensionId !== RELEASE_EXTENSION_ID) {
+      if (event.data && event.data.type === RUNNER_CONTROLLER) {
+        console.warn('[GAME][DEBUG_RAW] Mensagem rejeitada por falha no extensionId.', { expected: RELEASE_EXTENSION_ID, received: event.data.extensionId })
+      }
       return
     }
 
@@ -624,10 +632,24 @@ const installRunnerControllerListener = () => {
     }
 
     if (!isValidRunnerControllerMessage(event)) {
+      if (event.data && event.data.type === RUNNER_CONTROLLER) {
+        console.warn('[GAME][DEBUG_RAW] Mensagem rejeitada na validação isValidRunnerControllerMessage (action incorreta?). action recebida:', event.data?.action)
+      }
       return
     }
 
     const action = String(event.data?.action || '').trim().toLowerCase()
+    console.log('[GAME][RUNNER_CONTROLLER] received', {
+      action,
+      scopeKey: event.data?.scopeKey ?? null,
+      machine: event.data?.machine ?? null,
+      module: event.data?.module ?? null,
+      executionId: event.data?.executionId ?? null,
+      executionKind: event.data?.executionKind ?? null,
+      reason: event.data?.reason ?? null,
+      source: event.data?.source ?? null,
+      dispatchId: event.data?.dispatchId ?? null,
+    })
     setControllerState(action, event.data)
 
     switch (action) {
@@ -989,6 +1011,13 @@ async function runInstruction(
     ? instruction.module
     : gameState.currentPageName
 
+  console.log('[GAME][RUNNER_CONTROLLER][RUN_INSTRUCTION]', {
+    machineName: machineName || null,
+    moduleName: moduleName || null,
+    instruction,
+    raw,
+  })
+
   gameState.currentData = data
   gameState.currentRunId = runId
   gameState.currentStageResponse = raw
@@ -1026,6 +1055,12 @@ async function runInstruction(
   const executionRunner = await getDynamicRuntime(machineName)
 
   if (!executionRunner) {
+    console.warn('[GAME][RUNNER_CONTROLLER][MISSING_RUNTIME]', {
+      machineName,
+      moduleName: moduleName || null,
+      instruction,
+      raw,
+    })
     setGameStatus('idle')
     return
   }
@@ -1044,7 +1079,16 @@ async function executeControllerRun(detail = {}) {
     fallbackSource: 'controller',
   })
 
+  console.log('[GAME][RUNNER_CONTROLLER][RUN_REQUEST]', {
+    detail,
+    instruction,
+  })
+
   if (!instruction.machineProvided && !instruction.moduleProvided) {
+    console.warn('[GAME][RUNNER_CONTROLLER][RUN_IGNORED]', {
+      detail,
+      instruction,
+    })
     return
   }
 
@@ -1223,5 +1267,12 @@ const game = () => null
 installLifecycleListeners()
 installRuntime()
 void game()
+
+// RADAR GLOBAL DE DEBUG - Ignora se o bot tá ligado/desligado
+window.addEventListener('message', (e) => {
+  if (e.data && (e.data.type === 'BOT_RUNNER_CONTROLLER' || e.data.action === 'run')) {
+    console.log('!!!!!!! [RADAR_GLOBAL_MAIN] MENSAGEM CRUZOU A BARREIRA DA JANELA !!!!!!!', e.data)
+  }
+})
 
 export {}

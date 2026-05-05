@@ -30,17 +30,40 @@ function createIncomingStorage() {
   })
 }
 
+function normalizeFiniteNumber(value = null) {
+  if (value == null || value === "") return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function stripIncomingTicketMarker(ticket = "") {
+  const normalized = String(ticket || "")
+    .replace(/\s*[\r\n]+\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+  const parts = normalized.split(/\s+/)
+  const rawMarker = parts[0] || ""
+  if (INCOMING_PENDING_TICKET_MARKERS.has(rawMarker.toLowerCase())) {
+    return parts.slice(1).join(" ").trim()
+  }
+  return normalized
+}
+
 function normalizeIncomingAttackEntry(entry = null) {
+  const arrival = normalizeFiniteNumber(entry?.arrival)
+  const taggedAt = normalizeFiniteNumber(entry?.taggedAt)
+  const rawTicket = String(entry?.ticket || "").trim() || null
+
   return {
     power: String(entry?.power || "").trim() || null,
-    ticket: String(entry?.ticket || "").trim() || null,
+    ticket: rawTicket ? stripIncomingTicketMarker(rawTicket) : null,
     currentComment: String(entry?.currentComment || "").trim() || null,
     attacker: String(entry?.attacker || "").trim() || null,
     attackerID: String(entry?.attackerID || "").trim() || null,
     attackerCoord: String(entry?.attackerCoord || "").trim() || null,
     attackerVillageID: String(entry?.attackerVillageID || "").trim() || null,
-    arrival: Number.isFinite(Number(entry?.arrival)) ? Number(entry.arrival) : null,
-    taggedAt: Number.isFinite(Number(entry?.taggedAt)) ? Number(entry.taggedAt) : null,
+    arrival: arrival != null && arrival > 0 ? arrival : null,
+    taggedAt: taggedAt != null && taggedAt > 0 ? taggedAt : null,
   }
 }
 
@@ -128,18 +151,12 @@ function listPendingIncomingEntries(state = null) {
 
 function isIncomingApplyPendingEntry(entry = null) {
   if (!entry?.ticket || entry?.taggedAt !== null) return false
-  return INCOMING_PENDING_TICKET_MARKERS.has(getIncomingTicketMarker(entry.ticket))
-}
-
-function getIncomingTicketMarker(ticket = "") {
-  const leadingSegment = String(ticket || "").split("|")[0] || ""
-  const normalizedLeading = leadingSegment
+  const normalizedComment = String(entry.currentComment || "")
     .replace(/\s*[\r\n]+\s*/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase()
-  const [marker = ""] = normalizedLeading.split(/\s+/)
-  return marker.trim()
+  return INCOMING_PENDING_TICKET_MARKERS.has(normalizedComment)
 }
 
 function countPendingIncomingTags(state = null) {
@@ -221,6 +238,11 @@ async function tagRequest(ticket, commandId, { signal } = {}) {
       throw new Error(error || "Not found!")
     }
 
+    console.log(
+      "%c[incoming-apply][tagRequest] response",
+      "color: red; font-weight: bold;",
+      response,
+    )
     return response
   } finally {
     clearTimeout(timeoutId)
@@ -245,6 +267,16 @@ export default async function incomingApplyRunner(data = {}, context = {}) {
   const totalCount = pendingEntries.length
   let taggedCount = 0
   let failedCount = 0
+
+  console.log(
+    "%c[incoming-apply][start]",
+    "color: red; font-weight: bold;",
+    {
+      data,
+      totalCount,
+      commandIds: pendingEntries.map((entry) => entry.commandId),
+    },
+  )
 
   renderIncomingApplyStatus(0, totalCount)
 
@@ -299,6 +331,16 @@ export default async function incomingApplyRunner(data = {}, context = {}) {
         failedCount,
       },
     })
+
+    console.log(
+      "%c[incoming-apply][completed]",
+      "color: red; font-weight: bold;",
+      {
+        remainingPendingCount,
+        taggedCount,
+        failedCount,
+      },
+    )
   } finally {
     clearBotViewExecutionStatus()
   }
