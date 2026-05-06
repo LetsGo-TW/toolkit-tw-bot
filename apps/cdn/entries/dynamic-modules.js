@@ -35,12 +35,6 @@ module.exports = {
     exportName: 'default',
   },
 
-  // settings: {
-  //   importPath: './settings/index.js',
-  //   chunkName: 'settings',
-  //   exportName: 'default',
-  // },
-
   others: {
     importPath: './others/index.js',
     chunkName: 'others',

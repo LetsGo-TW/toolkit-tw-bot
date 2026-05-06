@@ -1,7 +1,6 @@
 import { getGameData } from '@toolkit-tw-bot/document'
 import { createHCaptchaBotViewSection } from '../../hCaptcha/config/bot-view-section'
 import { createSearchBarbariansConfigSection } from '../../map/config-sections'
-import { SETTINGS_CONFIG_TOGGLE_EVENT } from '../../settings/events'
 import { createFarmMaxBotViewSection } from '../../farm-max/view/bot-view-section';
 import { insertNotify, getNotifyBadgeState } from '../../notify';
 import { insertConfigCopyToClipboard, getClipboardBadgeState } from '../../clipboard/view';
@@ -209,21 +208,6 @@ function createPageActionSection(entry, {
   const label = String(entry?.label || id).trim() || id
 
   switch (id) {
-    case 'settings-config':
-      return createMenuSection({
-        id,
-        label,
-        groupId,
-        renderMode: 'row-action',
-        onAction: () => {
-          window.dispatchEvent(new CustomEvent(SETTINGS_CONFIG_TOGGLE_EVENT, {
-            detail: {
-              action: 'toggle',
-            },
-          }))
-        },
-      })
-
     default:
       return null
   }
