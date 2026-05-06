@@ -2,6 +2,7 @@ import { getGameData } from '@toolkit-tw-bot/document'
 import { createHCaptchaBotViewSection } from '../../hCaptcha/config/bot-view-section'
 import { createSearchBarbariansConfigSection } from '../../map/config-sections'
 import { SETTINGS_CONFIG_TOGGLE_EVENT } from '../../settings/events'
+import { createFarmMaxBotViewSection } from '../../farm-max/view/bot-view-section';
 
 function getCurrentUrl() {
   return new URL(window.location.href)
@@ -121,6 +122,14 @@ async function createInlineSection(entry, context = {}) {
       })
     }
 
+    case 'farm-max': {
+      const section = await createFarmMaxBotViewSection(context)
+      return createMenuSection({
+        ...section,
+        renderMode: 'detail',
+      })
+    }
+
     default:
       return null
   }
@@ -190,6 +199,24 @@ export async function createComposerSectionsFromRegistry(registry = [], context 
       continue
     }
 
+    if (type === 'auto') {
+      if (viewMode === 'inline') {
+        const section = await createInlineSection(entry, context)
+        if (section) {
+          section.groupId = section.groupId || 'auto'
+          sections.push(section)
+        }
+        continue
+      }
+
+      const pageSection = createPageActionSection(entry, {
+        groupId: isMatch ? '' : 'others',
+      })
+      if (pageSection) {
+        sections.push(pageSection)
+      }
+      continue
+    }
     /**
      * Globals always exist in the menu.
      * If they are `inline`, they open in the secondary panel.

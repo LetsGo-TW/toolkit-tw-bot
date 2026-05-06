@@ -3,7 +3,7 @@ export const SCRIPT_REGISTRY = [
   {
     id: 'hcaptcha',
     type: 'global',
-    label: 'hCaptcha',
+    label: 'Anti-hCaptcha',
     viewMode: 'inline',
   },
   {
@@ -21,6 +21,12 @@ export const SCRIPT_REGISTRY = [
     label: 'Search Barbarians',
     match: { screen: 'map' },
     goTo: { screen: 'map' },
+    viewMode: 'inline',
+  },
+  {
+    id: 'farm-max',
+    type: 'global',
+    label: 'Farm Max',
     viewMode: 'inline',
   }
 ]
