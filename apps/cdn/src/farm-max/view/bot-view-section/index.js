@@ -1,5 +1,6 @@
 import './style.css'
 import { initFarmConfig, storageConfigFarm } from '../../config';
+import { getGameData } from '@toolkit-tw-bot/document';
 
 const FARM_MAX_YOUTUBE_URL = 'https://www.youtube.com/playlist?list=PLo4rLFftjcxHCs7eqMxP1Jf3ivwohXXJr';
 
@@ -125,6 +126,52 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
 export async function createFarmMaxBotViewSection() {
   await initFarmConfig()
   const farmMaxConfig = await storageConfigFarm.get()
+  const gameData = getGameData()
+
+  const hasFarmAssistant = gameData?.features?.FarmAssistent?.active;
+  const hasAccountManager = gameData?.features?.AccountManager?.active;
+  const totalVillages = parseInt(gameData?.player?.villages || '0', 10);
+
+  let hasRequirements = true;
+  let missingReason = '';
+
+  if (!hasFarmAssistant) {
+    hasRequirements = false;
+    missingReason = 'Requer Assistente de Saque ativo no jogo.';
+  }
+  if (totalVillages > 1 && !hasAccountManager) {
+    hasRequirements = false;
+    const text ='Requer Gerente de Contas ativo para operar com mais de 1 vila.';
+    missingReason += missingReason.length ? `<br><br>${text}` : text;
+  }
+
+  if (!hasRequirements) {
+    return {
+      id: 'farm-max',
+      label: 'Farm Max',
+      groupId: 'auto',
+      statusLabel: 'Sem requerimentos',
+      statusTone: 'danger',
+      statusTooltip: missingReason,
+      // disabled: true,
+      youtubeLink: FARM_MAX_YOUTUBE_URL,
+      mount: (container, sectionApi) => {
+        if (typeof sectionApi.setStatus === 'function') {
+          sectionApi.setStatus('Sem requerimentos', 'danger', missingReason);
+        }
+        const url = new URL(window.location.href)
+        container.innerHTML = `
+          <div class="go-bvcp-missing-reqs">
+            <div class="go-bvcp-missing-reqs-text">${missingReason}</div>
+            ${url.searchParams.get('screen') !== 'premium' && url.searchParams.get('mode') !== 'use' ? (`
+              <a href="${gameData.link_base_pure}premium&mode=use" class="btn go-bvcp-action-button">Ativar</a>
+            `) : ''}
+          </div>
+        `;
+        return { destroy: () => {} };
+      }
+    }
+  }
 
   return {
     id: 'farm-max',

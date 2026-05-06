@@ -14,6 +14,8 @@ function normalizeSection(section, index) {
     groupId: String(source.groupId || source.group || '').trim(),
     statusLabel: String(source.statusLabel || source.status || '').trim(),
     statusTone: String(source.statusTone || source.statusKind || '').trim().toLowerCase(),
+    statusTooltip: String(source.statusTooltip || '').trim(),
+    disabled: !!source.disabled,
     youtubeLink: String(source.youtubeLink || '').trim(),
     /**
      * `detail`
@@ -53,13 +55,20 @@ function resolveCleanup(value) {
   return null
 }
 
-function applySectionBadge(badgeEl, label = '', tone = '') {
+function applySectionBadge(badgeEl, label = '', tone = '', tooltip = '') {
   if (!(badgeEl instanceof HTMLElement)) {
     return
   }
 
   const safeLabel = String(label || '').trim()
   const safeTone = String(tone || '').trim().toLowerCase()
+  const safeTooltip = String(tooltip || '').trim()
+
+  if (safeTooltip) {
+    badgeEl.setAttribute('data-go-title', safeTooltip)
+  } else {
+    badgeEl.removeAttribute('data-go-title')
+  }
 
   if (!safeLabel) {
     badgeEl.hidden = true
@@ -176,7 +185,7 @@ export function createBotViewConfigPopover({
     } catch (_) {}
     activeDetailCleanup = null
     if (detailTitle instanceof HTMLElement) detailTitle.textContent = ''
-    applySectionBadge(detailBadge, '', '')
+    applySectionBadge(detailBadge, '', '', '')
     if (detailYoutube instanceof HTMLElement) detailYoutube.innerHTML = ''
     if (detailControls instanceof HTMLElement) detailControls.innerHTML = ''
     if (detailBody instanceof HTMLElement) {
@@ -214,15 +223,25 @@ export function createBotViewConfigPopover({
     if (detailTitle instanceof HTMLElement) {
       detailTitle.textContent = sectionState.label
     }
-    applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone)
+    applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone, sectionState.statusTooltip)
 
     const sectionApi = {
-      setStatus(label = '', tone = '') {
+      setStatus(label = '', tone = '', tooltip) {
         sectionState.statusLabel = String(label || '').trim()
         sectionState.statusTone = String(tone || '').trim().toLowerCase()
-        applySectionBadge(sectionState.badge, sectionState.statusLabel, sectionState.statusTone)
+        if (tooltip !== undefined) {
+          sectionState.statusTooltip = String(tooltip || '').trim()
+          if (sectionState.mainButton instanceof HTMLElement) {
+            if (sectionState.statusTooltip) {
+              sectionState.mainButton.setAttribute('data-go-title', sectionState.statusTooltip)
+            } else {
+              sectionState.mainButton.removeAttribute('data-go-title')
+            }
+          }
+        }
+        applySectionBadge(sectionState.badge, sectionState.statusLabel, sectionState.statusTone, sectionState.statusTooltip)
         if (activeDetailSectionId === sectionState.id) {
-          applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone)
+          applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone, sectionState.statusTooltip)
         }
       },
       setHeaderControls(elements = []) {
@@ -303,9 +322,10 @@ export function createBotViewConfigPopover({
       <div class="go-bvcp-menu-row">
         <button
           type="button"
-          class="go-bvcp-menu-row-main"
+          class="go-bvcp-menu-row-main ${section.disabled ? 'is-disabled' : ''}"
           data-bvcp-menu-main="${section.id}"
           ${section.renderMode === 'button-action' ? 'disabled' : ''}
+          ${section.statusTooltip ? `data-go-title="${section.statusTooltip}"` : ''}
         >
           <span class="go-bvcp-menu-row-label-wrap">
             <span class="go-bvcp-menu-row-label">${section.label}</span>
@@ -313,6 +333,7 @@ export function createBotViewConfigPopover({
               class="go-bvcp-section-badge is-${section.statusTone || 'neutral'}"
               data-bvcp-section-badge
               ${section.statusLabel ? '' : 'hidden'}
+              ${section.statusTooltip ? `data-go-title="${section.statusTooltip}"` : ''}
             >${section.statusLabel || ''}</span>
           </span>
           <span
@@ -351,6 +372,8 @@ export function createBotViewConfigPopover({
     mainButton?.addEventListener('click', (event) => {
       event.preventDefault()
       event.stopPropagation()
+
+      if (sectionState.disabled) return
 
       if (sectionState.renderMode === 'detail') {
         openDetail(sectionState)

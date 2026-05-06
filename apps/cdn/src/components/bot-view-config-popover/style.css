@@ -130,7 +130,8 @@
   background: rgba(255, 255, 255, 0.07);
 }
 
-.go-bvcp-menu-row-main[disabled] {
+.go-bvcp-menu-row-main[disabled],
+.go-bvcp-menu-row-main.is-disabled {
   cursor: default;
   opacity: 0.7;
 }
@@ -391,4 +392,24 @@
 
 .go-bvcp-detail-youtube-link:hover img {
   opacity: 1;
+}
+
+/* Garante que o tooltip global apareça acima do popover */
+#go-tooltip {
+  z-index: 13050 !important;
+}
+
+.go-bvcp-missing-reqs {
+  color: #fca5a5;
+  font-size: 8pt;
+  line-height: 0.8;
+}
+
+.go-bvcp-missing-reqs-text {
+  margin-bottom: 1rem;
+}
+
+a.go-bvcp-action-button {
+  min-height: auto;
+  float: inline-end;
 }
