@@ -23,6 +23,7 @@ const {
 } = require('./unit-runtime')
 const searchPlayerImageUrl = require('./search-player-image-url')
 const ProtectingBot = require('./protecting-bot')
+const { bindAttributeTooltip } = require('./tooltip')
 
 module.exports = {
   normalizeText,
@@ -44,4 +45,5 @@ module.exports = {
   getGameData,
   searchPlayerImageUrl,
   ProtectingBot,
+  bindAttributeTooltip,
 }

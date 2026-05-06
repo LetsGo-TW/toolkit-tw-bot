@@ -242,14 +242,14 @@ async function renderSchedules() {
     return `
       <div class="go-farm-schedules" id="item:${village.id}">
         <span>
-          <span title="Ir para a visualização da aldeia.">${i + 1}. <a href="/game.php?village=${village.id}&screen=overview"><span>${village.name}</span></a></span>
+          <span data-go-title="Ir para a visualização da aldeia.">${i + 1}. <a href="/game.php?village=${village.id}&screen=overview"><span>${village.name}</span></a></span>
           <span>
             ${nodes.join('')}
           </span>
         </span>
         <span>
-          <span>~ ${parseInt(village.max)} <a href="/game.php?village=${village.id}&screen=am_farm" title="Ir para AS da aldeia."><img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/icons/farm_assistent.webp" style="width: 16px; height: 16px;"></a></span>
-          <img name="${village.id}" class="cancel_link_icon" src="https://dsbr.innogamescdn.com/asset/fa087e61/graphic/delete.png" alt="Cancelar" title="Cancelar">
+          <span>~ ${parseInt(village.max)} <a href="/game.php?village=${village.id}&screen=am_farm" data-go-title="Ir para AS da aldeia."><img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/icons/farm_assistent.webp" style="width: 16px; height: 16px;"></a></span>
+          <img name="${village.id}" class="cancel_link_icon" src="https://dsbr.innogamescdn.com/asset/fa087e61/graphic/delete.png" alt="Cancelar" data-go-title="Cancelar">
         </span>
       </div>
     `
@@ -309,7 +309,7 @@ async function renderAlives() {
       return `
           <div class="go-farm-alive go-border">
             <span>
-              <span title="Ir para a visualização da aldeia.">${i + 1}.
+              <span data-go-title="Ir para a visualização da aldeia.">${i + 1}.
                 <a href="/game.php?village=${gameData.village.id}&screen=info_village&id=${target}">
                   <span>${`(${x}|${y}) K${ko}`}</span>
                 </a>
@@ -323,15 +323,15 @@ async function renderAlives() {
                 <img src="https://dsbr.innogamescdn.com/asset/4e165360/graphic/buildings/wall.webp">
                 ${wall ?? '?'}
               </span>
-              <span title="Distância">
+                <span data-go-title="Distância">
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/rechts.webp">
                 ${calculateDistance.round({x, y}).toFixed(2)}
               </span>
-              <a href="/game.php?village=${gameData.village.id}&screen=place&mode=sim&only_survive&report_id=${report_id}" title="Simulador">🧮</a>
-              <a href="/game.php?village=${gameData.village.id}&screen=report&mode=all&view=${report_id}" title="Relatório.">
+                <a href="/game.php?village=${gameData.village.id}&screen=place&mode=sim&only_survive&report_id=${report_id}" data-go-title="Simulador">🧮</a>
+                <a href="/game.php?village=${gameData.village.id}&screen=report&mode=all&view=${report_id}" data-go-title="Relatório.">
                 <span id="new_report" class="icon header new_report"></span>
               </a>
-              <a href="/game.php?village=${gameData.village.id}&screen=place&target=${target}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" title="Praça">
+                <a href="/game.php?village=${gameData.village.id}&screen=place&target=${target}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" data-go-title="Praça">
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/buildings/place.webp">
               </a>
             </span>

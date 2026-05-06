@@ -72,7 +72,7 @@ span#go-farm-status {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem;
+  padding-top: 0.25rem;
 }
 
 .go-farm-config-content {
@@ -87,7 +87,7 @@ span#go-farm-status {
 .go-farm-config-content.show {
   display: flex;
   overflow-x: hidden;
-  margin: 0.5rem;
+  /* margin: 0.5rem; */
   scrollbar-width: thin;
   scrollbar-color: rgba(113, 109, 105, 0.5) transparent;
 }

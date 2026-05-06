@@ -69,7 +69,7 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
   toggleWrap.classList.add('go-farm-header-toggle');
 
   const toggleLabelContent = document.createElement('label');
-  toggleLabelContent.title = 'Ligar/Desligar Auto-Farm';
+  toggleLabelContent.dataset.goTitle = 'Ligar/Desligar Auto-Farm';
   toggleLabelContent.textContent = 'Auto-Farm';
   toggleLabelContent.htmlFor = 'go-farm-header-active';
   toggleLabelContent.classList.add('go-label');
@@ -81,7 +81,7 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
 
   const toggleLabel = document.createElement('label');
   toggleLabel.htmlFor = 'go-farm-header-active';
-  toggleLabel.title = 'Ligar/Desligar Auto-Farm';
+  toggleLabel.dataset.goTitle = 'Ligar/Desligar Auto-Farm';
   toggleLabel.classList.add('toggle');
 
   storageConfigFarm.get().then(config => {

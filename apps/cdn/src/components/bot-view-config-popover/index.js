@@ -1,5 +1,6 @@
 import './style.css'
 import youtubeSvg from '../youtube-link-image/youtube.svg'
+import { bindAttributeTooltip } from '@toolkit-tw-bot/document'
 
 function normalizeSection(section, index) {
   const source = section && typeof section === 'object' ? section : {}
@@ -134,6 +135,16 @@ export function createBotViewConfigPopover({
   `
 
   document.body.append(menu, detail)
+
+  // Atrela os tooltips aos contêineres do popover. 
+  // Qualquer elemento injetado dinamicamente com data-go-title será capturado.
+  const unbindMenuTooltip = bindAttributeTooltip(menu, '[data-go-title]', {
+    attributeName: 'data-go-title'
+  })
+  
+  const unbindDetailTooltip = bindAttributeTooltip(detail, '[data-go-title]', {
+    attributeName: 'data-go-title'
+  })
 
   const sectionsHost = menu.querySelector('[data-bvcp-sections]')
   const detailTitle = detail.querySelector('[data-bvcp-detail-title]')
@@ -503,6 +514,8 @@ export function createBotViewConfigPopover({
 
   const destroy = () => {
     close()
+    unbindMenuTooltip?.()
+    unbindDetailTooltip?.()
     btn.removeEventListener('click', onButtonClick, true)
     menu.remove()
     detail.remove()
