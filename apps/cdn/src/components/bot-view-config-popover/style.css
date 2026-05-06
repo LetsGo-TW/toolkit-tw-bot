@@ -394,11 +394,6 @@
   opacity: 1;
 }
 
-/* Garante que o tooltip global apareça acima do popover */
-#go-tooltip {
-  z-index: 13050 !important;
-}
-
 .go-bvcp-missing-reqs {
   color: #fca5a5;
   font-size: 8pt;
