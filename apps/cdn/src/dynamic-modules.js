@@ -9,14 +9,6 @@ export class DynamicModules {
     return mod.default
   }
 
-  static "settings" = async () => {
-    const mod = await import(
-      /* webpackChunkName: "settings" */
-      './settings/index.js'
-    )
-    return mod.default
-  }
-
   static "others" = async () => {
     const mod = await import(
       /* webpackChunkName: "others" */

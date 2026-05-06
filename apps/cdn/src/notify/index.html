@@ -1,0 +1,166 @@
+<div class="go-notify-shell">
+  <div class="go-notify-header">
+    <div class="go-notify-brand">
+      <img id="notify-bot-avatar" class="go-notify-bot-avatar" alt="LetsGONotifyBot" data-notify-bot-avatar="1">
+      <div class="go-notify-title">
+        <strong>Notify</strong>
+        <small>Telegram e ntfy</small>
+      </div>
+    </div>
+    <div id="go-notify-summary" class="go-notify-summary">
+      <!-- Summary hCaptcha -->
+      <div id="summary-hCaptcha" class="go-notify-summary-card">
+        <strong>hCaptcha</strong>
+        <span class="summary-meta"></span>
+        <small class="summary-extra"></small>
+      </div>
+      <!-- Summary incoming -->
+      <div id="summary-incoming" class="go-notify-summary-card">
+        <strong>Ataques chegando</strong>
+        <span class="summary-meta"></span>
+        <small class="summary-extra"></small>
+      </div>
+    </div>
+  </div>
+
+  <div id="go-config-notify" class="go-notify-config">
+    <a id="go-config-notify-menu" class="go-notify-config-menu">» Configurar notificações</a>
+    <div id="go-config-notify-content">
+      <div class="go-notify-grid">
+        <!-- Card hCaptcha -->
+        <section class="go-notify-card" id="card-hCaptcha">
+          <div class="go-notify-card-header">
+            <div>
+              <strong>hCaptcha</strong>
+              <small>Envio unificado para Telegram e ntfy</small>
+            </div>
+          </div>
+          <div class="go-notify-toggle-line">
+            <label class="go-notify-section-label" for="notify-active-hCaptcha">Ativar notificações</label>
+            <div class="go-notify-toggle-wrap">
+              <input id="notify-active-hCaptcha" class="toggle" type="checkbox" data-notify-field="active" data-channel="hCaptcha">
+              <label for="notify-active-hCaptcha"></label>
+            </div>
+          </div>
+          <div>
+            <span class="go-notify-section-label">Aplicativo</span>
+            <div class="go-notify-radio-row">
+              <label class="go-notify-radio" for="notify-app-hCaptcha-telegram">
+                <input id="notify-app-hCaptcha-telegram" type="radio" name="notify-app-hCaptcha" value="telegram" data-notify-field="app" data-channel="hCaptcha">
+                <span>Telegram</span>
+              </label>
+              <label class="go-notify-radio" for="notify-app-hCaptcha-notify">
+                <input id="notify-app-hCaptcha-notify" type="radio" name="notify-app-hCaptcha" value="notify" data-notify-field="app" data-channel="hCaptcha">
+                <span>ntfy</span>
+              </label>
+            </div>
+          </div>
+          <!-- Topic Controls -->
+          <div id="topic-controls-hCaptcha">
+            <div class="go-notify-helper topic-msg-telegram" style="display: none;">
+              As notificações deste evento serao enviadas para os chats vinculados no Telegram.
+            </div>
+            <div class="go-notify-topic-block topic-msg-ntfy" style="display: none;">
+              <label class="go-notify-section-label" for="notify-topic-hCaptcha">Topico hCaptcha</label>
+              <div class="go-notify-topic-row">
+                <input id="notify-topic-hCaptcha" class="go-notify-topic-input" type="text" value="" disabled>
+                <button type="button" class="go-notify-icon-button" data-notify-action="copy-topic" data-channel="hCaptcha" title="Copiar topico">📄</button>
+                <button type="button" class="go-notify-icon-button" data-notify-action="reset-topic" data-channel="hCaptcha" title="Gerar novo topico">↻</button>
+              </div>
+              <small class="go-notify-helper topic-short"></small>
+            </div>
+          </div>
+        </section>
+
+        <!-- Card incoming -->
+        <section class="go-notify-card" id="card-incoming">
+          <div class="go-notify-card-header">
+            <div>
+              <strong>Ataques chegando</strong>
+              <small>Envio unificado para Telegram e ntfy</small>
+            </div>
+          </div>
+          <div class="go-notify-toggle-line">
+            <label class="go-notify-section-label" for="notify-active-incoming">Ativar notificações</label>
+            <div class="go-notify-toggle-wrap">
+              <input id="notify-active-incoming" class="toggle" type="checkbox" data-notify-field="active" data-channel="incoming">
+              <label for="notify-active-incoming"></label>
+            </div>
+          </div>
+          <div>
+            <span class="go-notify-section-label">Aplicativo</span>
+            <div class="go-notify-radio-row">
+              <label class="go-notify-radio" for="notify-app-incoming-telegram">
+                <input id="notify-app-incoming-telegram" type="radio" name="notify-app-incoming" value="telegram" data-notify-field="app" data-channel="incoming">
+                <span>Telegram</span>
+              </label>
+              <label class="go-notify-radio" for="notify-app-incoming-notify">
+                <input id="notify-app-incoming-notify" type="radio" name="notify-app-incoming" value="notify" data-notify-field="app" data-channel="incoming">
+                <span>ntfy</span>
+              </label>
+            </div>
+          </div>
+          <!-- Topic Controls -->
+          <div id="topic-controls-incoming">
+            <div class="go-notify-helper topic-msg-telegram" style="display: none;">
+              As notificações deste evento serao enviadas para os chats vinculados no Telegram.
+            </div>
+            <div class="go-notify-topic-block topic-msg-ntfy" style="display: none;">
+              <label class="go-notify-section-label" for="notify-topic-incoming">Topico Ataques chegando</label>
+              <div class="go-notify-topic-row">
+                <input id="notify-topic-incoming" class="go-notify-topic-input" type="text" value="" disabled>
+                <button type="button" class="go-notify-icon-button" data-notify-action="copy-topic" data-channel="incoming" title="Copiar topico">📄</button>
+                <button type="button" class="go-notify-icon-button" data-notify-action="reset-topic" data-channel="incoming" title="Gerar novo topico">↻</button>
+              </div>
+              <small class="go-notify-helper topic-short"></small>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Telegram Card -->
+      <section class="go-notify-card go-notify-card-telegram" id="card-telegram">
+        <div class="go-notify-card-header">
+          <div>
+            <strong>Telegram</strong>
+            <small>Vinculo do player atual com o bot</small>
+          </div>
+        </div>
+        <div id="telegram-error" class="go-notify-telegram-status error" style="display:none;"></div>
+        <div id="telegram-loading" class="go-notify-telegram-status" style="display:none;">Carregando status e QR do Telegram...</div>
+        
+        <div id="telegram-subs-ok" style="display:none;">
+          <div class="go-notify-telegram-status ok" id="telegram-subs-count"></div>
+          <ul class="go-notify-telegram-list" id="telegram-subs-list"></ul>
+        </div>
+        <div id="telegram-subs-warn" class="go-notify-telegram-status warn" style="display:none;">
+          Nenhum chat ativo vinculado a este player.
+        </div>
+
+        <div id="telegram-qr-box" class="go-notify-telegram-link-box" style="display:none;">
+          <div class="go-notify-telegram-link-actions">
+            <a id="telegram-link-open" class="go-notify-link-button" href="#">Abrir no Telegram</a>
+            <button type="button" class="go-notify-link-button" data-notify-action="copy-telegram-command">Copiar /start</button>
+            <button type="button" id="telegram-refresh-qr-btn1" class="go-notify-link-button" data-notify-action="refresh-telegram">Atualizar QR</button>
+          </div>
+          <div class="go-notify-topic-row">
+            <input id="telegram-command-input" class="go-notify-topic-input" type="text" value="" readonly>
+            <button type="button" class="go-notify-icon-button" data-notify-action="copy-telegram-command" title="Copiar comando /start">📄</button>
+          </div>
+          <div class="go-notify-telegram-qr">
+            <img id="telegram-qr-img" alt="Qr code do Telegram">
+          </div>
+          <small class="go-notify-helper">
+            Expira em: <span id="telegram-expires-at"></span><br>
+            1. Abra o bot pelo botao ou QR.<br>
+            2. Copie e cole o comando <code>/start</code> acima no chat do bot.
+          </small>
+        </div>
+
+        <div id="telegram-no-qr-box" class="go-notify-telegram-link-actions" style="display:none;">
+          <button type="button" id="telegram-refresh-qr-btn2" class="go-notify-link-button" data-notify-action="refresh-telegram">Gerar QR do Telegram</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

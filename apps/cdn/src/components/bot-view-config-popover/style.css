@@ -137,10 +137,12 @@
 }
 
 .go-bvcp-menu-row-label-wrap {
+  width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 0.48rem;
   min-width: 0;
+  justify-content: space-between;
 }
 
 .go-bvcp-menu-row-label {
@@ -310,6 +312,13 @@
   border-color: rgba(248, 113, 113, 0.28);
   background: rgba(248, 113, 113, 0.14);
   color: #fecaca;
+}
+
+.go-bvcp-section-badge.is-warn,
+.go-bvcp-section-badge.is-warning {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fde047;
 }
 
 .go-bvcp-accordion-caret {

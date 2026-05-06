@@ -3,6 +3,8 @@ import { createHCaptchaBotViewSection } from '../../hCaptcha/config/bot-view-sec
 import { createSearchBarbariansConfigSection } from '../../map/config-sections'
 import { SETTINGS_CONFIG_TOGGLE_EVENT } from '../../settings/events'
 import { createFarmMaxBotViewSection } from '../../farm-max/view/bot-view-section';
+import { insertNotify, getNotifyBadgeState } from '../../notify';
+import { insertConfigCopyToClipboard, getClipboardBadgeState } from '../../clipboard/view';
 
 function getCurrentUrl() {
   return new URL(window.location.href)
@@ -133,6 +135,65 @@ async function createInlineSection(entry, context = {}) {
       return createMenuSection({
         ...section,
         renderMode: 'detail',
+      })
+    }
+
+    case 'notify': {
+      const badgeState = await getNotifyBadgeState()
+      return createMenuSection({
+        ...entry,
+        statusLabel: badgeState.statusLabel,
+        statusTone: badgeState.statusTone,
+        statusTooltip: badgeState.statusTooltip,
+        renderMode: 'detail',
+        mount: (container, sectionApi) => {
+          let destroyFn = null
+          const popoverDetail = container.closest('.go-bot-view-config-popover')
+
+          if (popoverDetail) {
+            popoverDetail.classList.add('go-notify-override')
+            if (!document.getElementById('go-notify-override-style')) {
+              const styleSheet = document.createElement('style')
+              styleSheet.id = 'go-notify-override-style'
+              styleSheet.innerHTML = `
+                .go-notify-override {
+                  top: 210px !important;
+                  min-width: 640px !important;
+                  max-width: min(640px, calc(100vw - 24px)) !important;
+                }
+              `
+              document.head.appendChild(styleSheet)
+            }
+          }
+
+          insertNotify(container, sectionApi).then(fn => {
+            destroyFn = fn
+          })
+          return {
+            destroy: () => {
+              if (popoverDetail) {
+                popoverDetail.classList.remove('go-notify-override')
+              }
+              destroyFn?.()
+            }
+          }
+        }
+      })
+    }
+
+    case 'clipboard': {
+      const badgeState = await getClipboardBadgeState()
+      return createMenuSection({
+        ...entry,
+        statusLabel: badgeState.statusLabel,
+        statusTone: badgeState.statusTone,
+        renderMode: 'detail',
+        mount: (container, sectionApi) => {
+          const destroyFn = insertConfigCopyToClipboard(container, sectionApi)
+          return {
+            destroy: () => destroyFn?.()
+          }
+        }
       })
     }
 

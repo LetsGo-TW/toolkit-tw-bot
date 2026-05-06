@@ -2,7 +2,7 @@
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM=';
 
 import { insertConfigCopyToClipboard } from "../clipboard/view";
-import { insertNotify } from "../notify";
+// import { insertNotify } from "../notify";
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from "../shared/bot-view-status";
 import { SETTINGS_CONFIG_TOGGLE_EVENT } from './events';
 
@@ -22,7 +22,7 @@ export default async() => {
     }
 
     setBotViewExecutionStatus('Configurando')
-    destroySettings.notify = await insertNotify()
+    // destroySettings.notify = await insertNotify()
     destroySettings.copyToClipboard = insertConfigCopyToClipboard()
   }
 

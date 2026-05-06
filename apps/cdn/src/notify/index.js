@@ -1,4 +1,5 @@
 import "./style.css"
+import notifyHtml from "./index.html"
 import { v4 as uuidv4 } from "uuid"
 import { extensionId as RELEASE_EXTENSION_ID } from "@toolkit-tw-bot/release"
 import { printMessage } from "../components/printMessage"
@@ -41,6 +42,7 @@ const CHANNELS = {
 
 const notifyRuntime = {
   node: null,
+  sectionApi: null,
   playerId: null,
   storage: null,
   config: null,
@@ -384,121 +386,44 @@ function isTelegramLinkFresh(link = null) {
   return expiresAt - TELEGRAM_LINK_CACHE_SAFETY_MS > Date.now()
 }
 
-function renderSummaryItem(channelKey, entry = {}) {
-  return `
-    <div class="go-notify-summary-card ${entry.active ? "is-active" : "is-inactive"}">
-      <strong>${escapeHtml(CHANNELS[channelKey].title)}</strong>
-      <span>${escapeHtml(formatSummaryMeta(channelKey, entry))}</span>
-      <small>${escapeHtml(formatSummaryExtra(entry))}</small>
-    </div>
-  `
+function updateSummaryItem(channelKey, entry = {}) {
+  const card = notifyRuntime.node.querySelector(`#summary-${channelKey}`)
+  if (!card) return
+  card.className = `go-notify-summary-card ${entry.active ? "is-active" : "is-inactive"}`
+  card.querySelector('.summary-meta').textContent = formatSummaryMeta(channelKey, entry)
+  card.querySelector('.summary-extra').textContent = formatSummaryExtra(entry)
 }
 
-function renderTopicControls(channelKey, entry = {}) {
+function updateChannelCard(channelKey, entry = {}) {
+  const card = notifyRuntime.node.querySelector(`#card-${channelKey}`)
+  if (!card) return
+  
+  const activeCheckbox = card.querySelector(`#notify-active-${channelKey}`)
+  if (activeCheckbox) activeCheckbox.checked = !!entry.active
+  
+  const radioTelegram = card.querySelector(`#notify-app-${channelKey}-telegram`)
+  if (radioTelegram) radioTelegram.checked = entry.app === APP_TELEGRAM
+  
+  const radioNtfy = card.querySelector(`#notify-app-${channelKey}-notify`)
+  if (radioNtfy) radioNtfy.checked = entry.app === APP_NOTIFY
+  
+  const msgTelegram = card.querySelector('.topic-msg-telegram')
+  const msgNtfy = card.querySelector('.topic-msg-ntfy')
+  const topicInput = card.querySelector(`#notify-topic-${channelKey}`)
+  const topicShort = card.querySelector('.topic-short')
+  
   if (entry.app !== APP_NOTIFY) {
-    return `
-      <div class="go-notify-helper">
-        As notificações deste evento serao enviadas para os chats vinculados no Telegram.
-      </div>
-    `
+    msgTelegram.style.display = ''
+    msgNtfy.style.display = 'none'
+  } else {
+    msgTelegram.style.display = 'none'
+    msgNtfy.style.display = ''
+    topicInput.value = entry.topic || ''
+    topicShort.textContent = shortTopic(entry.topic, 42)
   }
-
-  return `
-    <div class="go-notify-topic-block">
-      <label class="go-notify-section-label" for="notify-topic-${channelKey}">Topico ${escapeHtml(CHANNELS[channelKey].title)}</label>
-      <div class="go-notify-topic-row">
-        <input
-          id="notify-topic-${channelKey}"
-          class="go-notify-topic-input"
-          type="text"
-          value="${escapeAttr(entry.topic)}"
-          disabled
-        >
-        <button
-          type="button"
-          class="go-notify-icon-button"
-          data-notify-action="copy-topic"
-          data-channel="${channelKey}"
-          title="Copiar topico"
-        >📄</button>
-        <button
-          type="button"
-          class="go-notify-icon-button"
-          data-notify-action="reset-topic"
-          data-channel="${channelKey}"
-          title="Gerar novo topico"
-        >↻</button>
-      </div>
-      <small class="go-notify-helper">${escapeHtml(shortTopic(entry.topic, 42))}</small>
-    </div>
-  `
 }
 
-function renderChannelCard(channelKey, entry = {}) {
-  const activeId = `notify-active-${channelKey}`
-  const radioTelegramId = `notify-app-${channelKey}-telegram`
-  const radioNtfyId = `notify-app-${channelKey}-notify`
-
-  return `
-    <section class="go-notify-card">
-      <div class="go-notify-card-header">
-        <div>
-          <strong>${escapeHtml(CHANNELS[channelKey].title)}</strong>
-          <small>Envio unificado para Telegram e ntfy</small>
-        </div>
-      </div>
-
-      <div class="go-notify-toggle-line">
-        <label class="go-notify-section-label" for="${activeId}">Ativar notificações</label>
-        <div class="go-notify-toggle-wrap">
-          <input
-            id="${activeId}"
-            class="toggle"
-            type="checkbox"
-            data-notify-field="active"
-            data-channel="${channelKey}"
-            ${entry.active ? "checked" : ""}
-          >
-          <label for="${activeId}"></label>
-        </div>
-      </div>
-
-      <div>
-        <span class="go-notify-section-label">Aplicativo</span>
-        <div class="go-notify-radio-row">
-          <label class="go-notify-radio" for="${radioTelegramId}">
-            <input
-              id="${radioTelegramId}"
-              type="radio"
-              name="notify-app-${channelKey}"
-              value="${APP_TELEGRAM}"
-              data-notify-field="app"
-              data-channel="${channelKey}"
-              ${entry.app === APP_TELEGRAM ? "checked" : ""}
-            >
-            <span>Telegram</span>
-          </label>
-          <label class="go-notify-radio" for="${radioNtfyId}">
-            <input
-              id="${radioNtfyId}"
-              type="radio"
-              name="notify-app-${channelKey}"
-              value="${APP_NOTIFY}"
-              data-notify-field="app"
-              data-channel="${channelKey}"
-              ${entry.app === APP_NOTIFY ? "checked" : ""}
-            >
-            <span>ntfy</span>
-          </label>
-        </div>
-      </div>
-
-      ${renderTopicControls(channelKey, entry)}
-    </section>
-  `
-}
-
-function renderTelegramInfo() {
+function updateTelegramInfo() {
   const telegramState = notifyRuntime.telegram
   const refreshCooldownRemainingMs = getTelegramRefreshCooldownRemainingMs(telegramState.refreshCooldownUntilMs)
   const refreshCooldownRemainingSec = refreshCooldownRemainingMs > 0
@@ -508,164 +433,88 @@ function renderTelegramInfo() {
   const refreshLabel = refreshCooldownRemainingSec > 0
     ? `Atualizar QR (${refreshCooldownRemainingSec}s)`
     : "Atualizar QR"
+  const refreshLabel2 = refreshCooldownRemainingSec > 0
+    ? `Gerar QR (${refreshCooldownRemainingSec}s)`
+    : "Gerar QR do Telegram"
   const activeSubscriptions = Array.isArray(telegramState.subscriptions)
     ? telegramState.subscriptions.filter((item) => item?.status === "active")
     : []
 
-  const subscriptionsHtml = activeSubscriptions.length
-    ? `
-      <div class="go-notify-telegram-status ok">
-        ${activeSubscriptions.length} chat(s) ativo(s) para este player.
-      </div>
-      <ul class="go-notify-telegram-list">
-        ${activeSubscriptions.map((item) => `<li>${escapeHtml(formatTelegramSubscription(item))}</li>`).join("")}
-      </ul>
-    `
-    : `
-      <div class="go-notify-telegram-status warn">
-        Nenhum chat ativo vinculado a este player.
-      </div>
-    `
+  const errorEl = notifyRuntime.node.querySelector('#telegram-error')
+  if (telegramState.error) {
+    errorEl.textContent = telegramState.error
+    errorEl.style.display = ''
+  } else {
+    errorEl.style.display = 'none'
+  }
 
-  const errorHtml = telegramState.error
-    ? `<div class="go-notify-telegram-status error">${escapeHtml(telegramState.error)}</div>`
-    : ""
+  const loadingEl = notifyRuntime.node.querySelector('#telegram-loading')
+  loadingEl.style.display = telegramState.loading ? '' : 'none'
 
-  const loadingHtml = telegramState.loading
-    ? `<div class="go-notify-telegram-status">Carregando status e QR do Telegram...</div>`
-    : ""
+  const subsOkEl = notifyRuntime.node.querySelector('#telegram-subs-ok')
+  const subsWarnEl = notifyRuntime.node.querySelector('#telegram-subs-warn')
+  if (activeSubscriptions.length > 0) {
+    subsOkEl.style.display = ''
+    subsWarnEl.style.display = 'none'
+    notifyRuntime.node.querySelector('#telegram-subs-count').textContent = `${activeSubscriptions.length} chat(s) ativo(s) para este player.`
+    const listEl = notifyRuntime.node.querySelector('#telegram-subs-list')
+    listEl.innerHTML = activeSubscriptions.map(item => `<li>${escapeHtml(formatTelegramSubscription(item))}</li>`).join('')
+  } else {
+    subsOkEl.style.display = 'none'
+    subsWarnEl.style.display = ''
+  }
 
-  const qrHtml = telegramState.link?.qrCodeDataUrl
-    ? `
-      <div class="go-notify-telegram-link-box">
-        <div class="go-notify-telegram-link-actions">
-          <a
-            class="go-notify-link-button"
-            href="${escapeAttr(telegramState.link.appUrl || telegramState.link.url)}"
-          >Abrir no Telegram</a>
-          <button
-            type="button"
-            class="go-notify-link-button"
-            data-notify-action="copy-telegram-command"
-          >Copiar /start</button>
-          <button
-            type="button"
-            class="go-notify-link-button"
-            data-notify-action="refresh-telegram"
-            ${refreshDisabled ? "disabled" : ""}
-          >${refreshLabel}</button>
-        </div>
-        <div class="go-notify-topic-row">
-          <input
-            class="go-notify-topic-input"
-            type="text"
-            value="${escapeAttr(telegramState.link.command || telegramState.link.token || "")}"
-            readonly
-          >
-          <button
-            type="button"
-            class="go-notify-icon-button"
-            data-notify-action="copy-telegram-command"
-            title="Copiar comando /start"
-          >📄</button>
-        </div>
-        <div class="go-notify-telegram-qr">
-          <img
-            src="${escapeAttr(telegramState.link.qrCodeDataUrl)}"
-            alt="Qr code do Telegram"
-          >
-        </div>
-        <small class="go-notify-helper">
-          Expira em: ${escapeHtml(formatTelegramLinkExpiresAt(telegramState.link.expiresAt))}
-          <br>
-          1. Abra o bot pelo botao ou QR.
-          <br>
-          2. Copie e cole o comando <code>/start</code> acima no chat do bot.
-        </small>
-      </div>
-    `
-    : `
-      <div class="go-notify-telegram-link-actions">
-        <button
-          type="button"
-          class="go-notify-link-button"
-          data-notify-action="refresh-telegram"
-          ${refreshDisabled ? "disabled" : ""}
-        >${refreshCooldownRemainingSec > 0 ? `Gerar QR (${refreshCooldownRemainingSec}s)` : "Gerar QR do Telegram"}</button>
-      </div>
-    `
+  const qrBox = notifyRuntime.node.querySelector('#telegram-qr-box')
+  const noQrBox = notifyRuntime.node.querySelector('#telegram-no-qr-box')
+  const btn1 = notifyRuntime.node.querySelector('#telegram-refresh-qr-btn1')
+  const btn2 = notifyRuntime.node.querySelector('#telegram-refresh-qr-btn2')
 
-  return `
-    <section class="go-notify-card go-notify-card-telegram">
-      <div class="go-notify-card-header">
-        <div>
-          <strong>Telegram</strong>
-          <small>Vinculo do player atual com o bot</small>
-        </div>
-      </div>
-      ${errorHtml}
-      ${loadingHtml}
-      ${subscriptionsHtml}
-      ${qrHtml}
-    </section>
-  `
+  if (telegramState.link?.qrCodeDataUrl) {
+    qrBox.style.display = ''
+    noQrBox.style.display = 'none'
+    
+    notifyRuntime.node.querySelector('#telegram-link-open').href = telegramState.link.appUrl || telegramState.link.url
+    notifyRuntime.node.querySelector('#telegram-command-input').value = telegramState.link.command || telegramState.link.token || ""
+    notifyRuntime.node.querySelector('#telegram-qr-img').src = telegramState.link.qrCodeDataUrl
+    notifyRuntime.node.querySelector('#telegram-expires-at').textContent = formatTelegramLinkExpiresAt(telegramState.link.expiresAt)
+    
+    btn1.disabled = refreshDisabled
+    btn1.textContent = refreshLabel
+  } else {
+    qrBox.style.display = 'none'
+    noQrBox.style.display = ''
+    
+    btn2.disabled = refreshDisabled
+    btn2.textContent = refreshLabel2
+  }
 }
 
 function renderNotifyPanel() {
   if (!notifyRuntime.node || !notifyRuntime.config) return
 
-  const summaryNode = notifyRuntime.node.querySelector("#go-notify-summary")
-  const configNode = notifyRuntime.node.querySelector("#go-config-notify-content")
+  updateSummaryItem('hCaptcha', notifyRuntime.config.hCaptcha)
+  updateSummaryItem('incoming', notifyRuntime.config.incoming)
 
-  if (summaryNode) {
-    summaryNode.innerHTML = `
-      ${renderSummaryItem("hCaptcha", notifyRuntime.config.hCaptcha)}
-      ${renderSummaryItem("incoming", notifyRuntime.config.incoming)}
-    `
-  }
+  updateChannelCard('hCaptcha', notifyRuntime.config.hCaptcha)
+  updateChannelCard('incoming', notifyRuntime.config.incoming)
 
-  if (configNode) {
-    configNode.innerHTML = `
-      <div class="go-notify-grid">
-        ${renderChannelCard("hCaptcha", notifyRuntime.config.hCaptcha)}
-        ${renderChannelCard("incoming", notifyRuntime.config.incoming)}
-      </div>
-      ${renderTelegramInfo()}
-    `
-  }
+  updateTelegramInfo()
 }
 
-function createNotifyContainer() {
-  const elemNode = document.querySelector("#contentContainer")
+function createNotifyContainer(mountTarget = null) {
+  const elemNode = mountTarget || document.querySelector("#contentContainer")
   if (!elemNode) return null
 
   const node = document.createElement("div")
   node.id = "go_contairner"
   node.className = "go-notify-container"
-  node.innerHTML = `
-    <div class="go-notify-shell">
-      <div class="go-notify-header">
-        <div class="go-notify-brand">
-          <img
-            class="go-notify-bot-avatar"
-            src="${escapeAttr(resolveTelegramBotAvatarUrl())}"
-            alt="${escapeAttr(TELEGRAM_BOT_USERNAME)}"
-            data-notify-bot-avatar="1"
-          >
-          <div class="go-notify-title">
-            <strong>Notify</strong>
-            <small>Telegram e ntfy</small>
-          </div>
-        </div>
-        <div id="go-notify-summary" class="go-notify-summary"></div>
-      </div>
+  node.innerHTML = notifyHtml
 
-      <div id="go-config-notify" class="go-notify-config">
-        <a id="go-config-notify-menu" class="go-notify-config-menu">» Configurar notificações</a>
-        <div id="go-config-notify-content"></div>
-      </div>
-    </div>
-  `
+  const avatarEl = node.querySelector('#notify-bot-avatar')
+  if (avatarEl) {
+    avatarEl.src = resolveTelegramBotAvatarUrl()
+    avatarEl.alt = TELEGRAM_BOT_USERNAME
+  }
 
   elemNode.prepend(node)
   notifyRuntime.node = node
@@ -835,6 +684,12 @@ async function onNotifyMenuClick(event) {
   await loadTelegramUiState()
 }
 
+async function updateNotifyBadge() {
+  if (!notifyRuntime.sectionApi) return
+  const badgeState = await getNotifyBadgeState()
+  notifyRuntime.sectionApi.setStatus(badgeState.statusLabel, badgeState.statusTone, badgeState.statusTooltip)
+}
+
 function updateChannelApp(channelKey, value) {
   const entry = notifyRuntime.config?.[channelKey]
   if (!entry) return
@@ -844,6 +699,7 @@ function updateChannelApp(channelKey, value) {
 
   entry.app = app
   persistNotifyConfig()
+  updateNotifyBadge()
   renderNotifyPanel()
 }
 
@@ -853,6 +709,7 @@ function updateChannelActive(channelKey, checked) {
 
   entry.active = Boolean(checked)
   persistNotifyConfig()
+  void updateNotifyBadge()
   renderNotifyPanel()
 }
 
@@ -949,19 +806,20 @@ function destroyNotifyContainer() {
   }
 
   notifyRuntime.node = null
+  notifyRuntime.sectionApi = null
 }
 
-async function insertNotify() {
-  if (document.querySelector("#go_contairner")) {
-    return destroyNotifyContainer
-  }
+async function insertNotify(mountTarget = null, sectionApi = null) {
+  destroyNotifyContainer()
 
   const playerId = resolveCurrentPlayerId()
   if (!playerId) return () => {}
 
+  notifyRuntime.sectionApi = sectionApi
+
   await loadNotifyConfig(playerId)
   syncTelegramRefreshCooldownTick()
-  const node = createNotifyContainer()
+  const node = createNotifyContainer(mountTarget)
   if (!node) return () => {}
 
   bindNotifyEvents(node)
@@ -1052,4 +910,55 @@ async function sendNotify(type, body) {
   }
 }
 
-export { insertNotify, sendNotify }
+async function getNotifyBadgeState() {
+  const playerId = resolveCurrentPlayerId()
+  if (!playerId) return { statusLabel: 'Desligado', statusTone: 'danger', statusTooltip: 'Requer login na página para funcionar.' }
+
+  const storage = getNotifyStorage(playerId)
+  let raw = null
+  try {
+    raw = await storage?.get?.()
+  } catch (error) {}
+
+  const state = normalizeNotifyStorage(raw)
+  const config = state.config
+
+  const activeChannels = []
+  if (config?.hCaptcha?.active) activeChannels.push({ name: 'hCaptcha', app: config.hCaptcha.app })
+  if (config?.incoming?.active) activeChannels.push({ name: 'Ataques chegando', app: config.incoming.app })
+
+  if (activeChannels.length === 0) {
+    return { statusLabel: 'Desligado', statusTone: 'danger', statusTooltip: 'Nenhuma notificação ativada.' }
+  }
+
+  const usesTelegram = activeChannels.some(ch => ch.app === APP_TELEGRAM)
+  let telegramOk = true
+
+  if (usesTelegram) {
+    try {
+      const payload = await requestTelegramState({ playerId, world: resolveCurrentWorld() })
+      const subs = Array.isArray(payload?.subscriptions) ? payload.subscriptions : []
+      telegramOk = subs.some(s => s?.status === 'active')
+    } catch (e) {
+      telegramOk = false
+    }
+  }
+
+  const names = activeChannels.map(ch => ch.name).join(', ')
+
+  if (usesTelegram && !telegramOk) {
+    return {
+      statusLabel: 'Sem chat',
+      statusTone: 'warn',
+      statusTooltip: `Ativos: ${names}.<br><br>⚠️ <b>Atenção:</b> Você ativou o envio via Telegram, mas nenhum chat está vinculado a este player. Abra o painel e gere o QR Code.`
+    }
+  }
+
+  return {
+    statusLabel: `${activeChannels.length} ativo${activeChannels.length > 1 ? 's' : ''}`,
+    statusTone: 'active',
+    statusTooltip: `Canais ativos:<br><b>${names}</b>`
+  }
+}
+
+export { insertNotify, sendNotify, getNotifyBadgeState }

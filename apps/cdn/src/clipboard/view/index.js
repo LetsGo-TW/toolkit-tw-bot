@@ -1,6 +1,20 @@
 import { copyToClipboardConfigInit } from '../config'
 import { mountClipboardShadowRoot } from './shadowDom'
 
+let currentSectionApi = null;
+
+export async function getClipboardBadgeState() {
+  const { copyToClipboardStorageLocal } = await copyToClipboardConfigInit()
+  const config = await copyToClipboardStorageLocal.get() || {};
+  
+  // Verifica se alguma sub-ferramenta de cópia possui o campo active = true
+  const isActive = Object.values(config).some(group => group && group.active === true);
+  if (isActive) {
+    return { statusLabel: 'Ativo', statusTone: 'active' };
+  }
+  return { statusLabel: 'Desligado', statusTone: 'danger' };
+}
+
 const onChange = async (e) => {
   const target = e?.target instanceof HTMLInputElement ? e.target : null
   const name = String(target?.name || '').trim()
@@ -12,6 +26,11 @@ const onChange = async (e) => {
   const copyToClipboardConfig = await copyToClipboardStorageLocal.get();
   copyToClipboardConfig[id][item] = checked;
   await copyToClipboardStorageLocal.set(copyToClipboardConfig);
+
+  if (currentSectionApi) {
+    const badgeState = await getClipboardBadgeState();
+    currentSectionApi.setStatus(badgeState.statusLabel, badgeState.statusTone);
+  }
 }
 
 const initCopyConfigInputs = async (copyConfigNode) => {
@@ -25,15 +44,19 @@ const initCopyConfigInputs = async (copyConfigNode) => {
   })
 }
 
-export function insertConfigCopyToClipboard() {
-  const existingRoot = document.querySelector('#go-config-copy-to-clipboard-shadow-host');
-  if (existingRoot instanceof HTMLElement) {
-    return () => {
-      existingRoot.remove()
-    };
+export function insertConfigCopyToClipboard(mountTarget = null, sectionApi = null) {
+  currentSectionApi = sectionApi;
+
+  if (!mountTarget) {
+    const existingRoot = document.querySelector('#go-config-copy-to-clipboard-shadow-host');
+    if (existingRoot instanceof HTMLElement) {
+      return () => {
+        existingRoot.remove()
+      };
+    }
   }
 
-  const goContainer = document.querySelector('#go_contairner');
+  const goContainer = mountTarget || document.querySelector('#go_contairner');
   if (!goContainer) return () => {};
 
   const mounted = mountClipboardShadowRoot(goContainer)
@@ -56,11 +79,20 @@ export function insertConfigCopyToClipboard() {
     }
   }
 
-  menu.addEventListener('click', menuOnClick);
+  if (mountTarget) {
+    menu.style.display = 'none';
+    copyConfigNode.classList.add('show');
+    copyConfigNode.addEventListener('change', onChange, true);
+  } else {
+    menu.addEventListener('click', menuOnClick);
+  }
+
   initCopyConfigInputs(copyConfigNode);
 
   return () => {
+    currentSectionApi = null;
     copyConfigNode.removeEventListener('change', onChange, true);
+    menu.removeEventListener('click', menuOnClick);
     mounted?.destroy?.();
   }
 }

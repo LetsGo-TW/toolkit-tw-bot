@@ -1,5 +1,13 @@
 // packages/release/src/script-registry.js
 export const SCRIPT_REGISTRY = [
+  // autos
+  {
+    id: 'farm-max',
+    type: 'auto',
+    label: 'Farm Max',
+    viewMode: 'inline',
+  },
+  // globals
   {
     id: 'hcaptcha',
     type: 'global',
@@ -7,14 +15,18 @@ export const SCRIPT_REGISTRY = [
     viewMode: 'inline',
   },
   {
-    id: 'settings-config',
-    type: 'screen',
-    label: 'Configurações',
-    match: { screen: 'settings' },
-    viewMode: 'page',
-    goTo: { screen: 'settings' },
-    actionLabel: 'Abrir',
+    id: 'notify',
+    type: 'global',
+    label: 'Notify',
+    viewMode: 'inline',
   },
+  {
+    id: 'clipboard',
+    type: 'global',
+    label: 'Copy to clipboard',
+    viewMode: 'inline',
+  },
+  // screens(others)
   {
     id: 'search-barbarians',
     type: 'screen',
@@ -23,10 +35,4 @@ export const SCRIPT_REGISTRY = [
     goTo: { screen: 'map' },
     viewMode: 'inline',
   },
-  {
-    id: 'farm-max',
-    type: 'global',
-    label: 'Farm Max',
-    viewMode: 'inline',
-  }
 ]

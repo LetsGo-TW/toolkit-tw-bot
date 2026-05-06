@@ -1,19 +1,19 @@
 .go-notify-container {
   width: auto;
   max-width: 100%;
-  background: #e3d5b3 url("https://dsbr.innogamescdn.com/asset/1b9d83e8/graphic/index/main_bg.jpg") scroll right top repeat;
+  /* background: #e3d5b3 url("https://dsbr.innogamescdn.com/asset/1b9d83e8/graphic/index/main_bg.jpg") scroll right top repeat; */
   position: relative;
   display: flow-root;
-  box-shadow: 1px 2px 3px 1px rgb(0 0 0 / 30%);
-  border: 1px solid #7d510f;
+  /* box-shadow: 1px 2px 3px 1px rgb(0 0 0 / 30%);
+  border: 1px solid #5e836d;
   margin-bottom: 5px;
-  padding: 5px;
+  padding: 5px; */
 }
 
 .go-notify-shell {
   width: 100%;
-  background-color: #f4e4bc;
-  color: chocolate;
+  /* background-color: #f4e4bc;
+  color: chocolate; */
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -22,7 +22,7 @@
 }
 
 .go-notify-header {
-  display: flex;
+  display: none;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
@@ -36,9 +36,9 @@
 }
 
 .go-notify-bot-avatar {
-  width: 46px;
-  height: 46px;
-  border-radius: 46px;
+  width: 42px;
+  height: 42px;
+  border-radius: 42px;
   border: 1px solid #d3b173;
   background: linear-gradient(180deg, #f6e6bf 0%, #edd7a6 100%);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 45%);
@@ -52,12 +52,7 @@
   gap: 0.15rem;
 
   strong {
-    color: #6d3f05;
     font-size: 1rem;
-  }
-
-  small {
-    color: #8b6a2d;
   }
 }
 
@@ -73,26 +68,25 @@
   flex-direction: column;
   gap: 0.15rem;
   padding: 0.45rem 0.6rem;
-  border: 1px solid #fff;
-  border-radius: 0.45rem;
   background: rgb(255 255 255 / 45%);
   min-width: 0;
 
   strong {
-    color: #8d4f12;
+    color: #f4e4bc;
   }
 
   span {
-    color: #a34d0c;
+    color: #f4f4f4;
     font-size: 0.88rem;
   }
 
   small {
-    color: #8b6a2d;
+    color: #fff;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 }
+
 
 .go-notify-summary-card.is-active {
   box-shadow: inset 0 0 0 1px rgb(91 139 40 / 35%);
@@ -107,13 +101,15 @@
 }
 
 .go-notify-config-menu {
+  display: none;
   cursor: pointer;
-  color: #603000;
+  color: #bdb0a4;
   text-decoration: none;
 }
 
 #go-config-notify-content {
-  display: none;
+  display: flex;
+  gap: 0.5rem;
 }
 
 #go-config-notify-content.show {
@@ -134,9 +130,10 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid #d3b173;
-  border-radius: 0.55rem;
-  background: rgb(255 255 255 / 28%);
+  box-shadow: 1px 2px 3px 1px rgb(0 0 0 / 30%);
+  border: 1px solid #5e836d;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .go-notify-card-header {
@@ -147,12 +144,12 @@
 
   strong {
     display: block;
-    color: #7a4208;
+    color: #89abc6;
     margin-bottom: 0.1rem;
   }
 
   small {
-    color: #8b6a2d;
+    color: #fff;
   }
 }
 
@@ -220,7 +217,7 @@
 }
 
 .go-notify-section-label {
-  color: #7a4208;
+  color: #89abc6;
   font-weight: 600;
   margin: 0;
 }
@@ -237,7 +234,7 @@
   align-items: center;
   gap: 0.35rem;
   cursor: pointer;
-  color: #6d4c1a;
+  color: #fff;
 }
 
 .go-notify-topic-block {
@@ -256,21 +253,45 @@
   flex: 1;
   min-width: 0;
   background: rgb(255 255 255 / 65%);
-  border: 1px solid #d3b173;
+  border: 1px solid #5e836d;
   border-radius: 0.35rem;
-  color: #8d4f12;
+  color: #255b91;
   padding: 0.3rem 0.4rem;
 }
 
 .go-notify-icon-button,
 .go-notify-link-button {
-  border: 1px solid #c49b55;
-  background: linear-gradient(180deg, #f6e6bf 0%, #edd7a6 100%);
-  color: #6d3f05;
+  border: 1px solid #0da6dc;
+  background: linear-gradient(180deg, #8eb0d1 0%, #2988d3 100%);
+  color: white;
   border-radius: 0.35rem;
   cursor: pointer;
   padding: 0.3rem 0.55rem;
   text-decoration: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.go-notify-icon-button:hover,
+.go-notify-link-button:hover {
+  color: white;
+  filter: brightness(1.1);
+  box-shadow: 0 4px 8px rgba(37, 41, 45, 0.3);
+  transform: translateY(-1px);
+}
+
+.go-notify-icon-button:active,
+.go-notify-link-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(41, 136, 211, 0.2);
+}
+
+.go-notify-icon-button[disabled],
+.go-notify-link-button[disabled] {
+  filter: grayscale(0.5) brightness(0.9);
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .go-notify-icon-button {
@@ -279,7 +300,7 @@
 }
 
 .go-notify-helper {
-  color: #8b6a2d;
+  color: #717981;
 }
 
 .go-notify-card-telegram {
@@ -290,15 +311,18 @@
   border-radius: 0.45rem;
   padding: 0.45rem 0.55rem;
   background: rgb(255 255 255 / 45%);
-  color: #73430b;
+  color: #717981;
 }
 
 .go-notify-telegram-status.ok {
   border: 1px solid rgb(77 132 51 / 35%);
+  color: rgb(77 132 51);
+;
 }
 
 .go-notify-telegram-status.warn {
   border: 1px solid rgb(196 155 85 / 55%);
+  color: rgb(236 155 17);
 }
 
 .go-notify-telegram-status.error {
@@ -309,7 +333,7 @@
 .go-notify-telegram-list {
   margin: 0;
   padding-left: 1rem;
-  color: #6d4c1a;
+  color: rgb(236 155 17);
 }
 
 .go-notify-telegram-link-box {
@@ -332,6 +356,7 @@
 .go-notify-telegram-qr img {
   width: min(240px, 100%);
   max-width: 100%;
+  box-shadow: 1px 2px 3px 1px rgb(0 0 0 / 30%);
   border-radius: 0.5rem;
   border: 1px solid #d3b173;
   background: #fff;
