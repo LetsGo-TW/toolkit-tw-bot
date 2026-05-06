@@ -6,7 +6,7 @@ export async function createHCaptchaBotViewSection() {
 
   return {
     id: 'captcha-config',
-    label: 'Captcha',
+    label: 'Anti-captcha',
     groupId: 'globals',
     statusLabel: captchaConfig?.active ? 'Ativo' : 'Desligado',
     statusTone: captchaConfig?.active ? 'active' : 'danger',
