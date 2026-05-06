@@ -57,6 +57,7 @@ span#go-farm-status {
 }
 
 .go-farm-header {
+  display: none;
 }
 
 .go-links {

@@ -176,6 +176,9 @@
 
 .go-bvcp-detail-header {
   padding: 0.15rem 0.08rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .go-bvcp-detail-title-wrap {
@@ -188,6 +191,15 @@
 .go-bvcp-detail-title {
   color: #f8f8f2;
   font: 700 12px/1.2 Verdana, Arial, sans-serif;
+}
+
+.go-bvcp-detail-controls {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  color: rgba(215, 222, 207, 0.86);
+  font: 400 11px/1.2 Verdana, Arial, sans-serif;
+  min-width: 0;
 }
 
 .go-bvcp-detail-body {
@@ -366,4 +378,17 @@
 
 .go-bvcp-action-button:active {
   transform: translateY(1px);
+}
+
+.go-bvcp-detail-youtube-link img {
+  display: block;
+  width: 25px;
+  height: auto;
+  opacity: 0.7;
+  transition: opacity 120ms ease;
+  vertical-align: middle;
+}
+
+.go-bvcp-detail-youtube-link:hover img {
+  opacity: 1;
 }

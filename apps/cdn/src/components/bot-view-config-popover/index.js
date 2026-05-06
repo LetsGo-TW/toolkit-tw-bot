@@ -1,4 +1,5 @@
 import './style.css'
+import youtubeSvg from '../youtube-link-image/youtube.svg'
 
 function normalizeSection(section, index) {
   const source = section && typeof section === 'object' ? section : {}
@@ -12,6 +13,7 @@ function normalizeSection(section, index) {
     groupId: String(source.groupId || source.group || '').trim(),
     statusLabel: String(source.statusLabel || source.status || '').trim(),
     statusTone: String(source.statusTone || source.statusKind || '').trim().toLowerCase(),
+    youtubeLink: String(source.youtubeLink || '').trim(),
     /**
      * `detail`
      *   Opens the second dropdown and mounts the script UI there.
@@ -123,7 +125,9 @@ export function createBotViewConfigPopover({
         <div class="go-bvcp-detail-title-wrap">
           <span class="go-bvcp-detail-title" data-bvcp-detail-title></span>
           <span class="go-bvcp-section-badge" data-bvcp-detail-badge hidden></span>
+          <span class="go-bvcp-detail-youtube" data-bvcp-detail-youtube></span>
         </div>
+        <div class="go-bvcp-detail-controls" data-bvcp-detail-controls></div>
       </div>
       <div class="go-bvcp-detail-body" data-bvcp-detail-body></div>
     </div>
@@ -134,6 +138,8 @@ export function createBotViewConfigPopover({
   const sectionsHost = menu.querySelector('[data-bvcp-sections]')
   const detailTitle = detail.querySelector('[data-bvcp-detail-title]')
   const detailBadge = detail.querySelector('[data-bvcp-detail-badge]')
+  const detailYoutube = detail.querySelector('[data-bvcp-detail-youtube]')
+  const detailControls = detail.querySelector('[data-bvcp-detail-controls]')
   const detailBody = detail.querySelector('[data-bvcp-detail-body]')
   const sectionStates = []
   const groupHosts = new Map()
@@ -160,6 +166,8 @@ export function createBotViewConfigPopover({
     activeDetailCleanup = null
     if (detailTitle instanceof HTMLElement) detailTitle.textContent = ''
     applySectionBadge(detailBadge, '', '')
+    if (detailYoutube instanceof HTMLElement) detailYoutube.innerHTML = ''
+    if (detailControls instanceof HTMLElement) detailControls.innerHTML = ''
     if (detailBody instanceof HTMLElement) {
       detailBody.innerHTML = ''
     }
@@ -206,11 +214,39 @@ export function createBotViewConfigPopover({
           applySectionBadge(detailBadge, sectionState.statusLabel, sectionState.statusTone)
         }
       },
-      close() {
-        close()
+      setHeaderControls(elements = []) {
+        if (!(detailControls instanceof HTMLElement)) return
+        detailControls.innerHTML = ''
+        const arr = Array.isArray(elements) ? elements : [elements]
+        arr.forEach(item => {
+          if (item instanceof Node) {
+            detailControls.append(item)
+          } else if (item) {
+            const span = document.createElement('span')
+            span.innerHTML = String(item)
+            detailControls.append(span)
+          }
+        })
       },
+      setYoutubeLink(link = '') {
+        if (!(detailYoutube instanceof HTMLElement)) return
+        detailYoutube.innerHTML = ''
+        const safeLink = String(link || '').trim()
+        if (safeLink) {
+          const youtubeLinkEl = document.createElement('a')
+          youtubeLinkEl.href = safeLink
+          youtubeLinkEl.target = '_blank'
+          youtubeLinkEl.rel = 'noopener noreferrer'
+          youtubeLinkEl.dataset.goTitle = 'YouTube tutorial'
+          youtubeLinkEl.className = 'go-bvcp-detail-youtube-link'
+          youtubeLinkEl.innerHTML = `<img src="${youtubeSvg}" alt="YouTube">`
+          detailYoutube.appendChild(youtubeLinkEl)
+        }
+      },
+      close: () => close(),
     }
 
+    sectionApi.setYoutubeLink(sectionState.youtubeLink)
     activeDetailCleanup = resolveCleanup(sectionState.mount?.(detailBody, sectionApi))
     positionPanels(sectionState)
   }

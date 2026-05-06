@@ -1,0 +1,13 @@
+span.go-farm-header-toggle {
+  margin-left: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 9pt;
+  font-weight: 700;
+
+  label.toggle {
+    scale: 1.3;
+    margin: 0.2rem;
+  }
+}

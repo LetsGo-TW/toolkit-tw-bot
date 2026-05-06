@@ -463,7 +463,7 @@ async function render(containerElement = null) {
   window.addEventListener('message', onMessage , false);
 
   const destroy = () => {
-    // goFarmConfig.removeEventListener('click', configOpen, true)
+    // goFarmConfig.removeEventListener('click', configOpen, true)y
     goFarmFormConfig.removeEventListener('submit', goFormSubmit, true)
     goActiveFarm.removeEventListener('change', onClickActive, true)
     selectBreakWallTemplate.removeEventListener('change', onChangeSelect, true)
