@@ -1,0 +1,267 @@
+#go-container {
+  width: auto;
+  max-width: 100%;
+  background: url('https://dsbr.innogamescdn.com/asset/1b9d83e8/graphic/index/main_bg.jpg') right top repeat scroll rgb(227, 213, 179);
+  position: relative;
+  display: flow-root;
+  align-items: center;
+  box-shadow: rgba(0, 0, 0, 0.3) 1px 2px 3px 1px;
+  border: 1px solid rgb(125, 81, 15);
+  margin-bottom: 0.25rem;
+  padding: 0.25rem;
+
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(53, 50, 47, 0.72);
+    border-radius: 0.8rem;
+  }
+  ::-webkit-scrollbar-track{
+    background: rgba(118, 70, 20, 0.72);
+    border-radius: 0.8rem;
+  }
+}
+#go-farm-form-config {
+  margin: 0 0.15rem;
+}
+#go-youtube {
+  margin-top: 0.1rem;
+}
+.go-farm-status {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+  /* padding: 0.2rem 0.5rem; */
+  margin-bottom: 0.25rem;
+  color: brown;
+}
+span#go-farm-status {
+  display: none;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+.go-weight-600 {
+  font-weight: 600;
+}
+.go-farm-header {
+  background: #f4e4bc;
+  padding: 0.25rem;
+}
+.go-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.go-farm-separator {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem;
+}
+.go-farm-config-content {
+  display: none;
+}
+.go-farm-config-content.show {
+  background: #f4e4bc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem;
+}
+.go-farm-buttons {
+  max-width: 28%;
+}
+.go-farm-buttons-content {
+  width: 100%;
+}
+.go-farm-ico {
+  display: flex;
+  gap: 0.25rem;
+}
+.go-farm-lott {
+  padding: 0.4rem;
+}
+.go-farm-types {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.go-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.go-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+.go-base {
+  align-items: baseline;
+}
+.go-border {
+  border: 1px solid #b8b6b6ff;
+  border-radius: 0.25rem;
+  padding: 0.25rem;
+}
+.go-border.broun {
+  border-color: #6d3d1e;
+}
+.go-border.ridge {
+  border-color: #2a85a6e1;
+}
+.go-border.none {
+  border: none;
+  padding: 0.25rem 0;
+}
+a#go-farm-edit-template-buttom {
+  border: 1px solid #f4e4bc;
+  font-size: 0.8rem;
+  padding: 0.1rem;
+  transition: 0.2s ease-in-out;
+}
+a#go-farm-edit-template-buttom:hover {
+  border: 1px solid #2a85a6e1;
+  border-radius: 0.25rem;
+}
+div#go-farm-edit-template {
+  display: none;
+}
+div#go-farm-edit-template.show {
+  display: flex;
+}
+div#go-farm-schedules {
+  max-height: 316px;
+  overflow-x: auto;
+  display: none;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+  border-top: solid 0.01rem #b8b6b6ff;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    span {
+      gap: 0.25rem;
+    }
+  }
+}
+div#go-farm-schedules.show {
+  display: flex;
+}
+.go-farm-schedules {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #b8b6b6ff;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  gap: 0.5rem;
+  margin-right: 0.25rem;
+}
+div#go-farm-alive {
+  width: 100%;
+  max-height: 310px;
+  overflow-x: auto;
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+  border-top: solid 0.01rem #b8b6b6ff;
+}
+div#go-farm-alive.show {
+  display: flex;
+}
+.go-farm-alive {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-right: 0.25rem;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    span {
+      gap: 0.25rem;
+    }
+  }
+
+}
+
+.go-edit-unit {
+  width: 42px;
+}
+input, label.go-label, a, span#go-reset-farm {
+  cursor: pointer;
+}
+h5, p {
+  margin: 0;
+  padding: 0 0.25rem;
+}
+input.toggle {
+  display: none;
+}
+input.toggle + label {
+  display: inline-block;
+  position: relative;
+  box-shadow: inset 0 0 0px 0.1px black;
+  height: 12px;
+  width: 24px;
+  background-color: red;
+  border-radius: 6px;
+  margin-left: 1px;
+  margin-top: 5px;
+  cursor: pointer;
+}
+input.toggle + label:before {
+  content: "";
+  display: block;
+  height: 12px;
+  width: 12px;
+  border-radius: 6px;
+  background: rgba(191, 87, 17, 0);
+  transition: 0.2s ease-in-out;
+}
+input.toggle + label:after {
+  content: "";
+  position: absolute;
+  height: 12px;
+  width: 12px;
+  top: 0; left: -2px;
+  border-radius: 6px;
+  background: rgb(82, 73, 73);
+  box-shadow: inset 0 0 0 2px red, 2px 4px rgba(59, 55, 55, 0.3);
+  transition: 0.2s ease-in-out;
+}
+input.toggle:checked + label:before {
+  box-shadow: inset 0 0 0px 0.1px black;
+  width: 24px;
+  background: #13bf11;
+}
+input.toggle:checked + :after {
+  left: 12px;
+  box-shadow: inset 0 0 0 2px #13bf11, 2px 4px rgba(59, 55, 55, 0.3);
+}

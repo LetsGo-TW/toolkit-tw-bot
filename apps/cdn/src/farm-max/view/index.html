@@ -1,0 +1,636 @@
+<form id="go-farm-form-config">
+  <div class="go-farm-status">
+    <span class="go-weight-600">Status: </span>
+    <span id="go-farm-status-msg"></span>
+    <span id="go-farm-status">
+      <div id="go-as-village"
+           style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;">
+        <a id="go-as-village-name"
+           data-title="Visualização geral da aldeia."
+           href="#"
+           style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;"></a>
+        <span id="go-as-village-coords" style="flex:0 0 auto;white-space:nowrap;opacity:.85;"></span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">
+        <span>
+          <span id="go-as-village-count" title="vila/total de vilas"></span>
+          <span class="icon header village"></span>
+        </span>
+        <span id="go-as-page"  title="Página atual/total de páginas.">[1]📋</span>
+        <span id="go-as-count" title="Farms enviados.">[0]✔️</span>
+        <div style="display:flex;width:56px;gap:6px">
+          <span id="go-as-pending"
+                style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;visibility:hidden;">
+            <img src="https://dsbr.innogamescdn.com/asset/afa3a1fb/graphic/loading2.gif" alt="loading" width="14" height="14">
+          </span>
+          <span id="go-as-button"></span>
+        </div>
+      </div>
+
+    </span>
+  </div>
+  <div class="go-farm-header">
+    <div class="go-farm-separator">
+      <span class="go-links">
+        <span id='go-farm-config'> » Configurações do AS</span>
+        <span id="go-reset-farm">
+          <img width="15px" src="https://github.com/UnrecognizedBR/public/blob/master/icons/Reset-Blue.png?raw=true" title="Voltar para configuração padrão." alt="reset">
+        </span>
+        <span id="go-youtube"></span>
+        <span id="go-next-farm" title="SO = Data e horário do sistema operacional(NÃO data e hora do servidor do TW)."></span>
+        <input type="hidden" name="last" id="go-last-farm">
+      </span>
+      <span>
+        <label class="go-label" title="Ativa ou desativa o auto-farm" for="go-farm-active"> Auto-farm</label>
+        <input type="checkbox" name="active" id="go-farm-active" class="toggle">
+        <label title="Ativa ou desativa o auto-farm" for="go-farm-active"></label>
+      </span>
+    </div>
+  </div>
+
+  <div class="go-farm-config-content show">
+    <span class="go-end go-base">
+      <button class="btn" style="width: 200px; float: inherit;" type="submit">Salvar</button>
+    </span>
+
+    <div class="go-border">
+      <span class="go-links" style="margin-bottom: 0.5rem;">
+        <h5>Controle de agendamento e execução: </h5>
+        <a id="go-farm-schedules-show" title="Ver lista de agendamento.">🔍</a>
+      </span>
+
+      <div class="go-farm-separator">
+        <!-- <div title="Tempo máximo entre 30 e 120 segundos para permanecer na vila do AS enquanto houver tropas para saquear.">
+          <label class="go-label" for="go-farm-timer">
+            <input type="number" name="timer" id="go-farm-timer" min="30" max="120" value="60">
+            Tempo max(seg)
+          </label>
+        </div> -->
+        <div title="Período de agendamento(entre 1 e 180 minutos).
+Controle a quantidade de execuções.
+Ao término da execução é calculado o próximo agendamento de acordo com o período.">
+          <label class="go-label" for="go-farm-season">
+            <input type="number" name="season" id="go-farm-season" min="1" max="180" value="10">
+            Período(min)
+          </label>
+        </div>
+        <div title="Número máximo de vilas por agendamento.
+Controle quantas vilas executarão a cada período de agendamento.
+As vilas são ordenadas pelo maior número de tropas para farmar de acordo com 'Modelos' do AS.">
+          <label class="go-label" for="go-farm-max-villages">
+            <input type="number" name="maxVillages" id="go-farm-max-villages" min="1" max="50" value="10">
+            Vilas/período
+          </label>
+        </div>
+        <div title="Ataques(farm) por segundo.
+Controle a quantidade de ataques enviados por segundo(randômico).">
+          <label class="go-label" for="go-attacks-per-second">
+            <input type="number" name="attacksPerSecond" id="go-attacks-per-second" min="1" max="5" value="4">
+            Farm/s(un)
+          </label>
+        </div>
+        <div>
+          <label class="go-label" for="go-farm-group" title="Selecionar o grupo das vilas para farmar.">
+            Grupo
+          <select name="groupId" id="go-farm-group">
+            <option value="0">todos</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="" id="go-farm-schedules"></div>
+
+    </div>
+
+    <div class="go-border">
+      <h5>Páginas e Relatórios:</h5>
+      <div class="go-farm-separator">
+        <div class="go-col go-border none">
+          <label class="go-label" for="go-farm-load-pages" title="Número máximo de páginas do AS a serem carregadas(percorridas).
+Controle de páginas, usa a configuração do AS(Entradas por página) de 5 a 100 relatórios/página.">
+            Carregar
+            <input type="number" name="loadPages" id="go-farm-load-pages" min="1" max="10" value="1">
+            Página(s)
+          </label>
+          <!-- <label class="go-label" for="go-farm-load-distance" title="Distância máxima em campos para carregar os relatórios.">
+            Carregar até a distância de
+            <input type="number" name="loadDistance" id="go-farm-load-distance" min="1" max="200" value="20">
+            Campos
+          </label> -->
+        </div>
+
+        <div title="Tempo para não atacar(farm) novamente o mesmo relatório(entre 1 e 30 min).
+Não repetir ataques nas trocas de páginas e principalmente quando se tem uma única vila.">
+          <label class="go-label" for="go-farm-time-no-repeat">
+            <input type="number" name="timeNoRepeat" id="go-farm-time-no-repeat" min="1" max="30" value="10">
+            Repetição(min)
+          </label>
+        </div>
+
+        <div class="go-border none">
+          Ordenar os relatórios por
+          <span class="go-base">
+            <label class="go-label" for="go-order-distance">
+              <input type="radio" name="orderBy" id="go-order-distance" value="distance">
+              Distancia
+            </label>
+            <label class="go-label" for="go-order-time">
+              <input type="radio" name="orderBy" id="go-order-time" value="time">
+              Tempo
+            </label>
+          </span>
+          <span class="go-end go-base">
+            <label class="go-label" for="go-order-asc">
+              <input type="radio" name="orderDir" id="go-order-asc" value="asc">
+              Ascendente
+            </label>
+            <label class="go-label" for="go-order-desc">
+              <input type="radio" name="orderDir" id="go-order-desc" value="desc">
+              Descendente
+            </label>
+          </span>
+        </div>
+      </div>
+      <div style="margin-top: 0.4rem;display: none;">
+        <input type="checkbox" name="priority:Active" id="go-farm-priority">
+        <label class="go-label" for="go-farm-priority">
+          Atacar primeiro os relatórios com saque completos até a
+          <label for="go-farm-priority-distance">
+            distância de
+            <input type="number" name="priority:distance" id="go-farm-priority-distance" min="1" max="200" value="20">
+            campos
+          </label>
+        </label>
+      </div>
+    </div>
+
+    <div class="go-border">
+    <!-- <div class="go-border" style="display: flex; flex-direction: row;"> -->
+      <h5>Quebrar Muralhas: </h5>
+      <!-- <span class="go-farm-status">Em desenvolvimento</span> -->
+      <div class="go-farm-separator">
+        <span>
+          <label class="go-label" title="Ativar ou desativar quebrar muralhas auto" for="breakWall:active">
+            <img src="https://dsbr.innogamescdn.com/asset/4e165360/graphic/buildings/wall.webp" class="" data-title="">
+          </label>
+          <input type="checkbox" name="breakWall:active" id="breakWall:active" class="toggle">
+          <label class="go-label"  title="Ativar ou desativar quebrar muralhas auto" for="breakWall:active"></label>
+        </span>
+        <label class="go-label" for="breakWall:maxDistance" title="Distância máxima em campos para atacar.">
+          Distância máxima
+          <input type="number" name="breakWall:maxDistance" id="a:maxDistance" min="1" max="200" value="20">
+          Campos
+        </label>
+        <span>
+          <label for="breakWall-template" class="go-label" title="Selecione o modelo padrão para ser usado não houver informação de nível da muralha.">
+            Modelo padrão:
+            <select name="breakWall:template" id="breakWall-template"></select>
+          </label>
+          <a id="go-farm-edit-template-buttom" title="Editar o modelo selecionado.">✏️</a>
+        </span>
+        <div class="go-farm-types go-border" title="Marque os relatórios para ativar.
+Obs: Relatórios verdes e com muro maior do que zero envia ataque por padrão.
+        ">
+          <span>
+            <input type="checkbox" name="breakWall:blue" id="breakWall:blue">
+            <label class="go-label" for="breakWall:blue">
+              <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/blue.webp">
+              Explorado
+            </label>
+          </span>
+          <span>
+            <input type="checkbox" name="breakWall:yellow" id="breakWall:yellow">
+            <label class="go-label" for="breakWall:yellow">
+              <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp">
+              Perdas
+            </label>
+          </span>
+          <span>
+            <input type="checkbox" name="breakWall:red" id="breakWall:red">
+            <label class="go-label" for="breakWall:red">
+              <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red.webp">
+              Derrotado
+            </label>
+          </span>
+        </div>
+      </div>
+      <div id="go-farm-edit-template" class="go-farm-separator go-border"></div>
+    </div>
+
+    <div class="go-border">
+      <span class="go-links" style="margin-bottom: 0.5rem;">
+        <h5>Bárbaras com tropas: </h5>
+        <a id="go-farm-alive-show" title="Ver bárbaras com tropas.">🔍</a>
+      </span>
+
+      <div class="" id="go-farm-alive"></div>
+
+    </div>
+
+    <div class="go-border">
+      <h5 style="margin-bottom: 0.5rem;">Botões e Filtros:</h5>
+      <div class="go-border" style="border:none;">
+        <p>A configuração dos filtros dos botões não sobrepõe a configuração do AS '<b>Últimos saques</b>', lembre-se de também configurá-la de acordo com os filtros dos botões.</p>
+        <p style="display: inline-flex;align-items: center;gap: 0.5rem;">Se o relatório corresponder ao filtro do botão o ataque(farm) sera enviado. Ordem de verificação: <span class="farm_icon farm_icon_c decoration"></span> ⇨ <span class="farm_icon farm_icon_a decoration"></span> ⇨ <span class="farm_icon farm_icon_b decoration"></span></p>
+      </div>
+
+      <div class="go-farm-separator">
+        <div class="go-farm-buttons go-col go-border broun">
+          <span class="go-farm-ico">
+            <label class="go-label" title="Ativar ou desativar o botão" for="c:active">
+              <span class="farm_icon farm_icon_c decoration"></span>
+            </label>
+            <input type="checkbox" name="c:active" id="c:active" class="toggle">
+            <label class="go-label" for="c:active"></label>
+          </span>
+
+          <div class="go-farm-buttons-content go-col">
+            <label class="go-label" for="c:maxDistance" title="Distância máxima em campos para atacar.">
+              Distância máxima
+              <input type="number" name="c:maxDistance" id="c:maxDistance" min="1" max="200" value="20">
+              Campos
+            </label>
+
+            <label class="go-label" for="c:maxWall" title="Níve máximo da muralha quando explorado.">
+              Muralha máxima nível
+              <input type="number" name="c:maxWall" id="c:maxWall" min="0" max="20" value="0">
+            </label>
+
+            <div class="go-farm-lott go-col go-col go-border ridge" id="lott-0">
+              <span>
+                <input name="c:0:active" type="checkbox" id="c:0:active">
+                <label class="go-label" for="c:0:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/0.webp" data-title="Saque parcial: Seus soldados saquearam tudo o que encontram.">
+                  Saque parcial
+                </label>
+              </span>
+
+              <label class="go-label" for="c:0:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="c:0:maxAttacks" id="c:0:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="c:0:green" id="c:0:green">
+                  <label class="go-label" for="c:0:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="c:0:yellow" id="c:0:yellow">
+                  <label class="go-label" for="c:0:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-1">
+              <span>
+                <input type="checkbox" name="c:1:active" id="c:1:active">
+                <label class="go-label" for="c:1:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/1.webp" data-title="Saque completo: os seus soldados saquearam tudo o que foi possível de carregar.">
+                  Saque completo
+                </label>
+              </span>
+              <label class="go-label" for="c:1:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="c:1:maxAttacks" id="c:1:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="c:1:green" id="c:1:green">
+                  <label class="go-label" for="c:1:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="c:1:yellow" id="c:1:yellow">
+                  <label class="go-label" for="c:1:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-none">
+              <span>
+                <input type="checkbox" name="c:none:active" id="c:none:active">
+                <label class="go-label" for="c:none:active">Nenhum saque</label>
+              </span>
+              <label class="go-label" for="c:none:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="c:none:maxAttacks" id="go-farm-a-none-max-attacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="c:none:blue" id="c:none:blue">
+                  <label class="go-label" for="c:none:blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/blue.webp">
+                    Explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="c:none:red_blue" id="c:none:red_blue">
+                  <label class="go-label" for="c:none:red_blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_blue.webp">
+                    Derrotado e explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="c:none:red_yellow" id="c:none:red_yellow">
+                  <label class="go-label" for="c:none:red_yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_yellow.webp">
+                    Derrotado e danificou edifícios
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="c:none:red" id="c:none:red">
+                  <label class="go-label" for="c:none:red">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red.webp">
+                    Derrotado
+                  </label>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="go-farm-buttons go-col go-border broun">
+
+          <span class="go-farm-ico">
+            <label class="go-label" title="Ativar ou desativar o botão" for="a:active">
+              <span class="farm_icon farm_icon_a decoration"></span>
+            </label>
+            <input type="checkbox" name="a:active" id="a:active" class="toggle">
+            <label class="go-label" for="a:active"></label>
+          </span>
+
+          <div class="go-farm-buttons-content go-col">
+            <label class="go-label" for="a:maxDistance" title="Distância máxima em campos para atacar.">
+              Distância máxima
+              <input type="number" name="a:maxDistance" id="a:maxDistance" min="1" max="200" value="20">
+              Campos
+            </label>
+
+            <label class="go-label" for="a:maxWall" title="Níve máximo da muralha.">
+              Muralha máxima nível
+              <input type="number" name="a:maxWall" id="a:maxWall" min="0" max="20" value="0">
+            </label>
+
+            <div class="go-farm-lott go-col go-col go-border ridge" id="lott-0">
+              <span>
+                <input name="a:0:active" type="checkbox" id="a:0:active">
+                <label class="go-label" for="a:0:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/0.webp" data-title="Saque parcial: Seus soldados saquearam tudo o que encontram.">
+                  Saque Parcial
+                </label>
+              </span>
+
+              <label class="go-label" for="a:0:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="a:0:maxAttacks" id="a:0:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="a:0:green" id="a:0:green">
+                  <label class="go-label" for="a:0:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="a:0:yellow" id="a:0:yellow">
+                  <label class="go-label" for="a:0:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-1">
+              <span>
+                <input type="checkbox" name="a:1:active" id="a:1:active">
+                <label class="go-label" for="a:1:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/1.webp" data-title="Saque completo: os seus soldados saquearam tudo o que foi possível de carregar.">
+                  Saque completo
+                </label>
+              </span>
+              <label class="go-label" for="a:1:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="a:1:maxAttacks" id="a:1:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="a:1:green" id="a:1:green">
+                  <label class="go-label" for="a:1:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="a:1:yellow" id="a:1:yellow">
+                  <label class="go-label" for="a:1:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-none">
+              <span>
+                <input type="checkbox" name="a:none:active" id="a:none:active">
+                <label class="go-label" for="a:none:active">Nenhum saque</label>
+              </span>
+              <label class="go-label" for="a:none:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="a:none:maxAttacks" id="go-farm-a-none-max-attacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="a:none:blue" id="a:none:blue">
+                  <label class="go-label" for="a:none:blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/blue.webp">
+                    Explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="a:none:red_blue" id="a:none:red_blue">
+                  <label class="go-label" for="a:none:red_blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_blue.webp">
+                    Derrotado e explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="a:none:red_yellow" id="a:none:red_yellow">
+                  <label class="go-label" for="a:none:red_yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_yellow.webp">
+                    Derrotado e danificou edifícios
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="a:none:red" id="a:none:red">
+                  <label class="go-label" for="a:none:red">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red.webp">
+                    Derrotado
+                  </label>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="go-farm-buttons go-col go-border broun">
+          <span class="go-farm-ico">
+            <label class="go-label" title="Ativar ou desativar o botão" for="b:active">
+              <span class="farm_icon farm_icon_b decoration"></span>
+            </label>
+            <input type="checkbox" name="b:active" id="b:active" class="toggle">
+            <label class="go-label" for="b:active"></label>
+          </span>
+
+          <div class="go-farm-buttons-content go-col">
+            <label class="go-label" for="b:maxDistance" title="Distância máxima em campos para atacar.">
+              Distância máxima
+              <input type="number" name="b:maxDistance" id="b:maxDistance" min="1" max="200" value="20">
+              Campos
+            </label>
+
+            <label class="go-label" for="b:maxWall" title="Níve máximo da muralha.">
+              Muralha máxima nível
+              <input type="number" name="b:maxWall" id="b:maxWall" min="0" max="20" value="0">
+            </label>
+
+            <div class="go-farm-lott go-col go-col go-border ridge" id="lott-0">
+              <span>
+                <input name="b:0:active" type="checkbox" id="b:0:active">
+                <label class="go-label" for="b:0:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/0.webp" data-title="Saque parcial: Seus soldados saquearam tudo o que encontram.">
+                  Saque parcial
+                </label>
+              </span>
+
+              <label class="go-label" for="b:0:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="b:0:maxAttacks" id="b:0:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="b:0:green" id="b:0:green">
+                  <label class="go-label" for="b:0:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="b:0:yellow" id="b:0:yellow">
+                  <label class="go-label" for="b:0:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-1">
+              <span>
+                <input type="checkbox" name="b:1:active" id="b:1:active">
+                <label class="go-label" for="b:1:active">
+                  <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/max_loot/1.webp" data-title="Saque completo: os seus soldados saquearam tudo o que foi possível de carregar.">
+                  Saque completo
+                </label>
+              </span>
+              <label class="go-label" for="b:1:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="b:1:maxAttacks" id="b:1:maxAttacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="b:1:green" id="b:1:green">
+                  <label class="go-label" for="b:1:green">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/green.webp">
+                    Vitória total
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="b:1:yellow" id="b:1:yellow">
+                  <label class="go-label" for="b:1:yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/yellow.webp" class="" data-title="Perdas">
+                    Perdas
+                  </label>
+                </span>
+              </div>
+            </div>
+
+            <div class="go-farm-lott go-col go-border ridge" id="lott-none">
+              <span>
+                <input type="checkbox" name="b:none:active" id="b:none:active">
+                <label class="go-label" for="b:none:active">Nenhum saque</label>
+              </span>
+              <label class="go-label" for="b:none:maxAttacks" title="Número máximo de ataques por vila.">
+                Máximo
+                <input type="number" name="b:none:maxAttacks" id="go-farm-a-none-max-attacks" min="1" max="1000" value="5">
+                ataques
+              </label>
+              <div class="go-farm-types go-border">
+                <span>
+                  <input type="checkbox" name="b:none:blue" id="b:none:blue">
+                  <label class="go-label" for="b:none:blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/blue.webp">
+                    Explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="b:none:red_blue" id="b:none:red_blue">
+                  <label class="go-label" for="b:none:red_blue">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_blue.webp">
+                    Derrotado e explorado
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="b:none:red_yellow" id="b:none:red_yellow">
+                  <label class="go-label" for="b:none:red_yellow">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red_yellow.webp">
+                    Derrotado e danificou edifícios
+                  </label>
+                </span>
+                <span>
+                  <input type="checkbox" name="b:none:red" id="b:none:red">
+                  <label class="go-label" for="b:none:red">
+                    <img src="https://dsbr.innogamescdn.com/asset/c001af66/graphic/dots/red.webp">
+                    Derrotado
+                  </label>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <span class="go-end go-base">
+      <button class="btn" style="width: 200px; float: inherit;" type="submit">Salvar</button>
+    </span>
+  </div>
+</form>
