@@ -26,11 +26,14 @@ export function createSearchBarbariansConfigSection() {
           sectionApi.setStatus('Sem requerimentos', 'danger', missingReason);
         }
         const url = new URL(window.location.href)
+        const btnUrl = new URL(gameData.link_base_pure, window.location.origin)
+        btnUrl.searchParams.set('screen', 'premium')
+        btnUrl.searchParams.set('mode', 'use')
         container.innerHTML = `
           <div class="go-bvcp-missing-reqs">
             <div class="go-bvcp-missing-reqs-text">${missingReason}</div>
             ${url.searchParams.get('screen') !== 'premium' && url.searchParams.get('mode') !== 'use' ? (`
-              <a href="${gameData.link_base_pure}premium&mode=use" class="btn go-bvcp-action-button">Ativar</a>
+              <a href="${btnUrl.toString()}" class="btn go-bvcp-action-button">Ativar</a>
             `) : ''}
           </div>
         `;
