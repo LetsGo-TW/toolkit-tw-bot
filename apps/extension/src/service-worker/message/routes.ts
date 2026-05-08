@@ -6,6 +6,7 @@ import { setEnabledByUser } from "../enabled-by-user/runtime";
 import { handleIncomingWatch } from "../incoming/runtime";
 import { handleLogin } from "../login/runtime";
 import { getBotViewStatus } from "../controller/bot-view-status";
+import { waitForRunnerControllerScopeIdle } from "../controller/runner-controller";
 import { handleRunnerExecutionReport, handleScriptExecutionSync } from "../controller/runtime";
 import {
   handleFarmConfigChanged,
@@ -13,6 +14,7 @@ import {
   handleFarmStateChanged,
 } from '../farm-max'
 import { getPopupState } from "../popup-state";
+import { getTabContext } from "../prepared-context";
 import { registerPreparedCtx, syncGameStage, syncSupportCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
 import { setReconnectOnSessionExpired } from "../reconnect-on-session-expired/runtime";
@@ -112,10 +114,27 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       } catch (error) {
         console.error('[SW][FARM_MAX][RUNNER_REPORT]', error)
       }
-      return handleRunnerExecutionReport(
-        received,
-        sender as chrome.runtime.MessageSender,
-      );
+      {
+        const response = await handleRunnerExecutionReport(
+          received,
+          sender as chrome.runtime.MessageSender,
+        );
+        const scopeKey = getTabContext(sender?.tab?.id ?? null)?.scopeKey ?? null;
+
+        if (scopeKey) {
+          await waitForRunnerControllerScopeIdle(scopeKey);
+        }
+
+        const botViewStatus = await getBotViewStatus(
+          received,
+          sender as chrome.runtime.MessageSender,
+        );
+
+        return {
+          ...response,
+          botViewStatus,
+        };
+      }
     case VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE:
       return verifyWorldPlayerLicense(received);
     case SET_ENABLED_BY_USER_MESSAGE_TYPE:

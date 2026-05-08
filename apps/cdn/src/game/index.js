@@ -337,6 +337,39 @@ function formatBotViewExecutionStatusLabel() {
   return botViewStatusSyncState.executionText || 'Aguardando'
 }
 
+function applyBotViewStatusResponse(response = null) {
+  const root = response && typeof response === 'object'
+    ? response
+    : null
+  const payload = root?.botViewStatus && typeof root.botViewStatus === 'object'
+    ? root.botViewStatus
+    : root
+
+  if (!payload || typeof payload !== 'object') {
+    return false
+  }
+
+  const hasKnownFields = (
+    hasOwn(payload, 'currentTitle')
+    || hasOwn(payload, 'nextAt')
+    || hasOwn(payload, 'nextTitle')
+  )
+
+  if (!hasKnownFields) {
+    return false
+  }
+
+  botViewStatusSyncState.currentTitle = normalizeNonEmptyString(payload.currentTitle)
+  botViewStatusSyncState.nextAt = Number.isFinite(Number(payload.nextAt))
+    ? Number(payload.nextAt)
+    : null
+  botViewStatusSyncState.nextTitle = normalizeNonEmptyString(payload.nextTitle)
+  renderBotViewCurrentStatus()
+  renderBotViewNextStatus()
+
+  return true
+}
+
 function setBotViewExecutionStatusText(value = null) {
   botViewStatusSyncState.executionText = normalizeNonEmptyString(value)
   renderBotViewCurrentStatus()
@@ -430,11 +463,7 @@ async function refreshBotViewNextStatus() {
         type: GET_BOT_VIEW_STATUS,
       })
 
-      botViewStatusSyncState.currentTitle = normalizeNonEmptyString(response?.currentTitle)
-      botViewStatusSyncState.nextAt = Number.isFinite(Number(response?.nextAt))
-        ? Number(response.nextAt)
-        : null
-      botViewStatusSyncState.nextTitle = normalizeNonEmptyString(response?.nextTitle)
+      applyBotViewStatusResponse(response)
     } catch {
       botViewStatusSyncState.currentTitle = null
       botViewStatusSyncState.nextAt = null
@@ -497,7 +526,7 @@ async function reportExecutionState({
   }
 
   try {
-    return await sendMessageToExtension({
+    const response = await sendMessageToExtension({
       type: RUNNER_EXECUTION_REPORT,
       action: normalizeNonEmptyString(action) ?? gameState.currentControllerAction,
       status: normalizedStatus,
@@ -512,6 +541,12 @@ async function reportExecutionState({
       },
       snapshot: getGameStateSnapshot(),
     })
+
+    if (!applyBotViewStatusResponse(response)) {
+      void refreshBotViewNextStatus()
+    }
+
+    return response
   } catch (reportError) {
     console.error(`[${RUNNER_EXECUTION_REPORT}]`, reportError)
     return null

@@ -1366,3 +1366,21 @@ export function getRunnerControllerScopeState(scopeKey?: string | null) {
     lastDispatchAt: scopeState.lastDispatchAt,
   }
 }
+
+export async function waitForRunnerControllerScopeIdle(scopeKey?: string | null) {
+  const normalizedScopeKey = normalizeString(scopeKey)
+
+  if (!normalizedScopeKey) {
+    return
+  }
+
+  await ensureRunnerControllerInitialized()
+
+  const scopeState = scopeRuntimeStateByScope.get(normalizedScopeKey)
+
+  if (!scopeState) {
+    return
+  }
+
+  await scopeState.transitionChain.catch(() => {})
+}
