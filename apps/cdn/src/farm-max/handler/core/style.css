@@ -1,0 +1,49 @@
+.toggle {
+  display: none;
+}
+
+.toggle + label {
+  display: inline-block;
+  position: relative;
+  box-shadow: inset 0 0 0px 0.1px black;
+  height: 12px;
+  width: 24px;
+  background-color: red;
+  border-radius: 6px;
+  margin-left: 1px;
+  margin-top: 5px;
+  cursor: pointer;
+}
+
+.toggle + label:before {
+  content: "";
+  display: block;
+  height: 12px;
+  width: 12px;
+  border-radius: 6px;
+  background: rgba(191, 87, 17, 0);
+  transition: 0.2s ease-in-out;
+}
+
+.toggle + label:after {
+  content: "";
+  position: absolute;
+  height: 12px;
+  width: 12px;
+  top: 0; left: -2px;
+  border-radius: 6px;
+  background: rgb(82, 73, 73);
+  box-shadow: inset 0 0 0 2px red, 2px 4px rgba(59, 55, 55, 0.3);
+  transition: 0.2s ease-in-out;
+}
+
+.toggle:checked + label:before {
+  box-shadow: inset 0 0 0px 0.1px black;
+  width: 24px;
+  background: #13bf11;
+}
+
+.toggle:checked + :after {
+  left: 12px;
+  box-shadow: inset 0 0 0 2px #13bf11, 2px 4px rgba(59, 55, 55, 0.3);
+}
