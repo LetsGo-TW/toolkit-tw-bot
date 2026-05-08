@@ -16,4 +16,20 @@ export class DynamicRuntime {
     )
     return mod.default
   }
+
+  static "farm-handler" = async () => {
+    const mod = await import(
+      /* webpackChunkName: "farm-handler-runtime" */
+      './farm-max/handler/index.js'
+    )
+    return mod.default
+  }
+
+  static "farm-schedules" = async () => {
+    const mod = await import(
+      /* webpackChunkName: "farm-schedules-runtime" */
+      './farm-max/schedules/index.js'
+    )
+    return mod.default
+  }
 }

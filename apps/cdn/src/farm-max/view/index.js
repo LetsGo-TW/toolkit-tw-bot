@@ -8,6 +8,7 @@ import { initBreakWallConfig, storageBreakWallTemplates } from "../config/break-
 import { getAllAliveTargets } from "../handler/alive-targets";
 import { Distance } from "@toolkit-tw-bot/core";
 import { getGameData } from "@toolkit-tw-bot/document";
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
 
 const handlerGroups = new Groups()
 
@@ -40,6 +41,19 @@ async function onClickActive(e) {
   await storageConfigFarm.set(config)
   await setStatusMessage()
   window.postMessage({ source, target, action: "set-farm-active", args: { active: config.active } });
+
+  // Avisa o Service Worker para recalcular a máquina de estados/alarmes
+  try {
+    const gameData = getGameData()
+    chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      extensionId: RELEASE_EXTENSION_ID,
+      type: 'FARM_STATE_CHANGED',
+      world: gameData?.world,
+      playerId: parseInt(gameData?.player?.id, 10),
+    }).catch(() => null);
+  } catch (err) {}
+
+  console.log('[FARM_STATE_CHANGED]: ', config)
 }
 
 // async function configOpen() {
@@ -91,11 +105,24 @@ async function goFormSubmit(event) {
   }, {});
   await storageConfigFarm.set(data)
   await updateNextFarm()
+
+  // Avisa o Service Worker que o 'season' ou outras configs mudaram
+  try {
+    const gameData = getGameData()
+    chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      extensionId: RELEASE_EXTENSION_ID,
+      type: 'FARM_CONFIG_CHANGED',
+      world: gameData?.world,
+      playerId: parseInt(gameData?.player?.id, 10),
+    }).catch(() => null);
+  } catch (err) {}
   printMessage.success('Configurações salvas com sucesso!', 3000)
+  console.log('[FARM_CONFIG_CHANGED]: ', data)
 }
 
 async function updateNextFarm() {
   const config = await storageConfigFarm.get() || configBase
+  const newNextFarm = document.querySelector('#go-farm-header-next-time')
   const goNextFarm = document.querySelector('#go-next-farm')
   const goLastFarm = document.querySelector('#go-last-farm')
   if (!goNextFarm || !goLastFarm) return
@@ -105,12 +132,30 @@ async function updateNextFarm() {
   goLastFarm.value = last ? String(last) : ''
 
   if (!last) {
-    goNextFarm.textContent = ''
+    goNextFarm.textContent = '';
+    if (newNextFarm) newNextFarm.textContent = '';
     return
   }
 
-  const nextSchedules = new Date((last + (config.season * 60)) * 1000).toLocaleString()
-  goNextFarm.textContent = `Próximo agendamento: ${nextSchedules}(SO)`
+  const nextTimestampMs = (last + (config.season * 60)) * 1000;
+  const nextDate = new Date(nextTimestampMs);
+
+  // Formata a data para o padrão do TW (dd.mm.yy HH:MM:SS) para ser inequívoco,
+  // em vez de usar toLocaleString() que depende do fuso horário do usuário.
+  // Usamos os métodos UTC para ter uma base consistente, já que o timestamp do servidor
+  // é um valor absoluto (como UTC). O horário do servidor do TW (ex: UK) é muito próximo de UTC.
+  const day = nextDate.getUTCDate().toString().padStart(2, '0');
+  const month = (nextDate.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = nextDate.getUTCFullYear().toString().slice(-2);
+  const hours = nextDate.getUTCHours().toString().padStart(2, '0');
+  const minutes = nextDate.getUTCMinutes().toString().padStart(2, '0');
+  const seconds = nextDate.getUTCSeconds().toString().padStart(2, '0');
+  
+  const nextSchedules = `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+
+  const text = `Próximo agendamento: ${nextSchedules}`;
+  goNextFarm.textContent = text;
+  if (newNextFarm) newNextFarm.textContent = text;
 }
 
 async function insertConfig() {
@@ -144,6 +189,7 @@ async function insertConfig() {
         elem.value = config[key];
     }
   })
+  console.log('[INSERT CONGIG]: ', config)
 
   await updateNextFarm()
 }
@@ -222,6 +268,8 @@ async function renderSchedules() {
     return
   }
 
+  const gameData = getGameData()
+
   const nodes = schedules.values.map((village, i) => {
     const nodes = Object.keys(village.units).reduce((node, key) => {
       if (!['catapult', 'ram'].includes(key)) {
@@ -239,16 +287,23 @@ async function renderSchedules() {
       return node
     }, [])
 
+    const baseUrl = new URL(gameData.link_base_pure, window.location.origin)
+    baseUrl.searchParams.set('village', village.id)
+    const overviewUrl = new URL(baseUrl)
+    overviewUrl.searchParams.set('screen', 'overview')
+    const amFarmUrl = new URL(baseUrl)
+    amFarmUrl.searchParams.set('screen', 'am_farm')
+
     return `
       <div class="go-farm-schedules" id="item:${village.id}">
         <span>
-          <span data-go-title="Ir para a visualização da aldeia.">${i + 1}. <a href="/game.php?village=${village.id}&screen=overview"><span>${village.name}</span></a></span>
+          <span data-go-title="Ir para a visualização da aldeia.">${i + 1}. <a href="${overviewUrl.toString()}"><span>${village.name}</span></a></span>
           <span>
             ${nodes.join('')}
           </span>
         </span>
         <span>
-          <span>~ ${parseInt(village.max)} <a href="/game.php?village=${village.id}&screen=am_farm" data-go-title="Ir para AS da aldeia."><img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/icons/farm_assistent.webp" style="width: 16px; height: 16px;"></a></span>
+          <span>~ ${parseInt(village.max)} <a href="${amFarmUrl.toString()}" data-go-title="Ir para AS da aldeia."><img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/icons/farm_assistent.webp" style="width: 16px; height: 16px;"></a></span>
           <img name="${village.id}" class="cancel_link_icon" src="https://dsbr.innogamescdn.com/asset/fa087e61/graphic/delete.png" alt="Cancelar" data-go-title="Cancelar">
         </span>
       </div>
@@ -306,11 +361,32 @@ async function renderAlives() {
         `
       })
 
+      const baseUrl = new URL(gameData.link_base_pure, window.location.origin)
+      
+      const infoUrl = new URL(baseUrl)
+      infoUrl.searchParams.set('screen', 'info_village')
+      infoUrl.searchParams.set('id', target)
+
+      const simUrl = new URL(baseUrl)
+      simUrl.searchParams.set('screen', 'place')
+      simUrl.searchParams.set('mode', 'sim')
+      simUrl.searchParams.set('only_survive', '1')
+      simUrl.searchParams.set('report_id', report_id)
+
+      const reportUrl = new URL(baseUrl)
+      reportUrl.searchParams.set('screen', 'report')
+      reportUrl.searchParams.set('mode', 'all')
+      reportUrl.searchParams.set('view', report_id)
+
+      const placeUrl = new URL(baseUrl)
+      placeUrl.searchParams.set('screen', 'place')
+      placeUrl.searchParams.set('target', target)
+
       return `
           <div class="go-farm-alive go-border">
             <span>
               <span data-go-title="Ir para a visualização da aldeia.">${i + 1}.
-                <a href="/game.php?village=${gameData.village.id}&screen=info_village&id=${target}">
+                <a href="${infoUrl.toString()}">
                   <span>${`(${x}|${y}) K${ko}`}</span>
                 </a>
               </span>
@@ -327,11 +403,11 @@ async function renderAlives() {
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/rechts.webp">
                 ${calculateDistance.round({x, y}).toFixed(2)}
               </span>
-                <a href="/game.php?village=${gameData.village.id}&screen=place&mode=sim&only_survive&report_id=${report_id}" data-go-title="Simulador">🧮</a>
-                <a href="/game.php?village=${gameData.village.id}&screen=report&mode=all&view=${report_id}" data-go-title="Relatório.">
+                <a href="${simUrl.toString()}" data-go-title="Simulador">🧮</a>
+                <a href="${reportUrl.toString()}" data-go-title="Relatório.">
                 <span id="new_report" class="icon header new_report"></span>
               </a>
-                <a href="/game.php?village=${gameData.village.id}&screen=place&target=${target}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" data-go-title="Praça">
+                <a href="${placeUrl.toString()}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" data-go-title="Praça">
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/buildings/place.webp">
               </a>
             </span>
@@ -413,17 +489,16 @@ async function render(containerElement = null) {
     target.prepend(elemHtml)
   }
 
-  handlerGroups.get()
-    .then(groups => {
-      const htmlGroup = groups.map(e => {
-        return `<option value=${e.group_id}>${e.name}</option>`
-      })
-      const goFarmGroup = document.querySelector('#go-farm-group')
-      goFarmGroup.innerHTML = htmlGroup
+  try {
+    const groups = await handlerGroups.get()
+    const htmlGroup = groups.map(e => {
+      return `<option value="${e.group_id}">${e.name}</option>`
     })
-    .catch(error => {
-      console.error(error.message || error.toString())
-    });
+    const goFarmGroup = document.querySelector('#go-farm-group')
+    goFarmGroup.innerHTML = htmlGroup.join('')
+  } catch (error) {
+    console.error(error.message || error.toString())
+  }
 
   await renderBreakWallTemplates()
 
@@ -440,6 +515,16 @@ async function render(containerElement = null) {
   const onClickResetFarm = async () => {
     await storageConfigFarm.set({ ...configBase, last: 0 })
     await insertConfig()
+
+    // Avisa o Service Worker para zerar os alarmes e forçar a execução na mesma hora
+    try {
+      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+        extensionId: RELEASE_EXTENSION_ID,
+        type: 'FARM_CONFIG_CHANGED',
+        world: getGameData()?.world,
+        playerId: parseInt(getGameData()?.player?.id, 10),
+      }).catch(() => null);
+    } catch (err) {}
   }
 
   // const goFarmConfig = document.querySelector('#go-farm-config')

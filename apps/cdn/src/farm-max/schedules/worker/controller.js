@@ -19,11 +19,20 @@ export default class Controller {
 
   #init () {
     emitter.on('startProcess', (data) => {
-      this.#worker ? (
-        this.#worker.postMessage({ ...data })
-      ) : (
-        this.#executeInPage(data)
-      )
+      if (this.#worker) {
+        // O objeto Headers não pode ser clonado para o worker.
+        // É necessário convertê-lo para um objeto simples antes de enviar.
+        if (data.dataRequests) {
+          for (const request of data.dataRequests) {
+            if (request.init && request.init.headers instanceof Headers) {
+              request.init.headers = Object.fromEntries(request.init.headers.entries());
+            }
+          }
+        }
+        this.#worker.postMessage({ ...data });
+      } else {
+        this.#executeInPage(data);
+      }
     })
 
     emitter.on('stopProcess', (data) => {

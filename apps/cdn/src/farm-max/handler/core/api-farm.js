@@ -138,9 +138,9 @@ function startPageWatchdog(w, d, ifr, api, data) {
 
       const aindaTemTropa = Math.max(...Object.values(calcFarmsPerModels(transformUnitsFarm(data.village?.units) || [], data.models, data.configData))) > 0;
       if (data.pages?.length && data.page < data.totalPages && aindaTemTropa && data.count < data.totalItens) {
-        return apiFarmNavigate(ifr, api, data);
+        return await apiFarmNavigate(ifr, api, data);
       }
-      return apiFarmTerminate(api, data);
+      return await apiFarmTerminate(api, data);
     }
   }, 1000);
 
@@ -177,7 +177,7 @@ async function apiFarmNavigate(ifr, api, data, { claimed = false } = {}) {
     console.warn("[navigate] O Total de páginas configurado foi atingido.", nextUrl);
     api.footer.set?.(`O Total de páginas configurado foi atingido.`, 'warn');
     await sleep(1000, 1111);
-    apiFarmClose(api, data, { claimed: true });
+        await apiFarmClose(api, data, { claimed: true });
     return;
   }
   data._visited.add(nextUrl);
@@ -200,18 +200,25 @@ const goToPage = async (event) => {
   if (!api || !ifr || !data?.url) { await apiFarmTerminate(api, data); return; }
 
   const u = new URL(data.url, location.href);
-  if (u.origin !== location.origin) { apiFarmTerminate(api, data); return; }
+  if (u.origin !== location.origin) { await apiFarmTerminate(api, data); return; }
 
   let w, d;
   try {
     ({ w, d } = await api.navigate(u.href));
   } catch (err) {
     console.warn("[go-to-page] navegação falhou/timeout. Fluxo já encerrado.", err);
-    apiFarmTerminate(api, data)
+    await apiFarmTerminate(api, data)
     return;
   }
 
-  await apiFarm(w, d, ifr, api, data);
+  try {
+    await apiFarm(w, d, ifr, api, data);
+  } catch (error) {
+    if (error?.message === 'Identified bot protection') {
+      return await whenThereIsAnError(api, data);
+    }
+    throw error;
+  }
 };
 
 async function apiFarmClose(api, data, { claimed = false } = {}) {
@@ -219,7 +226,7 @@ async function apiFarmClose(api, data, { claimed = false } = {}) {
   setPageTransition(data, "close");
   try { controller.abort("Closed."); } catch { /* intentionally empty */ }
   await updateSchedules();
-  apiFarmTerminate(api, data);
+  await apiFarmTerminate(api, data);
 }
 
 // -------- terminate central (idempotente) --------
@@ -295,6 +302,18 @@ async function whenThereIsAnError(api, data, { claimed = false } = {}) {
   await apiFarmTerminate(api, data);
 }
 
+async function requestApiFarmStop(api, data, { reason = "Stopped by controller." } = {}) {
+  if (!api || !data || data.__terminated) return;
+  if (!claimPageTransition(data, "external-stop")) return;
+
+  setPageTransition(data, "terminate");
+
+  try { controller.abort(reason); } catch { /* intentionally empty */ }
+  try { api.footer.set(`Execucao interrompida.`, "warn"); } catch { /* intentionally empty */ }
+
+  await apiFarmTerminate(api, data);
+}
+
 // -------- utilidades de tabela --------
 function skipReportPlunderListHtml(plunderListHtml, index) {
   plunderListHtml.splice(index, 1)[0].remove();
@@ -348,11 +367,6 @@ const apiFarm = async (
     try { api.isolatePlunderList(); api.presentCompactPlunder(); } catch { /* intentionally empty */ }
   });
 
-
-  // atualizar units a cada troca de página
-  // data.village.units = Array.from(ifr.contentDocument.querySelectorAll("td.unit-item"))
-  //   .map(unit => Number(unit.innerText.replace(/\D+/g,"")) || 0);
-
   // garante sessão da vila atual (não usa id na chave, só no payload)
   try {
     const vId = data?.village?.id;
@@ -368,12 +382,6 @@ const apiFarm = async (
       d.head.appendChild(style);
     }
   } catch (e) {}
-
-  // models da página
-  const models = getModels(ifr.contentDocument);
-  data.models = models;
-  await sleepAbort({ min: 1000, max: 1111 }, { signal: controller.signal });
-
   // anti-bot
   if (ProtectingBot["bot-protect-all-in-game"].active(d, w) || ProtectingBot["bot-protect-all-in-game"].active()) {
     api.footer.set(`hCaptcha identificado! Encerrando...`, "err");
@@ -381,108 +389,140 @@ const apiFarm = async (
     throw ProtectingBot.error();
   }
 
+  // models da página
+  await sleepAbort({ min: 1000, max: 1111 }, { signal: controller.signal });
+  const models = getModels(ifr.contentDocument);
+  if (!models || !Array.isArray(models) || models.length === 0) {
+    // Se não encontrar os modelos, é um erro crítico para a operação do farm.
+    // Lançar um erro aqui vai parar a execução da vila atual e exibir a mensagem no rodapé.
+    throw new Error("Modelos de farm (A, B, C) não foram encontrados na página.");
+  }
+  data.models = models;
+
+  // atualizar units a cada troca de página
+  // data.village.units = Array.from(ifr.contentDocument.querySelectorAll("td.unit-item"))
+  //   .map(unit => Number(unit.innerText.replace(/\D+/g,"")) || 0);
+
   startPageWatchdog(w, d, ifr, api, data);
 
-  // break wall
-  api.loader.show()
-  await handlerBreakWall(data, api, d, w)
-  // await updateSentsBlue(data, api, d, w)
-  await updateAliveTargets(data, api, d, w)
-  api.loader.hide()
+  try {
+    // break wall
+    api.loader.show()
+    await handlerBreakWall(data, api, d, w)
+    // await updateSentsBlue(data, api, d, w)
+    await updateAliveTargets(data, api, d, w)
+    api.loader.hide()
+  } catch (error) {
+    api.loader.hide();
+    if (error?.message === 'Identified bot protection') {
+      return await whenThereIsAnError(api, data);
+    }
+    console.error('Erro na fase inicial (BreakWall/AliveTargets):', error);
+    // Não re-lançamos o erro para não travar a UI (fica com loader infinito)
+    // e permitir que o bot continue o farm normal caso falhe um desses módulos.
+  }
 
   // fila local da página
   const queue = [];
 
   // passo do loop
   const step = async () => {
-    while (running.is_paused()) {
-      if (controller.signal.aborted) return;
-      await sleep(1000, 1500);
-    }
+    try {
+      while (running.is_paused()) {
+        if (controller.signal.aborted) return;
+        await sleep(1000, 1500);
+      }
 
-    const item = queue.shift();
+      const item = queue.shift();
 
-    if (
-      ProtectingBot["bot-protect-all-in-game"].active(d, w) ||
-      ProtectingBot["bot-protect-all-in-game"].active()
-    ) {
-      queue.length = 0;
-      throw ProtectingBot.error();
-    }
-
-    const avaliableButtons = await avaiableButtonsForReport(item);
-    const button = avaliableButtons.reduce((active, button) => {
       if (
-        !active &&
-        !d.querySelector(`#village_${item.target} a.farm_icon_${button}.farm_icon_disabled`) &&
-      calcFarmsPerModels(transformUnitsFarm(data.village.units), data.models, configData)[button] > 0
-      ) active = button
-      return active
-    }, undefined);
+        ProtectingBot["bot-protect-all-in-game"].active(d, w) ||
+        ProtectingBot["bot-protect-all-in-game"].active()
+      ) {
+        queue.length = 0;
+        throw ProtectingBot.error();
+      }
 
-    console.debug(`%c ${
-        button ? String(button).toLocaleUpperCase() : '🚫'
-      } %c units: [${
-        transformUnitsFarm(data.village.units).join(', ')
-      }] ${
-        button ? '🖱️' : '⏭️'
-      }`,
-      'background:#1976d2;color:#fff;padding:2px 6px;border-radius:4px',
-      'font-weight:700'
-    );
+      const avaliableButtons = await avaiableButtonsForReport(item);
+      const button = avaliableButtons.reduce((active, button) => {
+        if (
+          !active &&
+          !d.querySelector(`#village_${item.target} a.farm_icon_${button}.farm_icon_disabled`) &&
+        calcFarmsPerModels(transformUnitsFarm(data.village.units), data.models, configData)[button] > 0
+        ) active = button
+        return active
+      }, undefined);
 
-    api.ui.setButton(button)
+      console.debug(`%c ${
+          button ? String(button).toLocaleUpperCase() : '🚫'
+        } %c units: [${
+          transformUnitsFarm(data.village.units).join(', ')
+        }] ${
+          button ? '🖱️' : '⏭️'
+        }`,
+        'background:#1976d2;color:#fff;padding:2px 6px;border-radius:4px',
+        'font-weight:700'
+      );
 
-    if (button && !(await isAliveTarget(item.target))) { //villas com tropas
-      data.clicked = button;
-      const btn = item[button];
+      api.ui.setButton(button)
 
-      if (btn?.el && typeof btn.el.onclick === 'function') {
+      if (button && !(await isAliveTarget(item.target))) { //villas com tropas
+        data.clicked = button;
+        const btn = item[button];
+
+        if (btn?.el && typeof btn.el.onclick === 'function') {
+          try {
+            // 1. Manda direto (já possui o escopo atrelado por ser propriedade do objeto)
+            btn.el.onclick();
+          } catch (e) {
+            // 2. Manda call (força o escopo do this caso o direto falhe)
+            btn.el.onclick.call(btn.el);
+          }
+        } else if (btn?.action) {
+          btn.action(); // Fallback do disparador interno
+        } else if (btn?.el?.click) {
+          btn.el.click(); // 3. Último caso o click físico
+        }
+
+        // Esconde a linha instantaneamente após o clique para evitar lag de renderização do jQuery do TW
         try {
-          // 1. Manda direto (já possui o escopo atrelado por ser propriedade do objeto)
-          btn.el.onclick();
-        } catch (e) {
-          // 2. Manda call (força o escopo do this caso o direto falhe)
-          btn.el.onclick.call(btn.el);
+          const row = d.querySelector(`#village_${item.target}`);
+          if (row) {
+            row.classList.add('go-hidden');
+            // Puxa a próxima linha para cima instantaneamente para manter as 5 visíveis
+            const nextRow = Array.from(d.querySelectorAll('#plunder_list tr[id^="village_"]')).find(r => r.style.display === "none" && !r.classList.contains("go-hidden"));
+            if (nextRow) nextRow.removeAttribute("style");
+          }
+        } catch (e) {}
+
+        data.report = item;
+      } else {
+        const targetDisplay = `(${item.x}|${item.y}) K${String(item.y).padStart(3, 0).substring(0, 1)}${String(item.x).padStart(3, 0).substring(0, 1)}`
+        // nada clicável → pular a linha do ITEM (não a primeira!)
+        api.footer.set(`Pulou alvo ${targetDisplay}.`, "warn");
+
+        const { plunderList, plunderListHtml } = getPlunderList(d);
+        const idx = plunderList.findIndex(r => String(r.target) === String(item?.target));
+        if (idx >= 0) {
+          plunderList.splice(idx, 1);
+          skipReportPlunderListHtml(plunderListHtml, idx);
         }
-      } else if (btn?.action) {
-        btn.action(); // Fallback do disparador interno
-      } else if (btn?.el?.click) {
-        btn.el.click(); // 3. Último caso o click físico
-      }
 
-      // Esconde a linha instantaneamente após o clique para evitar lag de renderização do jQuery do TW
-      try {
-        const row = d.querySelector(`#village_${item.target}`);
-        if (row) {
-          row.classList.add('go-hidden');
-          // Puxa a próxima linha para cima instantaneamente para manter as 5 visíveis
-          const nextRow = Array.from(d.querySelectorAll('#plunder_list tr[id^="village_"]')).find(r => r.style.display === "none" && !r.classList.contains("go-hidden"));
-          if (nextRow) nextRow.removeAttribute("style");
+        // se esvaziou a fila, decide próximo passo
+        if (!queue.length) {
+          await whenThereAreNoReports(api, data);
+        } else if (!Math.max(...Object.values(calcFarmsPerModels(transformUnitsFarm(data.village?.units) || [], data.models, configData)))) {
+          await whenThereAreNoTroops(api, data);
         }
-      } catch (e) {}
 
-      data.report = item;
-    } else {
-      const targetDisplay = `(${item.x}|${item.y}) K${String(item.y).padStart(3, 0).substring(0, 1)}${String(item.x).padStart(3, 0).substring(0, 1)}`
-      // nada clicável → pular a linha do ITEM (não a primeira!)
-      api.footer.set(`Pulou alvo ${targetDisplay}.`, "warn");
-
-      const { plunderList, plunderListHtml } = getPlunderList(d);
-      const idx = plunderList.findIndex(r => String(r.target) === String(item?.target));
-      if (idx >= 0) {
-        plunderList.splice(idx, 1);
-        skipReportPlunderListHtml(plunderListHtml, idx);
+        touch(data);
       }
-
-      // se esvaziou a fila, decide próximo passo
-      if (!queue.length) {
-        await whenThereAreNoReports(api, data);
-      } else if (!Math.max(...Object.values(calcFarmsPerModels(transformUnitsFarm(data.village?.units) || [], data.models, configData)))) {
-        await whenThereAreNoTroops(api, data);
+    } catch (error) {
+      if (error?.message === 'Identified bot protection') {
+        queue.length = 0;
+        return await whenThereIsAnError(api, data);
       }
-
-      touch(data);
+      throw error;
     }
   };
 
@@ -520,7 +560,7 @@ const apiFarm = async (
       }, 1200);
       controller.signal.addEventListener("abort", () => clearInterval(watchdog), { once: true });
     } else {
-      whenThereAreNoReports(api, data)
+      await whenThereAreNoReports(api, data)
     }
   };
 
@@ -537,6 +577,7 @@ export {
   whenThereAreNoReports,
   whenThereAreNoTroops,
   whenThereIsAnError,
+  requestApiFarmStop,
   skipReportPlunderListHtml,
   calcFarmsPerModels
 };

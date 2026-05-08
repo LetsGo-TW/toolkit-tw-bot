@@ -7,8 +7,8 @@ import { fetchReportView } from "./request"
 async function updateSentsBlue(data, api, d, w) {
   api.footer.set(`Verificando relatórios.`, "ok");
   const {plunderList} = getPlunderList(d)
-  const sentsData = await getAvaiablesSents()
-  const sents = sentsData.all
+  const sentsData = await getAvaiablesSents().catch(() => ({})) || {}
+  const sents = sentsData.all || []
   for (const {type, target, report_id, x, y, wall} of plunderList) {
     if (
       ['blue', 'red_blue', 'yellow_blue'].includes(type) &&

@@ -8,6 +8,7 @@ import { transformUnitsFarm } from "../../common/transform-units-farm-array"
 import { saveLastInConfig } from "../../config/save-last"
 import { dataConfig } from "../../config/data"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
 
 const getCurrentGameData = () => {
   if (typeof window !== "undefined" && typeof window.game_data !== "undefined") {
@@ -205,7 +206,23 @@ class FarmScheduleCore {
       values
     })
 
-    if (!values.length) { try { await saveLastInConfig('FARM-SCHEDULES', "GO-FARM"); } catch { /* intentionally empty */ } }
+    try {
+      const gameData = getCurrentGameData();
+      if (gameData?.world && gameData?.player?.id) {
+        chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+          extensionId: RELEASE_EXTENSION_ID,
+          timegenerate: parseInt(Date.now() / 1000), // Adiciona o timestamp da geração da lista
+          type: 'FARM_CONFIG_CHANGED',
+          world: gameData.world,
+          playerId: parseInt(String(gameData.player.id), 10),
+        }).catch((err) => console.warn('[FARM-SCHEDULES-CORE] Falha ao notificar SW (sendMessage).', err));
+        console.log('[FARM-SCHEDULES-CORE] Notificação de nova lista de agendamentos enviada ao Service Worker.');
+      }
+    } catch (err) {
+      console.error('[FARM-SCHEDULES-CORE] Falha ao construir mensagem para o SW.', err);
+    }
+
+    try { await saveLastInConfig('FARM-SCHEDULES', "GO-FARM"); } catch { /* Garante que 'last' seja sempre atualizado */ }
 
     console.log('END FARM SCHEDULES', await storageFarmSchedules.get())
     emitter.emit('terminate')

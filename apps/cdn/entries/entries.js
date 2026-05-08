@@ -22,5 +22,11 @@ module.exports = {
         obfuscationLevel: "high",
       },
     },
+    "worker.farm-schedules": {
+      entry: "../src/farm-max/schedules/worker/index.js",
+      build: {
+        obfuscationLevel: "high",
+      },
+    },
   },
 }

@@ -794,7 +794,23 @@ async function executeRunner({
   runner,
   runId,
 }) {
-  if (typeof runner !== 'function') {
+  let executable = runner
+
+  // Se o bundler retornar um objeto de módulo, procuramos a função principal exportada para executar.
+  if (runner && typeof runner === 'object') {
+    if (typeof runner.default === 'function') {
+      executable = runner.default
+    } else if (typeof runner.run === 'function') {
+      executable = runner.run
+    } else if (typeof runner.start === 'function') {
+      executable = runner.start
+    } else if (typeof runner.execute === 'function') {
+      executable = runner.execute
+    }
+  }
+
+  if (typeof executable !== 'function') {
+    console.warn(`[GAME] O runner para a máquina '${name}' não possui uma função executável válida.`, runner)
     return null
   }
 
@@ -803,9 +819,25 @@ async function executeRunner({
     name,
     runId,
   })
-  const result = await runner(data, context)
+
+  // Avisa o orquestrador automaticamente que começamos a rodar
+  if (kind === 'runtime') void context.reportState('running')
+
+  let result
+  try {
+    result = await executable(data, context)
+    // Se a função rodou até o final com sucesso, avisa o orquestrador que acabou!
+    if (kind === 'runtime') void context.reportState('completed')
+  } catch (error) {
+    if (kind === 'runtime') void context.reportState({ status: 'failed', error })
+    throw error
+  }
+
+  // Repassa o objeto do módulo inteiro como Handle para o orquestrador enxergar as funções pause/destroy
+  const handleCandidate = (runner && typeof runner === 'object' && runner !== executable) ? runner : result
+
   const normalized = context.getRegisteredHandle()
-    ?? normalizeRunnerHandle(result, { kind, name })
+    ?? normalizeRunnerHandle(handleCandidate, { kind, name })
 
   return setCurrentRunnerHandle(kind, normalized)
 }

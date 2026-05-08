@@ -1,6 +1,7 @@
 import './style.css'
 import { initFarmConfig, storageConfigFarm } from '../../config';
 import { getGameData } from '@toolkit-tw-bot/document';
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
 
 const FARM_MAX_YOUTUBE_URL = 'https://www.youtube.com/playlist?list=PLo4rLFftjcxHCs7eqMxP1Jf3ivwohXXJr';
 
@@ -97,6 +98,17 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
 
     // Avisa a aba de configuração que o status mudou (passando uma source diferente)
     window.postMessage({ source: 'FARM-HEADER', target: 'GO-FARM', action: 'set-farm-active', args: { active } });
+
+    // Avisa o Service Worker para recalcular a máquina de estados/alarmes
+    try {
+      const gameData = getGameData()
+      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+        extensionId: RELEASE_EXTENSION_ID,
+        type: 'FARM_STATE_CHANGED',
+        world: gameData?.world,
+        playerId: parseInt(gameData?.player?.id, 10),
+      }).catch(() => null);
+    } catch (err) {}
   }
   
   toggleCheckbox.addEventListener('change', onChangeToggleCheckbox);
@@ -160,11 +172,14 @@ export async function createFarmMaxBotViewSection() {
           sectionApi.setStatus('Sem requerimentos', 'danger', missingReason);
         }
         const url = new URL(window.location.href)
+        const btnUrl = new URL(gameData.link_base_pure, window.location.origin)
+        btnUrl.searchParams.set('screen', 'premium')
+        btnUrl.searchParams.set('mode', 'use')
         container.innerHTML = `
           <div class="go-bvcp-missing-reqs">
             <div class="go-bvcp-missing-reqs-text">${missingReason}</div>
             ${url.searchParams.get('screen') !== 'premium' && url.searchParams.get('mode') !== 'use' ? (`
-              <a href="${gameData.link_base_pure}premium&mode=use" class="btn go-bvcp-action-button">Ativar</a>
+              <a href="${btnUrl.toString()}" class="btn go-bvcp-action-button">Ativar</a>
             `) : ''}
           </div>
         `;

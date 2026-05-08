@@ -769,7 +769,7 @@ async function withIframe(url, cb, data, opts = {}) {
       //   return acc;
       // }, []);
       village.units = Object.entries(current_units).reduce((acc, [unit, value]) => {
-        acc[unit] = value
+        acc[unit] = Number(value) || 0;
         return acc;
       }, {});
     }
@@ -797,7 +797,7 @@ async function withIframe(url, cb, data, opts = {}) {
       return;
     }
 
-    const perModel = calcFarmsPerModels(transformUnitsFarm(data.village.units) || []);
+    const perModel = calcFarmsPerModels(transformUnitsFarm(data.village.units) || [], data.models, data.configData);
     const maxSend  = Math.max(...Object.values(perModel || { a:0, b:0, c:0 }));
     if (!Number.isFinite(maxSend) || maxSend <= 0) {
       await whenThereAreNoTroops(api, data);
@@ -818,15 +818,15 @@ async function withIframe(url, cb, data, opts = {}) {
 
   async function callApiFarmClose() { await apiFarmClose(api, data); }
 
-  async function onActiveChange(e) {
-    const checked = !!e.target.checked;
+  async function onActiveChange() {
+    const checked = uiActive.checked;
     const configFarm = await storageConfigFarm.get();
     configFarm.active = checked;
     await storageConfigFarm.set(configFarm);
     window.postMessage({ source, target, action: "set-farm-active", args: { active: checked } });
     if (!checked) await apiFarmTerminate(api, data);
   }
-  title.querySelector("#go-as-active").addEventListener("change", onActiveChange);
+  uiActive.addEventListener("change", onActiveChange);
   btnClose.addEventListener("click", callApiFarmClose);
 
   function onMessage({ data, origin }) {

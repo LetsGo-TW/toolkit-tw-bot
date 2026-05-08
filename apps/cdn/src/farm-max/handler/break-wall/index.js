@@ -12,13 +12,19 @@ import { getAvaiablesReportBreakWall } from "./avaiables-reports";
 import { execute } from "./execute";
 import { dateTimeNow } from "../../../stable-compat/date-tw";
 
+/**
+ * Não envia se já tem qualquer ataque indo
+ * Não envia se tem tropa na vila
+ * Não envia se já enviou um quebra muro e retornou vermelho
+ */
+
 async function schedulerBreakWall(html = document) {
   const templates = await storageBreakWallTemplates.get()
   const { breakWall: configBreakWall } = await dataConfig()
   const breakWallReports = await getBreakWallReports() || []
   const { values: senders } = (await storageFarmSchedules.get()) || { values: [] }
   const avaiablesReports = await getAvaiablesReportBreakWall(html)
-  const { avaible: breakWallSents } = await getAvaiablesSents()
+  const { avaible: breakWallSents = [] } = (await getAvaiablesSents()) || {}
   if (avaiablesReports.length) {
     avaiablesReports.forEach(({target, x, y, wall, report_id, type, report_time}) => {
       const calculateDistance = Distance.create({ x, y })
@@ -26,8 +32,8 @@ async function schedulerBreakWall(html = document) {
 
       // cai fora se a vila já estiver programada ou já enviou
       if (
-        !breakWallReports.find(report => Number(report.target) === Number(target)) &&
-        !breakWallSents.find(report => Number(report.target) === Number(target))
+        !(breakWallReports || []).find(report => Number(report.target) === Number(target)) &&
+        !(breakWallSents || []).find(report => Number(report.target) === Number(target))
       ) {
         const [send] = senders.reduce((sends, {id, name, units}) => {
           // desconta as tropas já agendadas para a villa
@@ -99,16 +105,18 @@ async function handlerBreakWall(data, api, d = document, w = window) {
   const sents = []
 
   for (const report of breakWall) {
-    if ((await isSentByTarget(report.target)).avaiable) continue
-    if (Number(report.id) !== Number(data.village.id)) continue
-    if (typeof report.wall === 'number' && report.wall === 0) continue
-    if ((await isSentByTarget(report.target)).alive) {
-      const targetSent = await getSentByTarget(report.target)
-      if (Number(report.report_id) === Number(targetSent.report_id)) continue
-    }
-
     try {
-      if ((await isSentByTarget(report.target)).check) {
+      const isSent = await isSentByTarget(report.target).catch(() => ({ avaiable: false, alive: false, check: false })) || {}
+
+      if (isSent.avaiable) continue
+      if (Number(report.id) !== Number(data.village.id)) continue
+      if (typeof report.wall === 'number' && report.wall === 0) continue
+      if (isSent.alive) {
+        const targetSent = await getSentByTarget(report.target).catch(() => ({})) || {}
+        if (Number(report.report_id) === Number(targetSent.report_id)) continue
+      }
+
+      if (isSent.check) {
         const targetSent = await getSentByTarget(report.target)
         if (!('report_id' in targetSent)) {
           try {
@@ -194,6 +202,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
       api.footer.set(`[${count}] ${message} Chegada: ${new Date(arrival).toLocaleString()}`, 'ok');
       count++
     } catch (error) {
+      if (error?.message === 'Identified bot protection') throw error;
       console.error(error.message || error.toString())
       api.footer.set(error.message || error.toString(), 'err');
     } finally {
@@ -207,7 +216,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
 
   await saveBreakWallReports([...breakWall.filter(({ id }) => Number(id) !== Number(data.village.id))])
 
-  const { check } = await getAvaiablesSents();
+  const { check = [] } = (await getAvaiablesSents()) || {};
   for (const { target, arrival, duration } of check) {
     if (arrival + ((duration ?? 3600) * 1000) < dateTimeNow()) {
       await removeSentByTarget(target)
