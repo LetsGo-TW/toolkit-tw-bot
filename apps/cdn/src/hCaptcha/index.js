@@ -13,6 +13,10 @@ function isAbortError(error) {
 function createSolverControl() {
   let aborted = false
   const cleanups = new Set()
+  let resolveAbortWait
+  const abortWaitPromise = new Promise((resolve) => {
+    resolveAbortWait = resolve
+  })
 
   const runCleanup = async (cleanup) => {
     try {
@@ -45,6 +49,7 @@ function createSolverControl() {
     }
 
     aborted = true
+    resolveAbortWait?.(detail)
 
     const pending = Array.from(cleanups)
     cleanups.clear()
@@ -83,6 +88,7 @@ function createSolverControl() {
     sleepMs,
     sleepSeconds: async (seconds) => await sleepMs(seconds * 1000),
     throwIfAborted,
+    waitForAbort: async () => await abortWaitPromise,
   }
 }
 

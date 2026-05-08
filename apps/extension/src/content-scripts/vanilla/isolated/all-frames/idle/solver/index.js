@@ -66,6 +66,33 @@ async function injetarEClicar() {
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   let el = null;
+  let clickTarget = null;
+
+  function resolveCheckboxClickTarget() {
+    const candidates = [
+      '#checkbox',
+      '[role="checkbox"]',
+      '.checkbox',
+      '.label-container',
+    ];
+
+    for (const selector of candidates) {
+      const candidate = document.body.querySelector(selector);
+
+      if (
+        candidate
+        && typeof candidate.getBoundingClientRect === 'function'
+      ) {
+        const rect = candidate.getBoundingClientRect();
+
+        if (rect.width > 0 && rect.height > 0) {
+          return candidate;
+        }
+      }
+    }
+
+    return null;
+  }
 
   // Desativa fisicamente todos os links da interface do hCaptcha
   function disableCaptchaLinks() {
@@ -78,8 +105,17 @@ async function injetarEClicar() {
   }
 
   const execute = async (iframeOffset = { x: 0, y: 0 }) => {
+    clickTarget = resolveCheckboxClickTarget() || el;
+
     // Pega as coordenadas exatas do centro do elemento
-    const rect = el?.getBoundingClientRect();
+    const rect = clickTarget?.getBoundingClientRect();
+
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      await Logger.add('Error: Invalid click target rect', {
+        hasTarget: Boolean(clickTarget),
+      });
+      return;
+    }
 
     // Randomiza o clique bem perto do centro (margem segura de +/- 5 pixels)
     // Evitamos porcentagem aqui pois o rect da label inteira é largo e empurraria o mouse pro link
@@ -92,7 +128,19 @@ async function injetarEClicar() {
 
     // O Content Script não tem acesso à API chrome.debugger.
     // Precisamos pedir para o Background Script (Service Worker) executar o clique.
-    await Logger.add('Requesting NATIVE_CLICK to SW', { targetX, targetY });
+    await Logger.add('Requesting NATIVE_CLICK to SW', {
+      targetX,
+      targetY,
+      targetSelector: clickTarget?.id
+        ? `#${clickTarget.id}`
+        : (clickTarget?.className || clickTarget?.tagName || null),
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
+    });
     const armResponse = await chrome.runtime.sendMessage({
       extensionId: RELEASE_EXTENSION_ID,
       type: ARM_NATIVE_MESSAGE_TYPE,
@@ -111,15 +159,24 @@ async function injetarEClicar() {
       logKey: LOG_KEY, // Passa a chave única de log para o SW saber onde anotar
       coords: { x: targetX, y: targetY }
     }, async (response) => {
-      await Logger.add('Debugger click response', { success: response?.success });
+      await Logger.add('Debugger click response', {
+        success: response?.success,
+        error: response?.error || null,
+      });
     });
   }
 
   const afterLoading = async() => {
     el = document.body.querySelector(".label-container")
+    clickTarget = resolveCheckboxClickTarget();
 
     if (!el) {
       await Logger.add('Error: Checkbox .label-container not found');
+      return;
+    }
+
+    if (!clickTarget) {
+      await Logger.add('Error: No click target resolved for checkbox');
       return;
     }
 

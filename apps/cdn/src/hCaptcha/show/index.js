@@ -90,6 +90,11 @@ export default async function show({ context, control }) {
     soundInteractive();
   }
 
+  // O solver precisa continuar "rodando" enquanto o captcha estiver ativo.
+  // Se este fluxo retornar cedo, o GAME reporta `completed` e o SW redispara
+  // o solver em loop, abortando os listeners que deveriam resolver/recarregar.
+  await control?.waitForAbort?.()
+
   async function optionEnableSolver() {
     console.log('Enable!')
 
