@@ -823,6 +823,17 @@ async function withIframe(url, cb, data, opts = {}) {
     const configFarm = await storageConfigFarm.get();
     configFarm.active = checked;
     await storageConfigFarm.set(configFarm);
+
+    try {
+      const gameData = window.game_data || null;
+      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+        extensionId: RELEASE_EXTENSION_ID,
+        type: 'FARM_STATE_CHANGED',
+        world: gameData?.world,
+        playerId: parseInt(gameData?.player?.id, 10),
+      }).catch(() => null);
+    } catch {}
+
     window.postMessage({ source, target, action: "set-farm-active", args: { active: checked } });
     if (!checked) await apiFarmTerminate(api, data);
   }

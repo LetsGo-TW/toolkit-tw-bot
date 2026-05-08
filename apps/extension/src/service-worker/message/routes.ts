@@ -7,6 +7,11 @@ import { handleIncomingWatch } from "../incoming/runtime";
 import { handleLogin } from "../login/runtime";
 import { getBotViewStatus } from "../controller/bot-view-status";
 import { handleRunnerExecutionReport, handleScriptExecutionSync } from "../controller/runtime";
+import {
+  handleFarmConfigChanged,
+  handleFarmRunnerExecutionReport,
+  handleFarmStateChanged,
+} from '../farm-max'
 import { getPopupState } from "../popup-state";
 import { registerPreparedCtx, syncGameStage, syncSupportCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
@@ -19,6 +24,8 @@ import {
   ARM_NATIVE_MESSAGE_TYPE,
   CTX_MESSAGE_TYPE,
   CONNECT_MESSAGE_TYPE,
+  FARM_CONFIG_CHANGED_MESSAGE_TYPE,
+  FARM_STATE_CHANGED_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
   GET_BOT_VIEW_STATUS_MESSAGE_TYPE,
   GET_POPUP_STATE_MESSAGE_TYPE,
@@ -66,6 +73,16 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
         received,
         sender as chrome.runtime.MessageSender,
       );
+    case FARM_CONFIG_CHANGED_MESSAGE_TYPE:
+      return handleFarmConfigChanged(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
+    case FARM_STATE_CHANGED_MESSAGE_TYPE:
+      return handleFarmStateChanged(
+        received,
+        sender as chrome.runtime.MessageSender,
+      );
     case GET_BOT_VIEW_STATUS_MESSAGE_TYPE:
       return getBotViewStatus(
         received,
@@ -87,6 +104,14 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
     case SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE:
       return handleScriptExecutionSync(received);
     case RUNNER_EXECUTION_REPORT_MESSAGE_TYPE:
+      try {
+        await handleFarmRunnerExecutionReport(
+          received,
+          sender as chrome.runtime.MessageSender,
+        );
+      } catch (error) {
+        console.error('[SW][FARM_MAX][RUNNER_REPORT]', error)
+      }
       return handleRunnerExecutionReport(
         received,
         sender as chrome.runtime.MessageSender,

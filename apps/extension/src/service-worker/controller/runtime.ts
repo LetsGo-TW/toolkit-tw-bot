@@ -44,6 +44,7 @@ type ScriptExecutionSyncRequest = Partial<SWMessage> & {
   action?: unknown
   compose?: unknown
   execution?: unknown
+  silent?: unknown
 }
 
 type RunnerExecutionReportRequest = Partial<SWMessage> & {
@@ -432,6 +433,7 @@ export async function handleScriptExecutionSync(
   const action = normalizeExecutionSyncAction(request.action)
   const compose = request.compose
   const previous = await getControllerExecutionDocument(compose)
+  const silent = request.silent === true
 
   if (!action) {
     return {
@@ -457,14 +459,16 @@ export async function handleScriptExecutionSync(
       reason: 'execution-deleted',
     }
 
-    emitControllerExecutionEvent(EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED, {
-      action,
-      _id,
-      compose,
-      previous,
-      document: null,
-      decision,
-    })
+    if (!silent) {
+      emitControllerExecutionEvent(EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED, {
+        action,
+        _id,
+        compose,
+        previous,
+        document: null,
+        decision,
+      })
+    }
 
     return {
       ok: true,
@@ -475,7 +479,7 @@ export async function handleScriptExecutionSync(
       previous,
       document: null,
       controller: {
-        eventType: EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED,
+        eventType: silent ? null : EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED,
         decision,
       },
     }
@@ -523,14 +527,16 @@ export async function handleScriptExecutionSync(
     }
   }
 
-  emitControllerExecutionEvent(EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED, {
-    action,
-    _id: document._id,
-    compose,
-    previous,
-    document,
-    decision,
-  })
+  if (!silent) {
+    emitControllerExecutionEvent(EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED, {
+      action,
+      _id: document._id,
+      compose,
+      previous,
+      document,
+      decision,
+    })
+  }
 
   return {
     ok: true,
@@ -541,7 +547,7 @@ export async function handleScriptExecutionSync(
     previous,
     document,
     controller: {
-      eventType: EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED,
+      eventType: silent ? null : EXECUTION_CONTROLLER_EVENTS.EXECUTION_RESCHEDULED,
       decision,
     },
   }

@@ -162,7 +162,6 @@ const botViewStatusSyncState = {
   unsubscribeTiming: null,
 }
 
-
 function touchGameState() {
   gameState.updatedAt = Date.now()
   renderBotViewCurrentStatus()

@@ -6,22 +6,11 @@ import { normalizeNumber, normalizeString } from '../normalize'
 import { GET_BOT_VIEW_STATUS_MESSAGE_TYPE } from '../message/types'
 import {
   EXECUTION_KINDS,
-  EXECUTION_RULES,
-  EXECUTION_STATUSES,
-  type ControllerExecutionRef,
-  type ExecutionStatus,
 } from './contract'
+import { resolveNextExecutionForGame } from './next'
 import { getRunnerControllerScopeState } from './runner-controller'
-import { getControllerExecutionDocumentsByScope } from './storage'
 
 type BotViewStatusRequest = Partial<SWMessage>
-
-const ACTIVE_EXECUTION_STATUSES = new Set<ExecutionStatus>([
-  EXECUTION_STATUSES.IDLE,
-  EXECUTION_STATUSES.QUEUED,
-  EXECUTION_STATUSES.RUNNING,
-  EXECUTION_STATUSES.PAUSED,
-])
 
 const HUMANIZED_LABELS: Record<string, string> = {
   call: 'Call',
@@ -80,86 +69,22 @@ function formatExecutionLabel({
   return humanizeToken(kind) ?? null
 }
 
-function getExecutionWakeupAt(execution: ControllerExecutionRef) {
-  if (execution.kind === EXECUTION_KINDS.BOT_PROTECT) {
-    return Date.now()
-  }
+function resolveFallbackNextStatus(controllerScopeState: ReturnType<typeof getRunnerControllerScopeState>) {
+  const at = normalizeNumber(controllerScopeState?.pending?.dueAt)
+    ?? normalizeNumber(controllerScopeState?.alarmScheduledAt)
+  const title = formatExecutionLabel({
+    machine: controllerScopeState?.pending?.machine,
+    module: controllerScopeState?.pending?.module,
+    kind: controllerScopeState?.pending?.kind,
+  })
 
-  if (execution.kind === EXECUTION_KINDS.COMMAND) {
-    return normalizeNumber(execution.command?.alarmAt)
-  }
-
-  return normalizeNumber(execution.nextAt)
-}
-
-function isExecutionDispatchable(execution: ControllerExecutionRef | null) {
-  if (!execution) {
-    return false
-  }
-
-  return ACTIVE_EXECUTION_STATUSES.has(execution.status)
-}
-
-function compareUpcomingExecution(
-  left: {
-    execution: ControllerExecutionRef
-    wakeupAt: number
-  },
-  right: {
-    execution: ControllerExecutionRef
-    wakeupAt: number
-  },
-) {
-  const leftPriority = EXECUTION_RULES[left.execution.kind]?.priority ?? 0
-  const rightPriority = EXECUTION_RULES[right.execution.kind]?.priority ?? 0
-
-  if (left.wakeupAt !== right.wakeupAt) {
-    return left.wakeupAt - right.wakeupAt
-  }
-
-  if (leftPriority !== rightPriority) {
-    return rightPriority - leftPriority
-  }
-
-  return left.execution.updatedAt - right.execution.updatedAt
-}
-
-async function resolveNextExecutionByScope(scopeKey: string) {
-  const now = Date.now()
-  const documents = await getControllerExecutionDocumentsByScope(scopeKey)
-  const upcoming = documents
-    .map((document) => document.execution)
-    .filter((execution): execution is ControllerExecutionRef => (
-      isExecutionDispatchable(execution)
-    ))
-    .map((execution) => {
-      const wakeupAt = getExecutionWakeupAt(execution)
-
-      return wakeupAt === null
-        ? null
-        : {
-          execution,
-          wakeupAt,
-        }
-    })
-    .filter((entry): entry is { execution: ControllerExecutionRef; wakeupAt: number } => (
-      entry !== null && entry.wakeupAt > now
-    ))
-    .sort(compareUpcomingExecution)
-
-  const next = upcoming[0]
-
-  if (!next) {
+  if (at === null) {
     return null
   }
 
   return {
-    at: next.wakeupAt,
-    title: formatExecutionLabel({
-      machine: next.execution.payload?.machine,
-      module: next.execution.payload?.module,
-      kind: next.execution.kind,
-    }),
+    at,
+    title,
   }
 }
 
@@ -188,23 +113,31 @@ export async function getBotViewStatus(
     module: controllerScopeState?.current?.module,
     kind: controllerScopeState?.current?.kind,
   })
-  const nextExecution = await resolveNextExecutionByScope(scopeKey)
-  const nextTitle = nextExecution?.title
-    ?? formatExecutionLabel({
-      machine: controllerScopeState?.pending?.machine,
-      module: controllerScopeState?.pending?.module,
-      kind: controllerScopeState?.pending?.kind,
-    })
+  const nextExecution = await resolveNextExecutionForGame({
+    scopeKey,
+    world: normalizeString(tabContext?.world),
+    playerId: normalizeNumber(tabContext?.playerId),
+  })
+  const fallbackNext = resolveFallbackNextStatus(controllerScopeState)
+  const nextAt = nextExecution?.at
+    ?? fallbackNext?.at
     ?? null
+  const nextTitle = (
+    nextExecution
+      ? formatExecutionLabel({
+        machine: nextExecution.machine,
+        module: nextExecution.module,
+        kind: nextExecution.kind,
+      })
+      : null
+  ) ?? fallbackNext?.title ?? null
 
   return {
     ok: true,
     type: GET_BOT_VIEW_STATUS_MESSAGE_TYPE,
     currentTitle,
     scopeKey,
-    nextAt: nextExecution?.at
-      ?? normalizeNumber(controllerScopeState?.pending?.dueAt)
-      ?? normalizeNumber(controllerScopeState?.alarmScheduledAt),
+    nextAt,
     nextTitle,
   }
 }

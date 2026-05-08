@@ -23,6 +23,7 @@ import {
   initializeRuntime,
   reconcileActiveRunner,
 } from "./runtime";
+import { ensureFarmMaxInitialized } from './farm-max'
 
 const onTabActivated = createOnTabActivatedListener({
   reconcileActiveRunner,
@@ -68,8 +69,14 @@ const controller = createServiceWorkerController({
       run: () => initializeRuntime(),
     },
     {
-      label: 'controller.execution.initialize',
-      run: () => ensureRunnerControllerInitialized(),
+      label: 'farm-max.controller.initialize',
+      run: async () => {
+        try {
+          await ensureFarmMaxInitialized()
+        } finally {
+          await ensureRunnerControllerInitialized()
+        }
+      },
     },
   ],
 })

@@ -3,6 +3,8 @@
 import { syncPreparedContextWithOpenTwTabs } from '.'
 import { isControllerAlarmName } from '../controller/alarm'
 import { handleControllerAlarm } from '../controller/runner-controller'
+import { handleFarmMaxAlarm } from '../farm-max'
+import { isFarmMaxAlarmName } from '../farm-max/alarm'
 import { handleLicenseAlarm } from '../world-players/license/alarm'
 import { handleErrorAlarm } from './error-tabId'
 import { handleProbeAlarm } from './probe-scoped'
@@ -27,6 +29,13 @@ export function createOnPreparedContextCleanupAlarmListener() {
     if (isControllerAlarmName(alarm.name)) {
       void handleControllerAlarm(alarm).catch((error) => {
         console.error('[controller alarm]', error)
+      })
+      return
+    }
+
+    if (isFarmMaxAlarmName(alarm.name)) {
+      void handleFarmMaxAlarm(alarm).catch((error) => {
+        console.error('[farm-max alarm]', error)
       })
       return
     }

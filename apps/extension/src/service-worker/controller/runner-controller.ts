@@ -69,6 +69,15 @@ type DispatchScopeOptions = {
   isBotProtected?: boolean
 }
 
+type ReconcileScopeTrackedInstructionsOptions = {
+  trackedMachines?: string[]
+  allowedPendingMachines?: string[]
+  allowedPendingExecutionIds?: string[]
+  stopCurrentMachines?: string[]
+  reason?: string
+  source?: string
+}
+
 type ResolveGameStageInstructionArgs = {
   scopeKey?: string | null
   shouldStart?: boolean
@@ -585,9 +594,11 @@ async function requestStopCurrentInstruction(
   {
     reason = 'controller-stop',
     source = 'controller-dispatch',
+    clearPending = true,
   }: {
     reason?: string
     source?: string
+    clearPending?: boolean
   } = {},
 ) {
   if (!scopeState.current) {
@@ -607,10 +618,45 @@ async function requestStopCurrentInstruction(
 
   scopeState.status = 'idle'
   scopeState.current = null
-  scopeState.pending = null
+  if (clearPending) {
+    scopeState.pending = null
+  }
   scopeState.pauseRequested = false
 
   return true
+}
+
+function normalizeMachineSet(values: string[] = []) {
+  return new Set(
+    values
+      .map((value) => normalizeString(value))
+      .filter((value): value is string => value !== null),
+  )
+}
+
+function normalizeExecutionIdSet(values: Array<string | null | undefined> = []) {
+  return new Set(
+    values
+      .map((value) => normalizeString(value))
+      .filter((value): value is string => value !== null),
+  )
+}
+
+function getInstructionMachine(instruction: ControllerRunInstruction | null) {
+  return normalizeString(instruction?.machine)
+}
+
+function getInstructionExecutionId(instruction: ControllerRunInstruction | null) {
+  return normalizeString(instruction?.executionId)
+}
+
+function isTrackedInstructionMachine(
+  instruction: ControllerRunInstruction | null,
+  trackedMachines: Set<string>,
+) {
+  const machine = getInstructionMachine(instruction)
+
+  return machine !== null && trackedMachines.has(machine)
 }
 
 async function runPendingInstructionIfPossible(
@@ -1127,6 +1173,78 @@ export async function syncControllerScopeAlarm(scopeKey?: string | null) {
   return await runScopeTransition(normalizedScopeKey, async (scopeState) => (
     await syncControllerScopeAlarmInternal(scopeState)
   ))
+}
+
+export async function reconcileScopeTrackedInstructions(
+  scopeKey?: string | null,
+  {
+    trackedMachines = [],
+    allowedPendingMachines = [],
+    allowedPendingExecutionIds = [],
+    stopCurrentMachines = [],
+    reason = 'tracked-instruction-reconcile',
+    source = 'controller-dispatch',
+  }: ReconcileScopeTrackedInstructionsOptions = {},
+) {
+  const normalizedScopeKey = normalizeString(scopeKey)
+
+  if (!normalizedScopeKey) {
+    return {
+      clearedPending: false,
+      stoppedCurrent: false,
+    }
+  }
+
+  const trackedMachineSet = normalizeMachineSet(trackedMachines)
+
+  if (!trackedMachineSet.size) {
+    return {
+      clearedPending: false,
+      stoppedCurrent: false,
+    }
+  }
+
+  const allowedPendingMachineSet = normalizeMachineSet(allowedPendingMachines)
+  const allowedPendingExecutionIdSet = normalizeExecutionIdSet(allowedPendingExecutionIds)
+  const stopCurrentMachineSet = normalizeMachineSet(stopCurrentMachines)
+
+  await ensureRunnerControllerInitialized()
+
+  return await runScopeTransition(normalizedScopeKey, async (scopeState) => {
+    let clearedPending = false
+    let stoppedCurrent = false
+
+    if (
+      isTrackedInstructionMachine(scopeState.pending, trackedMachineSet)
+      && (
+        !isTrackedInstructionMachine(scopeState.pending, allowedPendingMachineSet)
+        || (
+          allowedPendingExecutionIdSet.size > 0
+          && !allowedPendingExecutionIdSet.has(
+            getInstructionExecutionId(scopeState.pending) ?? '',
+          )
+        )
+      )
+    ) {
+      scopeState.pending = null
+      clearedPending = true
+    }
+
+    if (
+      isTrackedInstructionMachine(scopeState.current, stopCurrentMachineSet)
+    ) {
+      stoppedCurrent = await requestStopCurrentInstruction(scopeState, {
+        reason,
+        source,
+        clearPending: false,
+      })
+    }
+
+    return {
+      clearedPending,
+      stoppedCurrent,
+    }
+  })
 }
 
 export async function resolveGameStageInstruction({

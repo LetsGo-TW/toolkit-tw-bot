@@ -8,6 +8,7 @@ import {
   getRunnerControllerScopeState,
   resolveGameStageInstruction,
 } from '../controller/runner-controller'
+import { reconcileFarmMaxScope } from '../farm-max'
 import {
   CTX_MESSAGE_TYPE,
   GAME_STAGE_MESSAGE_TYPE,
@@ -268,6 +269,22 @@ export async function syncGameStage(
 
   const { tabContext, isActive, data } = result
   const screen = getScreenFromSenderUrl(sender)
+
+  if (tabContext?.scopeKey && tabContext?.world && typeof tabContext.playerId === 'number') {
+    try {
+      await reconcileFarmMaxScope({
+        scopeKey: tabContext.scopeKey,
+        world: tabContext.world,
+        t: tabContext.t,
+        playerId: tabContext.playerId,
+      }, {
+        reason: 'game-stage-sync',
+        source: GAME_STAGE_MESSAGE_TYPE,
+      })
+    } catch (error) {
+      console.error('[SW][FARM_MAX][GAME_STAGE]', error)
+    }
+  }
 
   const instruction = await resolveGameStageInstruction({
     scopeKey: tabContext?.scopeKey ?? null,

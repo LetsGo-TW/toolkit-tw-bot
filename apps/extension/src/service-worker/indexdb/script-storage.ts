@@ -204,6 +204,10 @@ export async function getScriptStorageDocument(composeValue: unknown) {
   return await scriptStorageStore.get(_id)
 }
 
+export async function getAllScriptStorageDocuments() {
+  return await scriptStorageStore.getAll()
+}
+
 export async function putScriptStorageDocument({
   compose: composeValue,
   data,
