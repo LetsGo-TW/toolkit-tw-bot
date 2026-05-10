@@ -17,6 +17,7 @@ const PAGE_TIMEOUT_MS = 30_000;           // 30s sem progresso
 const PAGE_REFRESH_RETRIES = 1;           // tenta 1x refresh da página
 
 let controller = createController();
+const BOT_PROTECT_REASON = "bot-protect";
 
 function resetPageTransition(data) {
   if (!data || typeof data !== "object") return;
@@ -64,6 +65,49 @@ function createController() {
       listeners.clear();
     }
   };
+}
+
+function isBotProtectError(error) {
+  return error?.message === "Identified bot protection";
+}
+
+function hasActiveBotProtect(api) {
+  const d = api?.iframe?.contentDocument;
+  const w = api?.iframe?.contentWindow;
+
+  return ProtectingBot["bot-protect-all-in-game"].active(d, w)
+    || ProtectingBot["bot-protect-all-in-game"].active();
+}
+
+function markBotProtectTermination(data) {
+  if (data && typeof data === "object") {
+    data.__terminateReason = BOT_PROTECT_REASON;
+  }
+
+  return BOT_PROTECT_REASON;
+}
+
+function resolveTerminateReason(api, data, {
+  reason = null,
+  error = null,
+} = {}) {
+  if (String(reason || "").trim().toLowerCase() === BOT_PROTECT_REASON) {
+    return markBotProtectTermination(data);
+  }
+
+  if (String(data?.__terminateReason || "").trim().toLowerCase() === BOT_PROTECT_REASON) {
+    return BOT_PROTECT_REASON;
+  }
+
+  if (isBotProtectError(error)) {
+    return markBotProtectTermination(data);
+  }
+
+  if (hasActiveBotProtect(api)) {
+    return markBotProtectTermination(data);
+  }
+
+  return null;
 }
 
 const cooloff = async () => { await sleep(7, 19); running.remove?.(); };
@@ -114,7 +158,9 @@ function startPageWatchdog(w, d, ifr, api, data) {
       clearInterval(data._wd);
       try { controller.abort('captcha'); } catch { /* intentionally empty */ }
       try { api.footer.set('hCaptcha identificado! Encerrando…', 'err'); } catch { /* intentionally empty */ }
-      return await whenThereIsAnError(api, data);
+      return await whenThereIsAnError(api, data, {
+        reason: BOT_PROTECT_REASON,
+      });
     }
 
     const idle = Date.now() - (data._lastProgressAt || 0);
@@ -214,8 +260,10 @@ const goToPage = async (event) => {
   try {
     await apiFarm(w, d, ifr, api, data);
   } catch (error) {
-    if (error?.message === 'Identified bot protection') {
-      return await whenThereIsAnError(api, data);
+    if (isBotProtectError(error)) {
+      return await whenThereIsAnError(api, data, {
+        error,
+      });
     }
     throw error;
   }
@@ -230,9 +278,11 @@ async function apiFarmClose(api, data, { claimed = false } = {}) {
 }
 
 // -------- terminate central (idempotente) --------
-async function apiFarmTerminate(api, data) {
+async function apiFarmTerminate(api, data, options = {}) {
   if (data && data.__terminated) return;
   if (data) data.__terminated = true;
+
+  const shouldRedirectToBotProtect = resolveTerminateReason(api, data, options) === BOT_PROTECT_REASON;
 
   try { clearInterval(data._wd); } catch { /* intentionally empty */ }
 
@@ -253,6 +303,14 @@ async function apiFarmTerminate(api, data) {
 
   await cooloff();
   try { api?.close?.(); } catch { /* intentionally empty */ }
+
+  if (shouldRedirectToBotProtect) {
+    try {
+      ProtectingBot.redirect();
+    } catch (error) {
+      console.error("[farm][bot-protect][redirect]", error);
+    }
+  }
 }
 
 // -------- condições de parada --------
@@ -294,12 +352,23 @@ async function whenThereAreNoTroops(api, data, { claimed = false } = {}) {
   await apiFarmTerminate(api, data);
 }
 
-async function whenThereIsAnError(api, data, { claimed = false } = {}) {
+async function whenThereIsAnError(api, data, {
+  claimed = false,
+  reason = null,
+  error = null,
+} = {}) {
   if (!claimed && !claimPageTransition(data, "error")) return;
   setPageTransition(data, "terminate");
-  try { controller.abort("Error."); } catch { /* intentionally empty */ }
+  const terminateReason = resolveTerminateReason(api, data, {
+    reason,
+    error,
+  });
+  try { controller.abort(terminateReason === BOT_PROTECT_REASON ? "captcha" : "Error."); } catch { /* intentionally empty */ }
   await sleep(1200, 1211);
-  await apiFarmTerminate(api, data);
+  await apiFarmTerminate(api, data, {
+    reason: terminateReason,
+    error,
+  });
 }
 
 async function requestApiFarmStop(api, data, { reason = "Stopped by controller." } = {}) {
@@ -311,7 +380,7 @@ async function requestApiFarmStop(api, data, { reason = "Stopped by controller."
   try { controller.abort(reason); } catch { /* intentionally empty */ }
   try { api.footer.set(`Execucao interrompida.`, "warn"); } catch { /* intentionally empty */ }
 
-  await apiFarmTerminate(api, data);
+  await apiFarmTerminate(api, data, { reason });
 }
 
 // -------- utilidades de tabela --------
@@ -414,8 +483,10 @@ const apiFarm = async (
     api.loader.hide()
   } catch (error) {
     api.loader.hide();
-    if (error?.message === 'Identified bot protection') {
-      return await whenThereIsAnError(api, data);
+    if (isBotProtectError(error)) {
+      return await whenThereIsAnError(api, data, {
+        error,
+      });
     }
     console.error('Erro na fase inicial (BreakWall/AliveTargets):', error);
     // Não re-lançamos o erro para não travar a UI (fica com loader infinito)
@@ -518,9 +589,11 @@ const apiFarm = async (
         touch(data);
       }
     } catch (error) {
-      if (error?.message === 'Identified bot protection') {
+      if (isBotProtectError(error)) {
         queue.length = 0;
-        return await whenThereIsAnError(api, data);
+        return await whenThereIsAnError(api, data, {
+          error,
+        });
       }
       throw error;
     }

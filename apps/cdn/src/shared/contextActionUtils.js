@@ -6,7 +6,7 @@ let plannerOneToManyModulePromise = null
 
 export async function loadPlannerOneToMany() {
   if (!plannerOneToManyModulePromise) {
-    plannerOneToManyModulePromise = import('../../planner').then((module) => module?.plannerOneToMany)
+    plannerOneToManyModulePromise = import('../planner').then((module) => module?.plannerOneToMany)
   }
   const plannerOneToMany = await plannerOneToManyModulePromise
   if (typeof plannerOneToMany !== 'function') {

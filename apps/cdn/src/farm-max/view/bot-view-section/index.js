@@ -2,6 +2,7 @@ import './style.css'
 import { initFarmConfig, storageConfigFarm } from '../../config';
 import { getGameData } from '@toolkit-tw-bot/document';
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
+import { BotViewStatus } from '../../../shared/bot-view-status';
 
 const FARM_MAX_YOUTUBE_URL = 'https://www.youtube.com/playlist?list=PLo4rLFftjcxHCs7eqMxP1Jf3ivwohXXJr';
 
@@ -102,12 +103,14 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
     // Avisa o Service Worker para recalcular a máquina de estados/alarmes
     try {
       const gameData = getGameData()
-      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
         extensionId: RELEASE_EXTENSION_ID,
         type: 'FARM_STATE_CHANGED',
         world: gameData?.world,
         playerId: parseInt(gameData?.player?.id, 10),
       }).catch(() => null);
+
+      BotViewStatus.apply(response)
     } catch (err) {}
   }
   

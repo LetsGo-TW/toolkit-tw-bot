@@ -1,5 +1,6 @@
 import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersPost } from "@toolkit-tw-bot/browser"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
+import { parseTwJsonText } from "../../requests/utils/parseTwResponseText";
 
 export async function postAjaxFarmFilter(action, paramName, value, { signal } = {}) {
   const gameData = getGameData()
@@ -38,7 +39,7 @@ export async function postAjaxFarmFilter(action, paramName, value, { signal } = 
   try {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    return parseTwJsonText(await res.text(), 'map:search-barbarians:post-ajax-farm-filter');
   } finally {
     clearTimeout(t);
   }

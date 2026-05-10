@@ -4,6 +4,7 @@ import { CommandFakeLimit } from "../place/place-fake-limit"
 import { CommandSenderDirect } from "../senders/senderDirect"
 
 const SENDER_DIRECT_STYLE = '#CStime, #CSoffset {font-size: 9pt;font-family: Verdana,Arial;}#CSbutton {float:right;}'
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
 
 const isPlaceTryConfirm = (html = document) => !!(
   html.querySelector("#command-data-form") &&
@@ -22,7 +23,21 @@ function cleanupCommandMapDom() {
   document.querySelector("#CSoffset")?.closest("tr")?.remove?.()
 }
 
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+}
+
 export function observeCommandMap() {
+  let observer = null
+
+  const finishBotProtectFlow = () => {
+    observer?.disconnect?.()
+    CommandFakeLimit.setBotProtectHandler(null)
+    cleanupCommandMapDom()
+    try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+  }
+
   const syncCommandMap = async () => {
     if (ProtectingBot['bot-protect-all-in-game'].active()) {
       throw ProtectingBot.error()
@@ -39,15 +54,23 @@ export function observeCommandMap() {
   }
 
   const observerTarget = document.body || document.documentElement
-  const observer = createQueuedMutationObserver(syncCommandMap, {
+  CommandFakeLimit.setBotProtectHandler(finishBotProtectFlow)
+
+  observer = createQueuedMutationObserver(syncCommandMap, {
     target: observerTarget,
     onError(error) {
+      if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+        finishBotProtectFlow()
+        return
+      }
+
       console.error("[command-map][observer]", error)
     }
   })
 
   return () => {
     observer.disconnect()
+    CommandFakeLimit.setBotProtectHandler(null)
     cleanupCommandMapDom()
   }
 }

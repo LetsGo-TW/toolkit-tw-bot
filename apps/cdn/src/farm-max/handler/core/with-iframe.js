@@ -13,6 +13,7 @@ import { addTargetToSession, ensureFarmSession } from "./farm-session";
 import { interceptTWPost } from "./intercept-tw-post";
 import { getPlunderList } from "./plunder-list";
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import { BotViewStatus } from "../../../shared/bot-view-status";
 
 const ICON_URL = "https://dsbr.innogamescdn.com/asset/af1188db/graphic/icons/farm_assistent.webp";
 
@@ -827,12 +828,14 @@ async function withIframe(url, cb, data, opts = {}) {
 
     try {
       const gameData = window.game_data || null;
-      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
         extensionId: RELEASE_EXTENSION_ID,
         type: 'FARM_STATE_CHANGED',
         world: gameData?.world,
         playerId: parseInt(gameData?.player?.id, 10),
       }).catch(() => null);
+
+      BotViewStatus.apply(response)
     } catch {}
 
     window.postMessage({ source, target, action: "set-farm-active", args: { active: checked } });

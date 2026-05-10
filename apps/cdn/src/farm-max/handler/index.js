@@ -6,7 +6,8 @@ import { withIframe } from "./core/with-iframe";
 import { apiFarm, goToPage, requestApiFarmStop, whenThereIsAnError } from "./core/api-farm";
 import { getFarmSession } from "./core/farm-session";
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
-import { getGameData } from "@toolkit-tw-bot/document";
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
+import { BotViewStatus } from "../../shared/bot-view-status";
 
 /** Mensageria cross-janela (não alterar) */
 export const source = "FARM-HANDLER";
@@ -108,6 +109,10 @@ export default async function start(data = {}, context = null) {
     : 0
 
   running.activate();
+
+  BotViewStatus.setCurrent("Farm Max")
+  BotViewStatus.setExecution("Executando")
+
   document.addEventListener("go-to-page", goToPage);
 
   context?.registerHandle?.({
@@ -178,7 +183,9 @@ export default async function start(data = {}, context = null) {
         } catch (error) {
           if (error?.message === 'Identified bot protection') {
             console.warn('Captcha detectado! Encerrando...');
-            if (apiArg && dataArg) await whenThereIsAnError(apiArg, dataArg);
+            if (apiArg && dataArg) {
+              await whenThereIsAnError(apiArg, dataArg, { error });
+            }
             return;
           }
           throw error;
@@ -200,6 +207,18 @@ export default async function start(data = {}, context = null) {
 
     console.log("WithIframe: finished");
   } catch (e) {
+    if (e?.message === 'Identified bot protection') {
+      console.warn("WithIframe: captcha detectado");
+
+      if (activeExecution.api && activeExecution.data) {
+        try {
+          await whenThereIsAnError(activeExecution.api, activeExecution.data, { error: e });
+        } catch { /* intentionally empty */ }
+      } else {
+        try { ProtectingBot.redirect(); } catch { /* intentionally empty */ }
+      }
+    }
+
     console.error("WithIframe: error", e);
   } finally {
     window.postMessage({

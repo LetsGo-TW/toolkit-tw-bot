@@ -205,6 +205,7 @@ function clearCurrentExecutionState({
   gameState.currentRuntimeHandle = null
   gameState.currentRuntimeName = null
   gameState.currentStageResponse = null
+  botViewStatusSyncState.currentTitle = null
   botViewStatusSyncState.executionText = null
 
   if (!preservePage) {
@@ -213,6 +214,21 @@ function clearCurrentExecutionState({
   }
 
   touchGameState()
+}
+
+function finalizeCompletedRuntimeExecution(runId = null) {
+  if (runId && gameState.currentRunId !== runId) {
+    return
+  }
+
+  gameState.currentData = null
+  gameState.currentRunId = null
+  gameState.currentRuntimeHandle = null
+  gameState.currentRuntimeName = null
+  gameState.currentStageResponse = null
+  botViewStatusSyncState.currentTitle = null
+  botViewStatusSyncState.executionText = null
+  setGameStatus('idle')
 }
 
 function setCurrentRunnerHandle(kind, handle) {
@@ -359,15 +375,34 @@ function applyBotViewStatusResponse(response = null) {
     return false
   }
 
-  botViewStatusSyncState.currentTitle = normalizeNonEmptyString(payload.currentTitle)
-  botViewStatusSyncState.nextAt = Number.isFinite(Number(payload.nextAt))
-    ? Number(payload.nextAt)
-    : null
-  botViewStatusSyncState.nextTitle = normalizeNonEmptyString(payload.nextTitle)
+  if (hasOwn(payload, 'currentTitle')) {
+    botViewStatusSyncState.currentTitle = normalizeNonEmptyString(payload.currentTitle)
+  }
+
+  if (hasOwn(payload, 'nextAt')) {
+    botViewStatusSyncState.nextAt = Number.isFinite(Number(payload.nextAt))
+      ? Number(payload.nextAt)
+      : null
+  }
+
+  if (hasOwn(payload, 'nextTitle')) {
+    botViewStatusSyncState.nextTitle = normalizeNonEmptyString(payload.nextTitle)
+  }
+
   renderBotViewCurrentStatus()
   renderBotViewNextStatus()
 
   return true
+}
+
+function setBotViewCurrentTitle(value = null) {
+  botViewStatusSyncState.currentTitle = normalizeNonEmptyString(value)
+  renderBotViewCurrentStatus()
+}
+
+function clearBotViewCurrentTitle() {
+  botViewStatusSyncState.currentTitle = null
+  renderBotViewCurrentStatus()
 }
 
 function setBotViewExecutionStatusText(value = null) {
@@ -378,6 +413,24 @@ function setBotViewExecutionStatusText(value = null) {
 function clearBotViewExecutionStatusText() {
   botViewStatusSyncState.executionText = null
   renderBotViewCurrentStatus()
+}
+
+function setBotViewNextStatus(payload = null) {
+  const source = payload && typeof payload === 'object'
+    ? payload
+    : null
+
+  botViewStatusSyncState.nextAt = Number.isFinite(Number(source?.nextAt))
+    ? Number(source.nextAt)
+    : null
+  botViewStatusSyncState.nextTitle = normalizeNonEmptyString(source?.nextTitle)
+  renderBotViewNextStatus()
+}
+
+function clearBotViewNextStatus() {
+  botViewStatusSyncState.nextAt = null
+  botViewStatusSyncState.nextTitle = null
+  renderBotViewNextStatus()
 }
 
 function formatBotViewCountdownText(diffMs) {
@@ -465,7 +518,6 @@ async function refreshBotViewNextStatus() {
 
       applyBotViewStatusResponse(response)
     } catch {
-      botViewStatusSyncState.currentTitle = null
       botViewStatusSyncState.nextAt = null
       botViewStatusSyncState.nextTitle = null
     } finally {
@@ -891,6 +943,8 @@ async function callRunnerHandle(handle, method, detail = {}) {
 async function pauseCurrentExecution(detail = {}, { skipReport = false } = {}) {
   setGameStatus('pausing')
   await callRunnerHandle(gameState.currentRuntimeHandle, 'pause', detail)
+  clearBotViewCurrentTitle()
+  clearBotViewExecutionStatusText()
   setGameStatus('paused')
 
   if (!skipReport) {
@@ -910,6 +964,10 @@ async function stopCurrentExecution(detail = {}, { skipReport = false } = {}) {
   gameState.currentRuntimeHandle = null
   gameState.currentRuntimeName = null
   gameState.currentData = null
+  gameState.currentRunId = null
+  gameState.currentStageResponse = null
+  clearBotViewCurrentTitle()
+  clearBotViewExecutionStatusText()
   setGameStatus('stopped')
 
   if (!skipReport) {
@@ -1138,6 +1196,8 @@ async function runInstruction(
     runner: executionRunner,
     runId,
   })
+
+  finalizeCompletedRuntimeExecution(runId)
 }
 
 async function executeControllerRun(detail = {}) {
@@ -1306,7 +1366,10 @@ function installLifecycleListeners() {
 
 function installRuntime() {
   window[GAME_RUNTIME_KEY] = {
+    applyBotViewStatus: applyBotViewStatusResponse,
+    clearBotViewCurrentTitle,
     clearBotViewExecutionStatusText,
+    clearBotViewNextStatus,
     executeControllerPause,
     executeControllerRun,
     ctxPlannerOpenEvent: PLANNER_CTX_OPEN_EVENT,
@@ -1319,8 +1382,10 @@ function installRuntime() {
     requestControllerRun,
     requestControllerStop,
     refreshBotViewStatus: refreshBotViewNextStatus,
+    setBotViewCurrentTitle,
     sendMessageToExtension,
     setBotViewExecutionStatusText,
+    setBotViewNextStatus,
     pauseCurrentExecution,
     start: startGame,
     stopCurrentExecution,

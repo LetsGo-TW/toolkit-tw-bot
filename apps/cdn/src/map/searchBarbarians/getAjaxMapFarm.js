@@ -1,5 +1,6 @@
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 import { combineAbortControllerSignals, makeAjaxHeadersGet } from "@toolkit-tw-bot/browser"
+import { parseTwJsonText } from "../../requests/utils/parseTwResponseText";
 
 
 export async function getAjaxMapFarm(template_id, target, { signal } = {}) {
@@ -36,7 +37,7 @@ export async function getAjaxMapFarm(template_id, target, { signal } = {}) {
   try {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    return parseTwJsonText(await res.text(), 'map:search-barbarians:get-ajax-map-farm');
   } finally {
     clearTimeout(t);
   }

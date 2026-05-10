@@ -66,6 +66,10 @@ async function updateAliveTargets(data, api, d, w) {
         await storageAliveTargets.set(aliveTargets)
         api.footer.set(`${targetDisplay} verificado.`, "ok");
       } catch (error) {
+        if (error?.message === 'Identified bot protection') {
+          throw error
+        }
+
         api.footer.set(`Erro ao verificar ${targetDisplay}.`, "err");
         console.error(error)
         continue

@@ -6,10 +6,11 @@ import {
   getBotTooltipIconUrl,
   renderTooltipIconText,
   stopAll
-} from './shared.js'
+} from '../../shared/contextActionUtils.js'
 
 const MAP_COLLECTOR_LAUNCHER_ID = 'go-map-collector-launcher'
 const MAP_COLLECTOR_SLOT_COLLECTOR_SELECTOR = '#go-extension-bot-view-slot-collector'
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
 const MAP_COLLECTOR_LAUNCHER_ICON_URL = svgToDataUri(
   '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24">' +
     '<circle cx="11" cy="11" r="6.8" fill="none" stroke="#dcfce7" stroke-width="3.6"/>' +
@@ -26,6 +27,13 @@ let mapCollectorLauncherHashListenerBound = false
 let mapCollectorLauncherStateListenerBound = false
 let selectorCoordsSearchModulePromise = null
 let selectorCoordsSearchDestroyModulePromise = null
+let mapCollectorLauncherBootTimerId = null
+let mapCollectorLauncherBotProtectFinishing = false
+
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+}
 
 function getCurrentScreenName() {
   try {
@@ -171,12 +179,22 @@ async function openMapCollectorFromLauncher(event) {
   } catch (_) {}
 
   try {
+    if (ProtectingBot['bot-protect-all-in-game'].active()) {
+      await finishMapCollectorLauncherBotProtectFlow()
+      return false
+    }
+
     const selectorCoordsSearch = await loadSelectorCoordsSearch()
     selectorCoordsSearch({
       hash: String(location.hash || ''),
       href: location.href
     })
   } catch (error) {
+    if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+      await finishMapCollectorLauncherBotProtectFlow()
+      return false
+    }
+
     console.error('[GO][Collector] failed to open selector', error)
     printMessage.error('Erro ao abrir coletor no mapa.')
     return false
@@ -233,7 +251,30 @@ function ensureMapCollectorLauncher() {
   return getOrCreateMapCollectorLauncher()
 }
 
+async function finishMapCollectorLauncherBotProtectFlow() {
+  if (mapCollectorLauncherBotProtectFinishing) return
+  mapCollectorLauncherBotProtectFinishing = true
+
+  if (mapCollectorLauncherBootTimerId != null) {
+    clearInterval(mapCollectorLauncherBootTimerId)
+    mapCollectorLauncherBootTimerId = null
+  }
+
+  try {
+    const destroySelectorCoordsSearch = await loadSelectorCoordsSearchDestroy().catch(() => null)
+    destroySelectorCoordsSearch?.()
+  } catch {}
+
+  removeMapCollectorLauncher()
+  try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+}
+
 export function destroyMapCollectorLauncher() {
+  if (mapCollectorLauncherBootTimerId != null) {
+    clearInterval(mapCollectorLauncherBootTimerId)
+    mapCollectorLauncherBootTimerId = null
+  }
+
   void loadSelectorCoordsSearchDestroy()
     .then((destroySelectorCoordsSearch) => {
       destroySelectorCoordsSearch?.()
@@ -243,6 +284,7 @@ export function destroyMapCollectorLauncher() {
 }
 
 export function bootMapCollectorLauncherRunning() {
+  mapCollectorLauncherBotProtectFinishing = false
   if (!mapCollectorLauncherHashListenerBound) {
     mapCollectorLauncherHashListenerBound = true
     window.addEventListener('hashchange', () => {
@@ -259,7 +301,12 @@ export function bootMapCollectorLauncherRunning() {
   }
 
   let tries = 0
-  const timer = setInterval(() => {
+  if (mapCollectorLauncherBootTimerId != null) {
+    clearInterval(mapCollectorLauncherBootTimerId)
+    mapCollectorLauncherBootTimerId = null
+  }
+
+  mapCollectorLauncherBootTimerId = setInterval(() => {
     tries++
     const ready = Boolean(window.TWMap?.context)
     if (ready) {
@@ -267,10 +314,13 @@ export function bootMapCollectorLauncherRunning() {
       ensureMapCollectorLauncher()
       syncMapCollectorLaunchersState()
     }
-    if (ready || tries > 200) clearInterval(timer)
+    if (ready || tries > 200) {
+      clearInterval(mapCollectorLauncherBootTimerId)
+      mapCollectorLauncherBootTimerId = null
+    }
+
     if (ProtectingBot['bot-protect-all-in-game'].active()) {
-      clearInterval(timer)
-      throw ProtectingBot.error()
+      void finishMapCollectorLauncherBotProtectFlow()
     }
   }, 150)
 }

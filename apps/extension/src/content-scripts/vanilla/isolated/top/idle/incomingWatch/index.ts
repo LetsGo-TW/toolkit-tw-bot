@@ -594,6 +594,13 @@ async function runPeriodicReconcile() {
 async function bootstrap() {
   const scope = window as ToolkitWindow
 
+  const gameData = getCurrentGameDataFromWindow()
+
+  if (!gameData) {
+    logIncomingFlow('Bootstrap ignorado. Context inválido.')
+    return
+  }
+
   if (scope[BOOTSTRAP_KEY]) {
     logIncomingFlow('Bootstrap ignorado. Incoming watch já estava instalado.')
     return

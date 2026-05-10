@@ -82,14 +82,20 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
       } catch (reloadError) {
         console.error('[SW][PROBE] reload failed', reloadError)
       }
+
+      return
     }
 
 
     if (response?.isBotProtected === true) {
       await clearProbeAlarm(alarm.name)
+      return
     }
+
+    await scheduleProbeAlarm(scopeKey)
   } catch (error) {
     console.error('[SW][PROBE] sendMessage failed', error)
+    await scheduleProbeAlarm(scopeKey)
   }
 }
 

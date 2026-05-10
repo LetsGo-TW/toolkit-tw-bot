@@ -100,7 +100,6 @@ export async function getBotViewStatus(
     return {
       ok: true,
       type: GET_BOT_VIEW_STATUS_MESSAGE_TYPE,
-      currentTitle: null,
       scopeKey: null,
       nextAt: null,
       nextTitle: null,
@@ -108,11 +107,6 @@ export async function getBotViewStatus(
   }
 
   const controllerScopeState = getRunnerControllerScopeState(scopeKey)
-  const currentTitle = formatExecutionLabel({
-    machine: controllerScopeState?.current?.machine,
-    module: controllerScopeState?.current?.module,
-    kind: controllerScopeState?.current?.kind,
-  })
   const nextExecution = await resolveNextExecutionForGame({
     scopeKey,
     world: normalizeString(tabContext?.world),
@@ -135,7 +129,6 @@ export async function getBotViewStatus(
   return {
     ok: true,
     type: GET_BOT_VIEW_STATUS_MESSAGE_TYPE,
-    currentTitle,
     scopeKey,
     nextAt,
     nextTitle,

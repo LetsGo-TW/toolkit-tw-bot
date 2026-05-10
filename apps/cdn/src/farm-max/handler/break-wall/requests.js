@@ -1,5 +1,15 @@
 import { makeAjaxHeadersGet, makeAjaxHeadersPost } from "@toolkit-tw-bot/browser";
 import { getGameData } from "@toolkit-tw-bot/document";
+import { parseTwJsonText } from "../../../requests/utils/parseTwResponseText.js";
+
+function isBotProtectError(error = null) {
+  return error?.message === "Identified bot protection"
+}
+
+async function parseAjaxJsonOrThrowBotProtect(response) {
+  const text = await response.text()
+  return parseTwJsonText(text, "break-wall:ajax-response")
+}
 
 async function fetchCommand(villageId, targetId, targetX, targetY, template) {
   const gameData = getGameData()
@@ -21,7 +31,7 @@ async function fetchCommand(villageId, targetId, targetX, targetY, template) {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const { response, error } = await res.json();
+    const { response, error } = await parseAjaxJsonOrThrowBotProtect(res);
     if (error || !response || !response.dialog) throw new Error(error ?? response.toString())
     const html = new DOMParser().parseFromString(response.dialog, "text/html");
 
@@ -59,7 +69,9 @@ async function fetchCommand(villageId, targetId, targetX, targetY, template) {
     if (!payload.find(([n]) => n === "h")) payload.push(["h", gameData.csrf]);
     return payload;
   } catch (e) {
-    console.error(e)
+    if (!isBotProtectError(e)) {
+      console.error(e)
+    }
     throw e
   } finally {
     clearTimeout(t);
@@ -91,7 +103,7 @@ async function fetchConfirmCommand(villageId, payloadCommand) {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const { response, error } = await res.json();
+    const { response, error } = await parseAjaxJsonOrThrowBotProtect(res);
     if (error || !response || !response.dialog) throw new Error(error || response.toString())
     const html = new DOMParser().parseFromString(response.dialog, "text/html");
     const durationSecond = Number(html?.querySelector('.relative_time')?.dataset?.duration)
@@ -111,7 +123,9 @@ async function fetchConfirmCommand(villageId, payloadCommand) {
     payload.push(["h", gameData.csrf], ["h", gameData.csrf]);
     return {payload, durationSecond};
   } catch (e) {
-    console.error(e)
+    if (!isBotProtectError(e)) {
+      console.error(e)
+    }
     throw e
   } finally {
     clearTimeout(t);
@@ -143,7 +157,7 @@ async function fetchPopupCommand(villageId, payloadConfirm) {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const { game_data, response, error } = await res.json()
+    const { game_data, response, error } = await parseAjaxJsonOrThrowBotProtect(res)
 
     if (error || !response || !game_data) throw new Error(error || response.toString())
 
@@ -152,7 +166,9 @@ async function fetchPopupCommand(villageId, payloadConfirm) {
 
     return { time_generated, message, target_village, source_village };
   } catch (e) {
-    console.error(e)
+    if (!isBotProtectError(e)) {
+      console.error(e)
+    }
     throw e
   } finally {
     clearTimeout(t);

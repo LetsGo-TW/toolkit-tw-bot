@@ -7,8 +7,9 @@ import { configBase, storageConfigFarm, storageFarmSchedules } from "../config";
 import { initBreakWallConfig, storageBreakWallTemplates } from "../config/break-wall";
 import { getAllAliveTargets } from "../handler/alive-targets";
 import { Distance } from "@toolkit-tw-bot/core";
-import { getGameData } from "@toolkit-tw-bot/document";
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
+import { BotViewStatus } from "../../shared/bot-view-status";
 
 const handlerGroups = new Groups()
 
@@ -45,12 +46,14 @@ async function onClickActive(e) {
   // Avisa o Service Worker para recalcular a máquina de estados/alarmes
   try {
     const gameData = getGameData()
-    chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+    const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
       extensionId: RELEASE_EXTENSION_ID,
       type: 'FARM_STATE_CHANGED',
       world: gameData?.world,
       playerId: parseInt(gameData?.player?.id, 10),
     }).catch(() => null);
+
+    BotViewStatus.apply(response)
   } catch (err) {}
 
   console.log('[FARM_STATE_CHANGED]: ', config)
@@ -109,12 +112,14 @@ async function goFormSubmit(event) {
   // Avisa o Service Worker que o 'season' ou outras configs mudaram
   try {
     const gameData = getGameData()
-    chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+    const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
       extensionId: RELEASE_EXTENSION_ID,
       type: 'FARM_CONFIG_CHANGED',
       world: gameData?.world,
       playerId: parseInt(gameData?.player?.id, 10),
     }).catch(() => null);
+
+    BotViewStatus.apply(response)
   } catch (err) {}
   printMessage.success('Configurações salvas com sucesso!', 3000)
   console.log('[FARM_CONFIG_CHANGED]: ', data)
@@ -139,22 +144,12 @@ async function updateNextFarm() {
 
   const nextTimestampMs = (last + (config.season * 60)) * 1000;
   const nextDate = new Date(nextTimestampMs);
+  const pad = (value, size = 2) => String(value).padStart(size, '0');
+  const nextSchedules = `${pad(nextDate.getDate())}/${pad(nextDate.getMonth() + 1)}/${nextDate.getFullYear()} ${pad(nextDate.getHours())}:${pad(nextDate.getMinutes())}:${pad(nextDate.getSeconds())}`;
 
-  // Formata a data para o padrão do TW (dd.mm.yy HH:MM:SS) para ser inequívoco,
-  // em vez de usar toLocaleString() que depende do fuso horário do usuário.
-  // Usamos os métodos UTC para ter uma base consistente, já que o timestamp do servidor
-  // é um valor absoluto (como UTC). O horário do servidor do TW (ex: UK) é muito próximo de UTC.
-  const day = nextDate.getUTCDate().toString().padStart(2, '0');
-  const month = (nextDate.getUTCMonth() + 1).toString().padStart(2, '0');
-  const year = nextDate.getUTCFullYear().toString().slice(-2);
-  const hours = nextDate.getUTCHours().toString().padStart(2, '0');
-  const minutes = nextDate.getUTCMinutes().toString().padStart(2, '0');
-  const seconds = nextDate.getUTCSeconds().toString().padStart(2, '0');
-  
-  const nextSchedules = `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
-
-  const text = `Próximo agendamento: ${nextSchedules}`;
+  const text = `Próxima execução: ${nextSchedules}`;
   goNextFarm.textContent = text;
+  goNextFarm.setAttribute('data-go-title', 'Hora efetiva do jogo (TW).')
   if (newNextFarm) newNextFarm.textContent = text;
 }
 
@@ -497,6 +492,14 @@ async function render(containerElement = null) {
     const goFarmGroup = document.querySelector('#go-farm-group')
     goFarmGroup.innerHTML = htmlGroup.join('')
   } catch (error) {
+    if (
+      error?.message === 'Identified bot protection'
+      || ProtectingBot["bot-protect-all-in-game"].active()
+    ) {
+      try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+      return
+    }
+
     console.error(error.message || error.toString())
   }
 
@@ -518,12 +521,14 @@ async function render(containerElement = null) {
 
     // Avisa o Service Worker para zerar os alarmes e forçar a execução na mesma hora
     try {
-      chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
+      const response = await chrome.runtime.sendMessage(RELEASE_EXTENSION_ID, {
         extensionId: RELEASE_EXTENSION_ID,
         type: 'FARM_CONFIG_CHANGED',
         world: getGameData()?.world,
         playerId: parseInt(getGameData()?.player?.id, 10),
       }).catch(() => null);
+
+      BotViewStatus.apply(response)
     } catch (err) {}
   }
 

@@ -149,6 +149,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
               }
             }
           } catch (err) {
+            if (err?.message === 'Identified bot protection') throw err;
             console.error(err)
             continue
           }
@@ -182,6 +183,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
             }
           }
         } catch (err) {
+          if (err?.message === 'Identified bot protection') throw err;
           console.error(err)
           continue
         }

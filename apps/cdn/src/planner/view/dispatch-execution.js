@@ -1,3 +1,20 @@
+import { ProtectingBot } from "@toolkit-tw-bot/document"
+
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
+
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+}
+
+function hasActiveBotProtect() {
+  try {
+    return ProtectingBot["bot-protect-all-in-game"].active()
+  } catch {
+    return false
+  }
+}
+
 export async function executePlannerDispatchAction({
   mode,
   getContext,
@@ -64,6 +81,7 @@ if (plannerSendRunning.is_active('plannerSend') || plannerSendRunning.is_active(
 }
 
 let plannerSendLocked = false
+let shouldRedirectToBotProtect = false
 try {
   await recoverUnexpectedInterruptionBeforeNextExecution?.()
   const context = getContext()
@@ -81,6 +99,12 @@ try {
       UI?.InfoMessage?.(`BN preflight: ${preflight.resolved}/${preflight.total} player(s) resolvidos.`)
     }
   } catch (preflightError) {
+    if (isBotProtectError(preflightError) || hasActiveBotProtect()) {
+      shouldRedirectToBotProtect = true
+      UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
+      return
+    }
+
     console.error('[planner:dispatch:multi:bn-preflight]', preflightError)
   }
   context.worldNightConfig = buildWorldNightConfigMetaPayload()
@@ -303,6 +327,11 @@ try {
                 }
               })
             } catch (groupError) {
+              if (isBotProtectError(groupError) || hasActiveBotProtect()) {
+                shouldRedirectToBotProtect = true
+                throw groupError
+              }
+
               console.error('[planner:dispatch:multi:send-group]', {
                 target: groupPlannerTarget,
                 error: groupError
@@ -495,11 +524,19 @@ try {
     await clearPlannerPendingSendSession({ reportId })
 
     if (aggregateExecution.interruptedByCaptcha) {
+      shouldRedirectToBotProtect = true
       UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
     } else {
       UI?.InfoMessage?.('Envio de comando concluído!')
     }
   } catch (error) {
+    if (isBotProtectError(error) || hasActiveBotProtect()) {
+      shouldRedirectToBotProtect = true
+      await clearPlannerPendingSendSession({ reportId })
+      UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
+      return
+    }
+
     console.error('[planner:dispatch:multi:distribute]', error)
     await clearPlannerPendingSendSession({ reportId })
     UI?.ErrorMessage?.(error?.message || 'Erro ao distribuir comandos')
@@ -524,6 +561,12 @@ try {
     UI?.InfoMessage?.(`BN preflight: ${preflight.resolved}/${preflight.total} player(s) resolvidos.`)
   }
 } catch (preflightError) {
+  if (isBotProtectError(preflightError) || hasActiveBotProtect()) {
+    shouldRedirectToBotProtect = true
+    UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
+    return
+  }
+
   console.error('[planner:dispatch:execute:bn-preflight]', preflightError)
 }
 context.worldNightConfig = buildWorldNightConfigMetaPayload()
@@ -576,6 +619,12 @@ if (singleUsesDistribution) {
       startedAtMs: reportStartedAtMs
     })
   } catch (distributionError) {
+    if (isBotProtectError(distributionError) || hasActiveBotProtect()) {
+      shouldRedirectToBotProtect = true
+      UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
+      return
+    }
+
     console.error('[planner:dispatch:single:distribute]', distributionError)
     UI?.ErrorMessage?.(distributionError?.message || 'Erro ao distribuir comandos')
     return
@@ -720,6 +769,7 @@ try {
       executionResult.formattedDispatchDiagnostics = formattedItems
     }
     if (executionResult?.interruptedByCaptcha) {
+      shouldRedirectToBotProtect = true
       UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
     } else {
       UI?.InfoMessage?.('Envio de comando concluído!')
@@ -737,6 +787,12 @@ try {
   applySentUnitsToSendersAndTable(executionResult)
   refreshIncomingTargetIfOpen(executionResult)
 } catch (error) {
+  if (isBotProtectError(error) || hasActiveBotProtect()) {
+    shouldRedirectToBotProtect = true
+    UI?.ErrorMessage?.('Envio interrompido: Captcha identificado! Aguarde...')
+    return
+  }
+
   console.error('[planner:dispatch:single:send]', error)
   UI?.ErrorMessage?.(error?.message || 'Erro ao enviar comandos')
   } finally {
@@ -744,6 +800,10 @@ try {
   }
 } finally {
   if (plannerSendLocked) endPlannerSendExecution()
+
+  if (shouldRedirectToBotProtect) {
+    try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+  }
 }
 
 }

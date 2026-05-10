@@ -49,6 +49,28 @@ import {
 import { windowForceFocus } from "../window-force-focus";
 import { armNativeClick, onNativeClick } from "./native";
 
+async function withBotViewStatus(
+  response: unknown,
+  received: MessageEnvelope['received'],
+  sender: chrome.runtime.MessageSender,
+) {
+  const scopeKey = getTabContext(sender?.tab?.id ?? null)?.scopeKey ?? null;
+
+  if (scopeKey) {
+    await waitForRunnerControllerScopeIdle(scopeKey);
+  }
+
+  const botViewStatus = await getBotViewStatus(
+    received,
+    sender,
+  );
+
+  return {
+    ...(response && typeof response === 'object' ? response : {}),
+    botViewStatus,
+  };
+}
+
 export async function handleMessage({ received, sender }: MessageEnvelope): Promise<any> {
   switch (received?.type) {
     case CONNECT_MESSAGE_TYPE:
@@ -76,12 +98,20 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
         sender as chrome.runtime.MessageSender,
       );
     case FARM_CONFIG_CHANGED_MESSAGE_TYPE:
-      return handleFarmConfigChanged(
+      return withBotViewStatus(
+        await handleFarmConfigChanged(
+          received,
+          sender as chrome.runtime.MessageSender,
+        ),
         received,
         sender as chrome.runtime.MessageSender,
       );
     case FARM_STATE_CHANGED_MESSAGE_TYPE:
-      return handleFarmStateChanged(
+      return withBotViewStatus(
+        await handleFarmStateChanged(
+          received,
+          sender as chrome.runtime.MessageSender,
+        ),
         received,
         sender as chrome.runtime.MessageSender,
       );
@@ -119,21 +149,11 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
           received,
           sender as chrome.runtime.MessageSender,
         );
-        const scopeKey = getTabContext(sender?.tab?.id ?? null)?.scopeKey ?? null;
-
-        if (scopeKey) {
-          await waitForRunnerControllerScopeIdle(scopeKey);
-        }
-
-        const botViewStatus = await getBotViewStatus(
+        return withBotViewStatus(
+          response,
           received,
           sender as chrome.runtime.MessageSender,
         );
-
-        return {
-          ...response,
-          botViewStatus,
-        };
       }
     case VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE:
       return verifyWorldPlayerLicense(received);

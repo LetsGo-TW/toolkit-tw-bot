@@ -14,7 +14,7 @@ import {
   parseParam,
   renderTooltipIconText,
   stopAll
-} from './shared.js'
+} from '../../shared/contextActionUtils.js'
 
 const GO = {
   BTN_SIZE: 23,
@@ -28,12 +28,21 @@ const GO = {
 }
 
 const log = (...args) => GO.DEBUG && console.log('[GO-MP]', ...args)
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
 
 function qs(sel, root) {
   return (root || document).querySelector(sel)
 }
 
 let unbindMapCtxTooltip = null
+let mapMenuBootTimerId = null
+let mapCtxButtonsObserver = null
+let mapMenuBotProtectFinishing = false
+
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+}
 
 function ensureMapCtxTooltipOnce() {
   if (unbindMapCtxTooltip) return
@@ -214,11 +223,16 @@ function makeBtn({ id, title, iconUri, onClick }) {
   a.addEventListener('touchstart', stopAll, true)
   a.addEventListener('click', (event) => {
     stopAll(event)
-    try {
-      onClick()
-    } catch (error) {
-      console.error('[GO-MP] click error', error)
-    }
+    void Promise.resolve()
+      .then(() => onClick?.())
+      .catch((error) => {
+        if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+          finishMapMenuBotProtectFlow()
+          return
+        }
+
+        console.error('[GO-MP] click error', error)
+      })
     return false
   }, true)
 
@@ -237,6 +251,29 @@ function removeButtons(ctxButtons) {
     ctxButtons.style.zIndex = ctxButtons.__go_prevZ
     delete ctxButtons.__go_prevZ
   }
+}
+
+function destroyMapMenuRunningCore() {
+  if (mapMenuBootTimerId != null) {
+    clearInterval(mapMenuBootTimerId)
+    mapMenuBootTimerId = null
+  }
+
+  mapCtxButtonsObserver?.disconnect?.()
+  mapCtxButtonsObserver = null
+
+  const ctxButtons = document.getElementById('map-ctx-buttons')
+  if (ctxButtons) removeButtons(ctxButtons)
+
+  unbindMapCtxTooltip?.()
+  unbindMapCtxTooltip = null
+}
+
+function finishMapMenuBotProtectFlow() {
+  if (mapMenuBotProtectFinishing) return
+  mapMenuBotProtectFinishing = true
+  destroyMapMenuRunningCore()
+  try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
 }
 
 function ensureButtons(reason) {
@@ -443,6 +480,7 @@ function patchContextWhenReady() {
         }
       })
       mo.observe(ctxButtons, { childList: true, subtree: false, attributes: true, attributeFilter: ['style'] })
+      mapCtxButtonsObserver = mo
     } catch (_) {}
   }
 
@@ -451,14 +489,28 @@ function patchContextWhenReady() {
 }
 
 export function bootMapMenuRunning() {
+  mapMenuBotProtectFinishing = false
+  if (mapMenuBootTimerId != null) {
+    clearInterval(mapMenuBootTimerId)
+    mapMenuBootTimerId = null
+  }
+
   let tries = 0
-  const timer = setInterval(() => {
+  mapMenuBootTimerId = setInterval(() => {
     tries++
     const ok = patchContextWhenReady()
-    if (ok || tries > 200) clearInterval(timer)
+    if (ok || tries > 200) {
+      clearInterval(mapMenuBootTimerId)
+      mapMenuBootTimerId = null
+    }
+
     if (ProtectingBot['bot-protect-all-in-game'].active()) {
-      clearInterval(timer)
-      throw ProtectingBot.error()
+      finishMapMenuBotProtectFlow()
     }
   }, 150)
+}
+
+export function destroyMapMenuRunning() {
+  mapMenuBotProtectFinishing = false
+  destroyMapMenuRunningCore()
 }

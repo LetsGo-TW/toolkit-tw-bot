@@ -3,11 +3,13 @@ import Controller from './worker/controller';
 import Emitters from "../../emitter";
 import Running from "../../running";
 import { FarmScheduleCore } from "./core";
-import { getGameData } from "@toolkit-tw-bot/document";
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
+import { BotViewStatus } from "../../shared/bot-view-status/index.js";
 
 const farmSchedules = {
   controller: null,
   farmScheduleCore: null,
+  reject: null,
   resolve: null,
   worker: null,
 }
@@ -26,16 +28,24 @@ const getCurrentGameData = () => {
   return getGameData()
 }
 
-function resolveCompletion() {
+function settleCompletion(error = null) {
   const resolve = farmSchedules.resolve
+  const reject = farmSchedules.reject
+
   farmSchedules.resolve = null
+  farmSchedules.reject = null
+
+  if (error && typeof reject === 'function') {
+    reject(error)
+    return
+  }
 
   if (typeof resolve === 'function') {
     resolve()
   }
 }
 
-function cleanupFarmSchedules() {
+function cleanupFarmSchedules({ error = null } = {}) {
   try { farmSchedules.worker?.terminate?.() } catch { /* intentionally empty */ }
 
   Object.keys(emitter.events).forEach((eventName) => emitter.remove(eventName))
@@ -45,7 +55,7 @@ function cleanupFarmSchedules() {
   farmSchedules.farmScheduleCore = null
 
   running.remove()
-  resolveCompletion()
+  settleCompletion(error)
 }
 
 function requestStopFarmSchedules() {
@@ -95,17 +105,32 @@ export default async function start (data, context) {
   }
 
   running.activate() /// importate!!!
-
-  const completion = new Promise((resolve) => {
+  
+  const completion = new Promise((resolve, reject) => {
     farmSchedules.resolve = resolve
+    farmSchedules.reject = reject
   })
 
   emitter.on('alive', () => {
+    BotViewStatus.setCurrent("Farm Max")
+    BotViewStatus.setExecution("Executando agendamento")
+  
     farmSchedules.farmScheduleCore = FarmScheduleCore.create()
   })
 
-  emitter.on('terminate', () => {
-    cleanupFarmSchedules()
+  emitter.on('terminate', (detail = {}) => {
+    const reason = typeof detail?.reason === 'string'
+      ? detail.reason.trim().toLowerCase()
+      : ''
+    const isBotProtect = reason === 'bot-protect'
+
+    cleanupFarmSchedules({
+      error: isBotProtect ? ProtectingBot.error() : null,
+    })
+
+    if (isBotProtect) {
+      ProtectingBot.redirect()
+    }
   })
 
   context?.registerHandle?.({

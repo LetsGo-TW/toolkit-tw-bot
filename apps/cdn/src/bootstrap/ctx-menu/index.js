@@ -1,7 +1,7 @@
 import {
   bootCtxMenuRunning,
   destroyCtxMenuRunning,
-} from '../../map/menu/villageContextMenu'
+} from './villageContextMenu'
 
 export async function syncCtxMenuRunning() {
   bootCtxMenuRunning()

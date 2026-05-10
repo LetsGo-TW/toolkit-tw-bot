@@ -25,7 +25,7 @@ import { createTargetsDraftButton } from '../planner/targets-draft/button'
 import { createTargetsDraftCore, subscribeTargetsDraftSync } from '../planner/targets-draft/core.js'
 import { orderCoordsFromCoords } from '../planner/manyTomany/orderCoordsFromCoords.js'
 import { consoleDev } from '@toolkit-tw-bot/utils'
-import { getGameData } from '@toolkit-tw-bot/document'
+import { getGameData, ProtectingBot } from '@toolkit-tw-bot/document'
 import Groups from '../groups'
 
 const ICON_MODE_MOUSE = svgToDataUri(
@@ -50,6 +50,19 @@ function setButtonIconSrc(button, iconUri = '') {
   const img = button.querySelector('img')
   if (!(img instanceof HTMLImageElement)) return
   img.src = iconUri
+}
+
+function handleGroupsBotProtect(error) {
+  if (
+    error?.message !== 'Identified bot protection'
+    && !ProtectingBot["bot-protect-all-in-game"].active()
+  ) {
+    return false
+  }
+
+  closeSelectorView({ showLauncher: false })
+  try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+  return true
 }
 
 const state = {
@@ -211,6 +224,10 @@ async function buildOrderedTargetsForPlannerFromList(inputTargets = []) {
           .filter(Boolean)
       : []
   } catch (error) {
+    if (handleGroupsBotProtect(error)) {
+      return null
+    }
+
     console.error('[GO][MapCollector] groups.villagesInGroup error', error)
   }
 
@@ -614,6 +631,10 @@ async function buildOrderedTargetsForPlanner() {
           .filter(Boolean)
       : []
   } catch (error) {
+    if (handleGroupsBotProtect(error)) {
+      return null
+    }
+
     console.error('[GO][MapCollector] groups.villagesInGroup error', error)
   }
 

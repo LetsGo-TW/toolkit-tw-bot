@@ -3,11 +3,14 @@ import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document"
 import { extensionId as RELEASE_EXTENSION_ID } from "@toolkit-tw-bot/release"
 import { clearBotViewExecutionStatus, setBotViewExecutionStatus } from "../shared/bot-view-status"
+import { parseTwJsonText } from "../requests/utils/parseTwResponseText.js"
 import StorageLocalCompat from "../shared/indexdb/storage-local-compat.js"
 
 const INCOMING_WATCH_MESSAGE_TYPE = "CS_INCOMING_WATCH"
 const INCOMING_STORAGE_PATH = ["incoming", "state"]
 const INCOMING_PENDING_TICKET_MARKERS = new Set(["atac", "attack", "ataque", "attacco"])
+const BOT_PROTECT_MESSAGE = "Identified bot protection"
+const botProtectInGame = ProtectingBot["bot-protect-all-in-game"]
 
 function getCurrentGameData() {
   return getGameData()
@@ -163,6 +166,10 @@ function countPendingIncomingTags(state = null) {
   return listPendingIncomingEntries(state).length
 }
 
+function isBotProtectError(error = null) {
+  return error?.message === BOT_PROTECT_MESSAGE
+}
+
 async function sendMessageToExtension(context, payload = {}) {
   if (typeof context?.extension?.sendMessage === "function") {
     return await context.extension.sendMessage(payload)
@@ -213,7 +220,7 @@ async function tagRequest(ticket, commandId, { signal } = {}) {
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
     : timeoutCtrl.signal
 
-  if (ProtectingBot["bot-protect-all-in-game"].active()) {
+  if (botProtectInGame.active()) {
     clearTimeout(timeoutId)
     throw ProtectingBot.error()
   }
@@ -233,7 +240,9 @@ async function tagRequest(ticket, commandId, { signal } = {}) {
       throw new Error(`HTTP ${res.status}`)
     }
 
-    const { response, error } = await res.json()
+    const text = await res.text()
+    const { response, error } = parseTwJsonText(text, "incoming-apply:tag-response")
+
     if (error || !response) {
       throw new Error(error || "Not found!")
     }
@@ -300,6 +309,10 @@ export default async function incomingApplyRunner(data = {}, context = {}) {
 
         taggedCount++
       } catch (error) {
+        if (isBotProtectError(error) || botProtectInGame.active()) {
+          throw error
+        }
+
         failedCount++
         console.error("[incoming-apply][tag]", {
           commandId: pendingEntry.commandId,
@@ -341,6 +354,12 @@ export default async function incomingApplyRunner(data = {}, context = {}) {
         failedCount,
       },
     )
+  } catch (error) {
+    if (isBotProtectError(error) || botProtectInGame.active()) {
+      try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+    }
+
+    throw error
   } finally {
     clearBotViewExecutionStatus()
   }

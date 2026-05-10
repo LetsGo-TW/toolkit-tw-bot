@@ -65,12 +65,30 @@ class FarmScheduleCore {
     emitter.emit('startProcess', { actionName: 'getTextHtml', type: 'getModels', dataRequests })
   }
 
+  #handleBotProtectDetected = (html = document) => {
+    if (!ProtectingBot["bot-protect-all-in-game"].active(html)) {
+      return false
+    }
+
+    if (this.#botProtectActive) {
+      return true
+    }
+
+    this.#botProtectActive = true
+
+    emitter.emit('stopProcess', {
+      actionName: 'stop',
+      reason: 'bot-protect',
+    })
+
+    return true
+  }
+
   #updated = async ({ type, count, page, textHtml }) => {
     const html = new DOMParser().parseFromString(textHtml, 'text/html')
 
-    if (ProtectingBot["bot-protect-all-in-game"].active(html)) {
-      this.#botProtectActive = true
-      emitter.emit()
+    if (this.#handleBotProtectDetected(html)) {
+      return
     }
 
     switch (type) {
@@ -105,7 +123,9 @@ class FarmScheduleCore {
 
   #finished = async ({ type, count, page, textHtml }) => {
     if (this.#botProtectActive) {
-      emitter.emit('terminate');
+      emitter.emit('terminate', {
+        reason: 'bot-protect',
+      });
       return
     }
     switch (type) {
@@ -136,13 +156,16 @@ class FarmScheduleCore {
       case 'dataRequestsCombined': {
         const html = new DOMParser().parseFromString(textHtml, 'text/html')
 
-        if (ProtectingBot["bot-protect-all-in-game"].active(html)) {
-          this.#botProtectActive = true
+        if (this.#handleBotProtectDetected(html)) {
+          break
         }
+
         const { pageSize, pages } = getOverviewPages(html)
         if (page === -1 && pageSize * pages.length > 1000) {
           if (this.#botProtectActive) {
-            emitter.emit('terminate');
+            emitter.emit('terminate', {
+              reason: 'bot-protect',
+            });
             break
           }
 
@@ -158,7 +181,9 @@ class FarmScheduleCore {
 
         if (pageSize && pageSize < 1000) {
           if (this.#botProtectActive) {
-            emitter.emit('terminate');
+            emitter.emit('terminate', {
+              reason: 'bot-protect',
+            });
             break
           }
 
@@ -186,12 +211,19 @@ class FarmScheduleCore {
 
   #stoped = async (data) => {
     if (this.#botProtectActive) {
-      emitter.emit('terminate');
+      emitter.emit('terminate', {
+        ...data,
+        reason: data?.reason || 'bot-protect',
+      });
       return
     }
   }
 
   #error = async (data) => {
+    if (this.#botProtectActive) {
+      return
+    }
+
     console.error(data)
   }
 

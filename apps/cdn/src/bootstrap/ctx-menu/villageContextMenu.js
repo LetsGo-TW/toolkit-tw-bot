@@ -1,6 +1,6 @@
 import '../../components/go-buttons/tw.css'
 import Tooltip from '@toolkit-tw-bot/document/tooltip'
-import { ProtectingBot } from '@toolkit-tw-bot/document'
+import { assertNoCaptchaInGame, assertNoGameUpdateOrBlockedRequest, ProtectingBot } from '@toolkit-tw-bot/document'
 import { withGroupFix } from '../../groups'
 import {
   ICON_CALENDAR,
@@ -13,7 +13,7 @@ import {
   parseParam,
   renderTooltipIconText,
   stopAll
-} from './shared.js'
+} from '../../shared/contextActionUtils.js'
 
 let unbindVillageCtxTooltip = null
 let villageCtxAnchorTrackingBound = false
@@ -26,8 +26,14 @@ let lockedVillageCtxLayout = null
 let syncingVillageCtxLayout = null
 let villageCtxTimerId = null
 
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
 const VILLAGE_CTX_LOCK_STABLE_COUNT = 2
 const VILLAGE_CTX_LOCK_DELTA_PX = 2
+
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+}
 
 function getFreshVillageCtxAnchorData() {
   if (!lastVillageCtxAnchorData) return null
@@ -298,15 +304,26 @@ function getCurrentVillageIdFromCtxLinks() {
   return getCurrentVillageIdFromUrl()
 }
 
+function finishVillageCtxBotProtectFlow() {
+  destroyCtxMenuRunning()
+  try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+}
+
 async function resolveCoordsFromInfoVillage(targetVillageId, currentVillageId) {
   if (!Number.isFinite(targetVillageId) || !Number.isFinite(currentVillageId)) return null
   const url = withGroupFix(`${location.origin}/game.php?village=${currentVillageId}&screen=info_village&id=${targetVillageId}`)
 
   try {
+    if (ProtectingBot['bot-protect-all-in-game'].active()) {
+      throw ProtectingBot.error()
+    }
+
     const response = await fetch(url, { credentials: 'include', cache: 'no-store' })
     if (!response.ok) return null
     const html = await response.text()
     const doc = new DOMParser().parseFromString(html, 'text/html')
+    assertNoCaptchaInGame(doc, 'map:village-context:info-village')
+    assertNoGameUpdateOrBlockedRequest(doc, { context: 'map:village-context:info-village' })
 
     const mapLink = Array.from(doc.querySelectorAll('a[href*="screen=map"][href*="x="][href*="y="]'))
       .find((a) => {
@@ -328,7 +345,11 @@ async function resolveCoordsFromInfoVillage(targetVillageId, currentVillageId) {
     const y = Number(titleMatch[2])
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null
     return { x, y }
-  } catch (_) {
+  } catch (error) {
+    if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+      throw error
+    }
+
     return null
   }
 }
@@ -345,7 +366,16 @@ function makeVillageCtxBtn({ id, title, iconUri, onClick, brandTooltip = false }
   a.style.backgroundImage = `url("${iconUri}")`
   a.addEventListener('click', (event) => {
     stopAll(event)
-    onClick?.()
+    void Promise.resolve()
+      .then(() => onClick?.())
+      .catch((error) => {
+        if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+          finishVillageCtxBotProtectFlow()
+          return
+        }
+
+        console.error('[GO][VillageCtx] click error', error)
+      })
   }, true)
   a.addEventListener('mousedown', stopAll, true)
   a.addEventListener('pointerdown', stopAll, true)
@@ -530,8 +560,7 @@ export function bootCtxMenuRunning() {
       villageCtxTimerId = null
     }
     if (ProtectingBot['bot-protect-all-in-game'].active()) {
-      clearInterval(villageCtxTimerId)
-      villageCtxTimerId = null
+      finishVillageCtxBotProtectFlow()
     }
   }, 150)
 }

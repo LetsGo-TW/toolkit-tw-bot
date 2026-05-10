@@ -1,5 +1,6 @@
 import { makeAjaxHeadersGet } from "@toolkit-tw-bot/browser";
 import { getGameData } from "@toolkit-tw-bot/document";
+import { parseTwJsonText } from "../../../requests/utils/parseTwResponseText.js";
 
 async function fetchReports({ url, init }) {
   const controller = new AbortController();
@@ -36,7 +37,7 @@ async function fetchReportView(villageId, reportId) {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const { response, error } = await res.json();
+    const { response, error } = parseTwJsonText(await res.text(), "reports:view-response");
     if (error || !response || !response.dialog) throw new Error(error ?? response.toString())
     const html = new DOMParser().parseFromString(response.dialog, "text/html");
     const trs = Array.from(html.querySelectorAll('#attack_info_def_units tbody tr'))

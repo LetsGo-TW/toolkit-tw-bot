@@ -1,9 +1,31 @@
 import { makeAjaxBody, makeAjaxHeadersGet, makeAjaxHeadersPost } from "@toolkit-tw-bot/browser"
 import { getCurrentGameData, getGroupFix } from "./fix"
-import { ProtectingBot } from "@toolkit-tw-bot/document"
+import { assertNoCaptchaInGame } from "../shared/assertNoCaptchaInGame.js"
+import { assertTwHtmlNotSpecial, parseTwJsonText } from "../requests/utils/parseTwResponseText.js"
 
 const gameData = getCurrentGameData()
 const premiumActive = gameData?.features?.Premium?.active
+
+async function fetchTextOrThrowBotProtect(input, init) {
+  const response = await fetch(input, init)
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  const text = await response.text()
+
+  assertTwHtmlNotSpecial(text, "groups:html-response")
+
+  return text
+}
+
+async function fetchJsonOrThrowBotProtect(input, init) {
+  assertNoCaptchaInGame(document, "groups:pre-fetch")
+  const text = await fetchTextOrThrowBotProtect(input, init)
+
+  return parseTwJsonText(text, "groups:json-response")
+}
 
 export * from "./fix"
 
@@ -45,12 +67,7 @@ export default class Groups {
           cache: "no-store"
         }
 
-        if (ProtectingBot['bot-protect-all-in-game'].active()) {
-          throw ProtectingBot.error()
-        }
-
-        await fetch(url.toString(), request)
-        .then(response => response.json())
+        await fetchJsonOrThrowBotProtect(url.toString(), request)
         .then(data => {
           const { group_id, result } = data.response
 
@@ -105,20 +122,15 @@ export default class Groups {
   staticGroupsInVillage = async(village_id) => {
     if (!premiumActive) return []
 
-    if (ProtectingBot['bot-protect-all-in-game'].active()) {
-      throw ProtectingBot.error()
-    }
-
     const url = new URL(`${gameData.link_base_pure}groups&ajax=load_groups&village_id=${village_id}`, window.location.origin)
 
-    return await fetch(url.toString(), {
+    return await fetchJsonOrThrowBotProtect(url.toString(), {
       method: 'GET',
       headers: makeAjaxHeadersGet(),
       credentials: "include",
       referrerPolicy: "origin",
       cache: "no-store"
     })
-    .then(resp => resp.json())
     .then(json => json.response.result)
     .then(data => data.reduce((arr, e) => {
       const {group_id, name, in_group} = e
@@ -141,6 +153,7 @@ export default class Groups {
     }
 
     if (!premiumActive) return base
+    assertNoCaptchaInGame(document, "groups:villagesInGroup:pre-fetch")
 
     const body = makeAjaxBody({
       group_id,
@@ -149,7 +162,7 @@ export default class Groups {
 
     const url = new URL(`${gameData.link_base_pure}groups&ajax=load_villages_from_group`, window.location.origin)
 
-    return await fetch(url.toString(), {
+    return await fetchJsonOrThrowBotProtect(url.toString(), {
       method: 'POST',
       headers: makeAjaxHeadersPost(),
       body,
@@ -157,7 +170,6 @@ export default class Groups {
       referrerPolicy: "origin",
       cache: "no-store"
     })
-    .then(resp => resp.json())
     .then(data => data.response.html)
     .then(text => new DOMParser().parseFromString(text,'text/html'))
     .then(html => {
@@ -247,12 +259,9 @@ export default class Groups {
     }
 
     try {
-      if (ProtectingBot['bot-protect-all-in-game'].active()) {
-        throw ProtectingBot.error()
-      }
-
+      assertNoCaptchaInGame(document, "groups:restore:pre-fetch")
       const myRequest = resolveRequest()
-      await fetch(myRequest)
+      await fetchTextOrThrowBotProtect(myRequest)
     } catch (error) {
       console.error({ msg: error?.message || null, script: "SaveRestoreGroup-restore", error })
       throw error

@@ -6,7 +6,7 @@ import {
   isPlannerScheduleEnabled,
   PLANNER_SCHEDULE_DISABLED_MESSAGE
 } from "./featureFlags";
-import { getGameData } from "@toolkit-tw-bot/document";
+import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
 import { consoleDev } from "@toolkit-tw-bot/utils";
 import { printMessage } from "../components/printMessage";
 
@@ -21,6 +21,7 @@ let plannerWarmupPromise = null
 let plannerOpenPromise = null
 let plannerLifecycleState = 'idle'
 let plannerLifecycleEventsBound = false
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
 
 function isPlannerPopupMounted() {
   return (
@@ -70,6 +71,25 @@ function syncDataUnitsMap(dataUnitsJson) {
   Object.entries(dataUnitsJson).forEach(([key, value]) => dataUnits.set(key, value))
 }
 
+function isBotProtectError(error = null) {
+  return error?.message === BOT_PROTECT_MESSAGE
+}
+
+function handlePlannerBotProtect(error = null) {
+  if (
+    !isBotProtectError(error)
+    && !ProtectingBot["bot-protect-all-in-game"].active()
+  ) {
+    return false
+  }
+
+  resetPlannerLifecycleState()
+  plannerWarmupPromise = null
+
+  try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+  return true
+}
+
 async function ensurePlannerUnitsLoaded() {
   const dataUnitsJson = await initUnitdata()
   if (!dataUnitsJson) throw new Error('Data units not found!')
@@ -83,12 +103,21 @@ export function warmupPlanner({ level = 'idle' } = {}) {
       try {
         await ensurePlannerUnitsLoaded()
       } catch (error) {
+        if (isBotProtectError(error) || ProtectingBot["bot-protect-all-in-game"].active()) {
+          throw error
+        }
+
         console.debug('[GO][planner][warmup:units]', error)
       }
       await warmupPlannerView({ level })
     })()
       .catch((error) => {
         plannerWarmupPromise = null
+
+        if (handlePlannerBotProtect(error)) {
+          return null
+        }
+
         console.debug('[GO][planner][warmup:view]', error)
       })
   }
@@ -141,6 +170,10 @@ export async function plannerOneToMany(data) {
         forceRefresh: true
       })
     } catch (error) {
+      if (isBotProtectError(error) || ProtectingBot["bot-protect-all-in-game"].active()) {
+        throw error
+      }
+
       console.warn('[GO][planner][tp-refresh]', error?.message || error)
     }
 
@@ -149,6 +182,11 @@ export async function plannerOneToMany(data) {
   })()
     .catch((error) => {
       finalizePlannerOpenAttempt()
+
+      if (handlePlannerBotProtect(error)) {
+        return null
+      }
+
       throw error
     })
     .finally(() => {

@@ -5,13 +5,39 @@ const {
 } = require('@toolkit-tw-bot/browser')
 const getGameData = require('./get-game-data')
 const ProtectingBot = require('./protecting-bot')
+const {
+  assertNoCaptchaInGame,
+  assertNoGameUpdateOrBlockedRequest,
+} = require('./tw-runtime-guards')
 const unitsSpeed = require('./unit-speed')
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
+const botProtectInGame = ProtectingBot['bot-protect-all-in-game']
 
 let cachedUnitData = null
 let cachedUnitDataScopeKey = null
 let storageUnitInfo = null
 let storageUnitInfoScopeKey = null
 let inFlight = null
+
+function isBotProtectError(error = null) {
+  return error?.message === BOT_PROTECT_MESSAGE
+}
+
+function looksLikeHtmlResponse(text = '') {
+  const normalized = String(text || '').toLowerCase().trim()
+
+  if (!normalized) return false
+
+  return normalized.includes('<html')
+    || normalized.includes('<!doctype')
+    || normalized.includes('id="ds_body"')
+    || normalized.includes("id='ds_body'")
+    || normalized.includes('bot_check')
+    || normalized.includes('botprotection_quest')
+    || normalized.includes('popup_box_bot_protection')
+    || normalized.includes('id="error"')
+    || normalized.includes("id='error'")
+}
 
 function getCurrentGameData() {
   if (typeof window !== 'undefined' && window?.game_data) {
@@ -104,7 +130,7 @@ async function getAjaxUnitInfo({ signal } = {}) {
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
     : timeoutCtrl.signal
 
-  if (ProtectingBot['bot-protect-all-in-game'].active()) {
+  if (botProtectInGame.active()) {
     clearTimeout(timeoutId)
     throw ProtectingBot.error()
   }
@@ -121,7 +147,16 @@ async function getAjaxUnitInfo({ signal } = {}) {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-    const { response, error } = await res.json()
+    const text = await res.text()
+
+    if (looksLikeHtmlResponse(text)) {
+      const html = new DOMParser().parseFromString(text, 'text/html')
+      assertNoCaptchaInGame(html, 'unit-runtime:ajax-response')
+      assertNoGameUpdateOrBlockedRequest(html, { context: 'unit-runtime:ajax-response' })
+    }
+
+    const { response, error } = JSON.parse(text)
+
     if (error || !response) throw new Error(error || 'Not found!')
     return response
   } finally {
@@ -155,6 +190,10 @@ async function preloadUnitData() {
       await writeStoredUnitData(storage, data)
       return syncCachedUnitData(data, scopeKey)
     } catch (error) {
+      if (isBotProtectError(error) || botProtectInGame.active()) {
+        throw error
+      }
+
       console.error(error)
       return null
     } finally {

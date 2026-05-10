@@ -6,6 +6,13 @@ import { getAjaxMapFarm } from "./getAjaxMapFarm";
 import { getAmFarmDoc } from "./getAmFarmDoc";
 import { postAjaxFarmFilter } from "./postAjaxFarmFilter";
 
+const BOT_PROTECT_MESSAGE = 'Identified bot protection';
+
+function isBotProtectError(error = null) {
+  return String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot';
+}
+
 export function searchBarbarians() {
   const gameData = getGameData();
 
@@ -159,6 +166,10 @@ export function searchBarbarians() {
         }
       }
     } catch (e) {
+      if (isBotProtectError(e) || ProtectingBot['bot-protect-all-in-game'].active()) {
+        throw e;
+      }
+
       console.error("[Farm] Erro ao ler Assistente de Saque:", e);
       printMessage.error("Falha na coleta do AS. Abortando para evitar ataques repetidos.", 4000);
       throw e;
@@ -281,6 +292,7 @@ export function searchBarbarians() {
     console.log("%c[Farm] Aplicando configurações de filtros no Assistente de Saque...", "color: yellow; font-size: 12px;");
 
     let savedFilters = [];
+    let shouldRedirectToBotProtect = false;
 
     try {
       if (A_TEMPLATE_ID === '0' && B_TEMPLATE_ID === '0') {
@@ -298,7 +310,11 @@ export function searchBarbarians() {
           let b_bg = doc.querySelector('.farm_icon_b');
           if (a_bg) A_TEMPLATE_ID = a_bg.getAttribute('data-template-id').split(':')[0];
           if (b_bg) B_TEMPLATE_ID = b_bg.getAttribute('data-template-id').split(':')[0];
-        } catch (e) {}
+        } catch (e) {
+          if (isBotProtectError(e) || ProtectingBot['bot-protect-all-in-game'].active()) {
+            throw e;
+          }
+        }
       }
 
       let template = A_TEMPLATE_ID !== '0' ? A_TEMPLATE_ID : B_TEMPLATE_ID;
@@ -430,6 +446,10 @@ export function searchBarbarians() {
 
           await wait(getRandomNumber(250, 450));
         } catch (err) {
+          if (isBotProtectError(err) || ProtectingBot['bot-protect-all-in-game'].active()) {
+            throw err;
+          }
+
           consecutiveErrors++;
           if (err.name === 'AbortError') {
             console.log(`%c[Farm] Tempo limite de conexão excedido ao atacar o alvo ${barb_id}.`, "color: yellow;");
@@ -449,6 +469,10 @@ export function searchBarbarians() {
               }
               consecutiveErrors = 0;
             } catch (checkErr) {
+              if (isBotProtectError(checkErr) || ProtectingBot['bot-protect-all-in-game'].active()) {
+                throw checkErr;
+              }
+
               console.error("[Farm] Proteção contra bot acionada ou falha na verificação:", checkErr);
               break;
             }
@@ -465,16 +489,29 @@ export function searchBarbarians() {
         printMessage.success("Search barbarians concluído!");
       }
     } catch (error) {
-      console.error("[Farm] Execução interrompida:", error);
-      if (error && error.message === 'bot-protect') {
-        printMessage.error("Processo interrompido: Proteção antibot ativada.", 4000);
+      if (isBotProtectError(error) || ProtectingBot['bot-protect-all-in-game'].active()) {
+        shouldRedirectToBotProtect = true;
+        printMessage.error("Processo interrompido: Captcha identificado! Aguarde...", 4000);
       } else if (error && error.name !== 'AbortError') {
+        console.error("[Farm] Execução interrompida:", error);
         printMessage.error("Ocorreu um erro. Verifique o console.", 4000);
       }
     } finally {
       console.log("%c[Farm] Restaurando filtros do Assistente de Saque...", "color: yellow; font-size: 12px;");
       running.remove('mapSearch');
-      await restoreFilters(savedFilters);
+      try {
+        await restoreFilters(savedFilters);
+      } catch (restoreError) {
+        if (isBotProtectError(restoreError) || ProtectingBot['bot-protect-all-in-game'].active()) {
+          shouldRedirectToBotProtect = true;
+        } else {
+          console.error("[Farm] Falha ao restaurar filtros do Assistente de Saque:", restoreError);
+        }
+      }
+
+      if (shouldRedirectToBotProtect) {
+        try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+      }
     }
   }
 

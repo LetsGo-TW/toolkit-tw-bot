@@ -9,6 +9,8 @@ import {
   distributeFakeLimitByAvailability
 } from "../shared/fakeLimit/index.js"
 
+const BOT_PROTECT_MESSAGE = 'Identified bot protection'
+
 const FAKE_LIMIT_UNITS = [
   { unit: 'spear', pop: 1, inputId: '#units_entry_all_spear' },
   { unit: 'axe', pop: 1, inputId: '#units_entry_all_axe' },
@@ -69,12 +71,68 @@ class FakeLimit {
   error_box = null
   fakeLimitPercent = null
   fakeLimitPromise = null
+  onBotProtect = null
+
+  isBotProtectError = (error = null) => (
+    String(error?.message || '').trim() === BOT_PROTECT_MESSAGE
+    || String(error?.cause || '').trim().toLowerCase() === 'protecting-bot'
+  )
+
+  hasActiveBotProtect = () => {
+    try {
+      return ProtectingBot['bot-protect-all-in-game'].active()
+    } catch {
+      return false
+    }
+  }
+
+  setBotProtectHandler = (handler = null) => {
+    this.onBotProtect = typeof handler === 'function' ? handler : null
+  }
+
+  finishBotProtectFlow = () => {
+    if (this.auto_fake?.action) {
+      this.auto_fake.action = false
+      this.setAutoFake()
+    }
+
+    this.fakeLimitPromise = null
+
+    if (typeof this.onBotProtect === 'function') {
+      this.onBotProtect()
+      return
+    }
+
+    try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+  }
+
+  runUiAction = async (label, callback) => {
+    try {
+      return await callback()
+    } catch (error) {
+      if (this.isBotProtectError(error) || this.hasActiveBotProtect()) {
+        this.finishBotProtectFlow()
+        return false
+      }
+
+      console.error(`[place-fake-limit][${label}]`, error)
+      return false
+    }
+  }
 
   init = function (html = document) {
     if (!isPlaceCommand() && !isPlaceTryConfirm()) return
     if (document.querySelector('#target_fake')) return
 
-    void this.ensureFakeLimit()
+    void this.ensureFakeLimit().catch((error) => {
+      if (this.isBotProtectError(error) || this.hasActiveBotProtect()) {
+        this.finishBotProtectFlow()
+        return null
+      }
+
+      console.error('[place-fake-limit][preload]', error)
+      return null
+    })
 
     this.form = html.forms?.['command-data-form'] || null
     this.error_box = html.querySelector?.("#content_value div.error_box") || null
@@ -98,8 +156,12 @@ class FakeLimit {
         this.span.querySelector("#target_fake"),
         this.span.querySelector("#target_spy")
       ]
-      this.btns[0]?.addEventListener("click", () => this.btnActions(0))
-      this.btns[1]?.addEventListener("click", () => this.btnActions(1))
+      this.btns[0]?.addEventListener("click", () => {
+        void this.runUiAction('fake-limit', () => this.btnActions(0))
+      })
+      this.btns[1]?.addEventListener("click", () => {
+        void this.runUiAction('fake-spy', () => this.btnActions(1))
+      })
 
       this.auto_attack = this.span.querySelector("#auto_attack")
       this.auto_attack.checked = this.auto_fake.auto_attack
@@ -141,6 +203,10 @@ class FakeLimit {
       })
         .then((payload) => this.updateWorldConfig(payload))
         .catch((error) => {
+          if (this.isBotProtectError(error) || this.hasActiveBotProtect()) {
+            throw error
+          }
+
           console.error('[place-fake-limit][bringData]', error)
           return null
         })

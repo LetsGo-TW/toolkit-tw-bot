@@ -2,7 +2,7 @@
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM=';
 
 import { initMapInfoCacheObserver } from "./mapInfoCacheObserver";
-import { bootMapMenuRunning } from "./menu/index.js";
+import { bootMapMenuRunning, destroyMapMenuRunning } from "./menu/index.js";
 import { bootMapCollectorLauncherRunning, destroyMapCollectorLauncher } from "./menu/mapCollectorLauncher.js";
 import { commandMap } from './commandMap';
 
@@ -19,6 +19,7 @@ export default async() => {
 
   return {
     destroy: () => {
+      destroyMapMenuRunning()
       destroyMapCollectorLauncher()
       destroyCommandMap?.()
     }
