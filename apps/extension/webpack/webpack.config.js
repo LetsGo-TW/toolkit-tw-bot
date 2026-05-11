@@ -5,16 +5,25 @@ const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
 function getConfigObfuscatorOptions(config = {}) {
   const configName = config.name
   const perConfig = {
-    SW: { level: 'low', overrides: ['worker'], excludes: [] },
+    SW: { enabled: false, level: 'low', overrides: ['worker'], excludes: [] },
     CS_VANILLA: { level: 'high', overrides: ['extension'], excludes: [] },
     CS_SHADOWDOM: { level: 'medium', overrides: ['extension'], excludes: [] },
     PG: { level: 'low', overrides: ['extension'], excludes: [] },
   }
 
   const defaultConfig = perConfig[String(configName).toUpperCase()] || {
+    enabled: true,
     level: 'default',
     overrides: ['extension'],
     excludes: [],
+  }
+
+  if (defaultConfig.enabled === false) {
+    return {
+      enabled: false,
+      excludes: [],
+      options: null,
+    }
   }
 
   const configTokens = String(configName).split('__')

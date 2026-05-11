@@ -1,8 +1,8 @@
 /// <reference types="chrome" />
 
-import type { ExtensionLicenseState } from '../types'
+import type { ExtensionLicenseState, SmartSessionConfig } from '../types'
 import { getPlayerEnabledByUser } from './enabled-by-user'
-import { getPlayerReconnectOnSessionExpired } from './reconnect-on-session-expired'
+import { getPlayerSessionManagementConfig } from './session-management'
 import { resolveWorldPlayer, type WorldPlayerRecord } from './world-players'
 import { runtimeAllowedByLicense, runtimeLicenseState } from './world-players/runtime'
 
@@ -24,6 +24,7 @@ export type EvaluatedWorldPlayerState = {
   worldPlayer: WorldPlayerRecord | null
   enabledByUser: boolean | null
   reconnectOnSessionExpired: boolean | null
+  smartSession: SmartSessionConfig | null
   isAllowedByLicense: boolean
   isLicenseExpiring: boolean
   license: ExtensionLicenseState
@@ -52,11 +53,14 @@ export async function evaluateWorldPlayerState({
     : resolvedWorld && typeof resolvedPlayerId === 'number'
       ? getPlayerEnabledByUser(resolvedWorld, resolvedPlayerId)
       : null
-  const reconnectOnSessionExpired = resolvedWorldPlayer
-    ? resolvedWorldPlayer.reconnectOnSessionExpired === true
-    : resolvedWorld && typeof resolvedPlayerId === 'number'
-      ? getPlayerReconnectOnSessionExpired(resolvedWorld, resolvedPlayerId)
-      : null
+  const sessionManagement = (
+    resolvedWorld
+    && typeof resolvedPlayerId === 'number'
+  )
+    ? await getPlayerSessionManagementConfig(resolvedWorld, resolvedPlayerId)
+    : null
+  const reconnectOnSessionExpired = sessionManagement?.reconnectOnSessionExpired ?? null
+  const smartSession = sessionManagement?.smartSession ?? null
   const {
     isAllowedByLicense,
     isLicenseExpiring,
@@ -72,6 +76,7 @@ export async function evaluateWorldPlayerState({
     worldPlayer: resolvedWorldPlayer,
     enabledByUser,
     reconnectOnSessionExpired,
+    smartSession,
     isAllowedByLicense,
     isLicenseExpiring,
     license,

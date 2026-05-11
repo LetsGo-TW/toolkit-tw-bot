@@ -7,7 +7,24 @@ import {
   POPUP_REFRESH_MESSAGE_TYPE,
   VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
 } from '../../service-worker/message/types'
-import { getRuntimeStatus, type ExtensionLicenseState, type FeaturesMap, type LicenseStatus, type RuntimeStatus } from '../../types'
+import {
+  createDefaultSmartSessionConfig,
+  MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+  MAX_SMART_LONG_REST_INTERVAL_HOURS,
+  MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+  MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+  MIN_SMART_LONG_REST_DURATION_MINUTES,
+  MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+  MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+  getRuntimeStatus,
+  type ExtensionLicenseState,
+  type FeaturesMap,
+  type LicenseStatus,
+  type RuntimeStatus,
+  type SmartSessionConfig,
+  type SmartSessionLongRestMode,
+} from '../../types'
 import userUrl from '../../img/user.png'
 import LogoLink from '../components/logo'
 import Loading from '../components/loading'
@@ -16,12 +33,15 @@ import { PlayerEnabledByUserSwitch, ToggleSwitch } from '../components/player-en
 const POPUP_STATE_MESSAGE_TYPE = 'GET_POPUP_STATE'
 const SET_ENABLED_BY_USER_MESSAGE_TYPE = 'SET_ENABLED_BY_USER'
 const SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE = 'SET_RECONNECT_ON_SESSION_EXPIRED'
+const SET_SMART_SESSION_CONFIG_MESSAGE_TYPE = 'SET_SMART_SESSION_CONFIG'
 const RUNNER_STORAGE_KEY = 'runnerByScope'
 const WINDOW_LOCK_STORAGE_KEY = 'windowLock'
 const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
 const SUPPORT_EMAIL = 'letsgo.tribalwars@gmail.com'
 const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Let's GO! Support")}`
 const PLAYER_AVATAR_TTL_MS = 3 * 60 * 60 * 1000
+
+type PopupView = 'main' | 'smart-session'
 
 type PopupState = {
   ok: boolean
@@ -52,6 +72,7 @@ type PopupState = {
   enabledByUser?: boolean | null
   isBotProtected?: boolean
   reconnectOnSessionExpired?: boolean | null
+  smartSession?: SmartSessionConfig | null
   isTryConfirm?: boolean
   active?: boolean
   ready?: boolean
@@ -77,6 +98,8 @@ type PopupRefreshMessage = {
   isNetError?: boolean
   enabledByUser?: boolean | null
   isBotProtected?: boolean
+  reconnectOnSessionExpired?: boolean | null
+  smartSession?: SmartSessionConfig | null
   isTryConfirm?: boolean
   active?: boolean
   license?: ExtensionLicenseState | null
@@ -447,6 +470,93 @@ const SettingDescription = styled.span`
   line-height: 1.35;
 `
 
+const SmartSettingCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border-radius: 0.7rem;
+  background: ${({ theme }) => theme.surfaceInner};
+`
+
+const SmartSettingHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+`
+
+const SmartSettingInputs = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+`
+
+const SmartSettingField = styled.label`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+`
+
+const SmartSettingFieldLabel = styled.span`
+  color: ${({ theme }) => theme.textLabel};
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`
+
+const SmartSettingInput = styled.input`
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid ${({ theme }) => theme.borderSoft};
+  background: ${({ theme }) => theme.surface};
+  color: ${({ theme }) => theme.textPrimary};
+  font-size: 0.78rem;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+`
+
+const SmartSettingSelect = styled.select`
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid ${({ theme }) => theme.borderSoft};
+  background: ${({ theme }) => theme.surface};
+  color: ${({ theme }) => theme.textPrimary};
+  font-size: 0.78rem;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+`
+
+const SmartSettingActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`
+
+const SmartSettingButton = styled.button`
+  min-height: 2rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid ${({ theme }) => theme.borderSoft};
+  border-radius: 0.55rem;
+  background: ${({ theme }) => `${theme.success}18`};
+  color: ${({ theme }) => theme.success};
+  font-size: 0.74rem;
+  font-weight: 600;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+`
+
 const Footer = styled.footer`
   display: flex;
   align-items: center;
@@ -815,14 +925,135 @@ function formatRetryAt(value?: number | null) {
   }).format(date)
 }
 
+function parsePositiveIntegerInput(value: string) {
+  if (!value.trim()) {
+    return null
+  }
+
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue) || numericValue < 1) {
+    return null
+  }
+
+  return Math.round(numericValue)
+}
+
+function formatPositiveIntegerInput(value: number) {
+  return String(Math.max(1, Math.round(value)))
+}
+
+function parseSmartSessionLongRestMode(value: string): SmartSessionLongRestMode | null {
+  return value === 'interval' || value === 'schedule'
+    ? value
+    : null
+}
+
+function parsePositiveIntegerInRange(
+  value: string,
+  {
+    min,
+    max,
+  }: {
+    min: number
+    max?: number
+  },
+) {
+  const normalized = parsePositiveIntegerInput(value)
+
+  if (normalized === null || normalized < min) {
+    return null
+  }
+
+  if (typeof max === 'number' && normalized > max) {
+    return null
+  }
+
+  return normalized
+}
+
+function parseScheduledTimeInput(value: string) {
+  const normalized = value.trim()
+
+  if (!normalized) {
+    return null
+  }
+
+  const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?$/)
+
+  if (!match) {
+    return null
+  }
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2] ?? '0')
+
+  if (
+    !Number.isInteger(hours)
+    || !Number.isInteger(minutes)
+    || hours < 0
+    || hours > 23
+    || minutes < 0
+    || minutes > 59
+  ) {
+    return null
+  }
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+function parseScheduledTimesInput(value: string) {
+  const normalized = Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((part) => parseScheduledTimeInput(part))
+        .filter((part): part is string => typeof part === 'string'),
+    ),
+  )
+
+  return normalized.length
+    ? normalized
+    : null
+}
+
+function formatScheduledTimesInput(values: string[]) {
+  return values.join(', ')
+}
+
 export default function App() {
   const rootRef = useRef<HTMLElement | null>(null)
   const avatarRefreshKeyRef = useRef<string | null>(null)
   const lastSeenUpdatedAtRef = useRef<string | null>(null)
+  const initialSmartSession = createDefaultSmartSessionConfig()
+  const [popupView, setPopupView] = useState<PopupView>('main')
   const [state, setState] = useState<PopupState | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
   const [savingReconnectOnSessionExpired, setSavingReconnectOnSessionExpired] = useState(false)
+  const [savingSmartSession, setSavingSmartSession] = useState(false)
+  const [shortBreakMinIdleDraft, setShortBreakMinIdleDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.shortBreak.minIdleMinutes)
+  ))
+  const [shortBreakDelayDraft, setShortBreakDelayDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.shortBreak.delayMinutes)
+  ))
+  const [longRestModeDraft, setLongRestModeDraft] = useState<SmartSessionLongRestMode>(initialSmartSession.longRest.mode)
+  const [longRestIntervalHoursDraft, setLongRestIntervalHoursDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.longRest.intervalHours)
+  ))
+  const [longRestDurationMinutesDraft, setLongRestDurationMinutesDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.longRest.durationMinutes)
+  ))
+  const [longRestDurationDelayMinutesDraft, setLongRestDurationDelayMinutesDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.longRest.durationDelayMinutes)
+  ))
+  const [longRestStartDelayMinutesDraft, setLongRestStartDelayMinutesDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.longRest.startDelayMinutes)
+  ))
+  const [longRestScheduledTimesDraft, setLongRestScheduledTimesDraft] = useState(() => (
+    formatScheduledTimesInput(initialSmartSession.longRest.scheduledTimes)
+  ))
   const [checkingLicense, setCheckingLicense] = useState(false)
   const [updatePulseTick, setUpdatePulseTick] = useState(0)
   const [licenseRetryTick, setLicenseRetryTick] = useState(() => Date.now())
@@ -989,6 +1220,14 @@ export default function App() {
           next.enabledByUser = refresh.enabledByUser ?? null
         }
 
+        if (Object.prototype.hasOwnProperty.call(refresh, 'reconnectOnSessionExpired')) {
+          next.reconnectOnSessionExpired = refresh.reconnectOnSessionExpired === true
+        }
+
+        if (Object.prototype.hasOwnProperty.call(refresh, 'smartSession')) {
+          next.smartSession = refresh.smartSession ?? null
+        }
+
         if (Object.prototype.hasOwnProperty.call(refresh, 'isBotProtected')) {
           next.isBotProtected = refresh.isBotProtected === true
         }
@@ -1052,6 +1291,28 @@ export default function App() {
       setUpdatePulseTick((current) => current + 1)
     }
   }, [state?.updatedAt])
+
+  useEffect(() => {
+    const smartSession = state?.smartSession ?? createDefaultSmartSessionConfig()
+
+    setShortBreakMinIdleDraft(formatPositiveIntegerInput(smartSession.shortBreak.minIdleMinutes))
+    setShortBreakDelayDraft(formatPositiveIntegerInput(smartSession.shortBreak.delayMinutes))
+    setLongRestModeDraft(smartSession.longRest.mode)
+    setLongRestIntervalHoursDraft(formatPositiveIntegerInput(smartSession.longRest.intervalHours))
+    setLongRestDurationMinutesDraft(formatPositiveIntegerInput(smartSession.longRest.durationMinutes))
+    setLongRestDurationDelayMinutesDraft(formatPositiveIntegerInput(smartSession.longRest.durationDelayMinutes))
+    setLongRestStartDelayMinutesDraft(formatPositiveIntegerInput(smartSession.longRest.startDelayMinutes))
+    setLongRestScheduledTimesDraft(formatScheduledTimesInput(smartSession.longRest.scheduledTimes))
+  }, [
+    state?.smartSession?.shortBreak.delayMinutes,
+    state?.smartSession?.shortBreak.minIdleMinutes,
+    state?.smartSession?.longRest.durationDelayMinutes,
+    state?.smartSession?.longRest.intervalHours,
+    state?.smartSession?.longRest.mode,
+    state?.smartSession?.longRest.scheduledTimes,
+    state?.smartSession?.longRest.startDelayMinutes,
+    state?.smartSession?.longRest.durationMinutes,
+  ])
 
   useEffect(() => {
     const tabId = state?.tabId
@@ -1122,6 +1383,158 @@ export default function App() {
     })
   }, [])
 
+  const buildShortBreakSmartSessionPayload = useCallback(({ strict = false }: { strict?: boolean } = {}) => {
+    const base = state?.smartSession ?? createDefaultSmartSessionConfig()
+    const nextShortBreakMinIdleMinutes = strict
+      ? parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
+        min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+      })
+      : parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
+        min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+      }) ?? base.shortBreak.minIdleMinutes
+    const nextShortBreakDelayMinutes = strict
+      ? parsePositiveIntegerInRange(shortBreakDelayDraft, {
+        min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+      })
+      : parsePositiveIntegerInRange(shortBreakDelayDraft, {
+        min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+      }) ?? base.shortBreak.delayMinutes
+
+    if (
+      nextShortBreakMinIdleMinutes === null
+      || nextShortBreakDelayMinutes === null
+    ) {
+      return null
+    }
+
+    return {
+      shortBreak: {
+        enabled: base.shortBreak.enabled,
+        minIdleMinutes: nextShortBreakMinIdleMinutes,
+        delayMinutes: nextShortBreakDelayMinutes,
+      },
+      longRest: base.longRest,
+    } satisfies SmartSessionConfig
+  }, [
+    shortBreakDelayDraft,
+    shortBreakMinIdleDraft,
+    state?.smartSession,
+  ])
+
+  const buildLongRestSmartSessionPayload = useCallback(({ strict = false }: { strict?: boolean } = {}) => {
+    const base = state?.smartSession ?? createDefaultSmartSessionConfig()
+    const nextLongRestMode = parseSmartSessionLongRestMode(longRestModeDraft) ?? base.longRest.mode
+    const nextLongRestDurationMinutes = strict
+      ? parsePositiveIntegerInRange(longRestDurationMinutesDraft, {
+        min: MIN_SMART_LONG_REST_DURATION_MINUTES,
+      })
+      : parsePositiveIntegerInRange(longRestDurationMinutesDraft, {
+        min: MIN_SMART_LONG_REST_DURATION_MINUTES,
+      }) ?? base.longRest.durationMinutes
+    const nextLongRestDurationDelayMinutes = strict
+      ? parsePositiveIntegerInRange(longRestDurationDelayMinutesDraft, {
+        min: MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+        max: MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+      })
+      : parsePositiveIntegerInRange(longRestDurationDelayMinutesDraft, {
+        min: MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+        max: MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+      }) ?? base.longRest.durationDelayMinutes
+    const nextLongRestStartDelayMinutes = strict
+      ? parsePositiveIntegerInRange(longRestStartDelayMinutesDraft, {
+        min: MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+        max: MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+      })
+      : parsePositiveIntegerInRange(longRestStartDelayMinutesDraft, {
+        min: MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+        max: MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+      }) ?? base.longRest.startDelayMinutes
+    const nextLongRestIntervalHours = strict
+      ? parsePositiveIntegerInRange(longRestIntervalHoursDraft, {
+        min: 1,
+        max: MAX_SMART_LONG_REST_INTERVAL_HOURS,
+      })
+      : parsePositiveIntegerInRange(longRestIntervalHoursDraft, {
+        min: 1,
+        max: MAX_SMART_LONG_REST_INTERVAL_HOURS,
+      }) ?? base.longRest.intervalHours
+    const nextLongRestScheduledTimes = strict
+      ? parseScheduledTimesInput(longRestScheduledTimesDraft)
+      : parseScheduledTimesInput(longRestScheduledTimesDraft) ?? base.longRest.scheduledTimes
+
+    if (
+      nextLongRestDurationMinutes === null
+      || nextLongRestDurationDelayMinutes === null
+      || nextLongRestStartDelayMinutes === null
+      || (
+        nextLongRestMode === 'interval'
+        && nextLongRestIntervalHours === null
+      )
+      || (
+        nextLongRestMode === 'schedule'
+        && nextLongRestScheduledTimes === null
+      )
+    ) {
+      return null
+    }
+
+    return {
+      shortBreak: base.shortBreak,
+      longRest: {
+        enabled: base.longRest.enabled,
+        mode: nextLongRestMode,
+        durationMinutes: nextLongRestDurationMinutes,
+        durationDelayMinutes: nextLongRestDurationDelayMinutes,
+        intervalHours: nextLongRestIntervalHours ?? base.longRest.intervalHours,
+        startDelayMinutes: nextLongRestStartDelayMinutes,
+        scheduledTimes: nextLongRestScheduledTimes ?? base.longRest.scheduledTimes,
+      },
+    } satisfies SmartSessionConfig
+  }, [
+    longRestDurationDelayMinutesDraft,
+    longRestDurationMinutesDraft,
+    longRestIntervalHoursDraft,
+    longRestModeDraft,
+    longRestScheduledTimesDraft,
+    longRestStartDelayMinutesDraft,
+    state?.smartSession,
+  ])
+
+  const persistSmartSession = useCallback(async (smartSession: SmartSessionConfig) => {
+    if (
+      savingSmartSession
+      || typeof state?.playerId !== 'number'
+      || !state?.world
+    ) {
+      return
+    }
+
+    setSavingSmartSession(true)
+    setError(null)
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        extensionId: RELEASE_EXTENSION_ID,
+        type: SET_SMART_SESSION_CONFIG_MESSAGE_TYPE,
+        world: state.world,
+        playerId: state.playerId,
+        smartSession,
+        targetTabId: state.tabId ?? null,
+        targetWindowId: state.windowId ?? null,
+      }) as PopupState
+
+      if (!response?.ok) {
+        throw new Error(response?.reason || 'Unable to update smart session state')
+      }
+
+      setState(response)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setSavingSmartSession(false)
+    }
+  }, [savingSmartSession, state])
+
   const handleEnabledByUserChange = useCallback(async () => {
     if (savingEnabledByUser || typeof state?.playerId !== 'number' || !state?.world) {
       return
@@ -1187,6 +1600,131 @@ export default function App() {
       setSavingReconnectOnSessionExpired(false)
     }
   }, [savingReconnectOnSessionExpired, state])
+
+  const handleShortBreakToggleChange = useCallback(async () => {
+    const base = state?.smartSession ?? createDefaultSmartSessionConfig()
+    const nextSmartSession = buildShortBreakSmartSessionPayload()
+
+    if (!nextSmartSession) {
+      return
+    }
+
+    await persistSmartSession({
+      ...nextSmartSession,
+      shortBreak: {
+        ...nextSmartSession.shortBreak,
+        enabled: !base.shortBreak.enabled,
+      },
+    })
+  }, [buildShortBreakSmartSessionPayload, persistSmartSession, state?.smartSession])
+
+  const handleShortBreakSave = useCallback(async () => {
+    const nextShortBreakMinIdleMinutes = parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
+      min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+    })
+    const nextShortBreakDelayMinutes = parsePositiveIntegerInRange(shortBreakDelayDraft, {
+      min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+    })
+    const nextSmartSession = buildShortBreakSmartSessionPayload()
+
+    if (
+      nextShortBreakMinIdleMinutes === null
+      || nextShortBreakDelayMinutes === null
+      || !nextSmartSession
+    ) {
+      setError('Short break threshold must be at least 3 minutes and delay at least 1 minute.')
+      return
+    }
+
+    await persistSmartSession({
+      ...nextSmartSession,
+      shortBreak: {
+        ...nextSmartSession.shortBreak,
+        minIdleMinutes: nextShortBreakMinIdleMinutes,
+        delayMinutes: nextShortBreakDelayMinutes,
+      },
+    })
+  }, [
+    buildShortBreakSmartSessionPayload,
+    persistSmartSession,
+    shortBreakDelayDraft,
+    shortBreakMinIdleDraft,
+  ])
+
+  const handleLongRestToggleChange = useCallback(async () => {
+    const base = state?.smartSession ?? createDefaultSmartSessionConfig()
+    const nextSmartSession = buildLongRestSmartSessionPayload()
+
+    if (!nextSmartSession) {
+      return
+    }
+
+    await persistSmartSession({
+      ...nextSmartSession,
+      longRest: {
+        ...nextSmartSession.longRest,
+        enabled: !base.longRest.enabled,
+      },
+    })
+  }, [buildLongRestSmartSessionPayload, persistSmartSession, state?.smartSession])
+
+  const handleLongRestSave = useCallback(async () => {
+    const nextLongRestDurationMinutes = parsePositiveIntegerInRange(longRestDurationMinutesDraft, {
+      min: MIN_SMART_LONG_REST_DURATION_MINUTES,
+    })
+    const nextLongRestDurationDelayMinutes = parsePositiveIntegerInRange(longRestDurationDelayMinutesDraft, {
+      min: MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+      max: MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+    })
+    const nextLongRestStartDelayMinutes = parsePositiveIntegerInRange(longRestStartDelayMinutesDraft, {
+      min: MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+      max: MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+    })
+    const nextLongRestIntervalHours = parsePositiveIntegerInRange(longRestIntervalHoursDraft, {
+      min: 1,
+      max: MAX_SMART_LONG_REST_INTERVAL_HOURS,
+    })
+    const nextLongRestScheduledTimes = parseScheduledTimesInput(longRestScheduledTimesDraft)
+    const nextSmartSession = buildLongRestSmartSessionPayload()
+
+    if (
+      nextLongRestDurationMinutes === null
+      || nextLongRestDurationDelayMinutes === null
+      || nextLongRestStartDelayMinutes === null
+      || !nextSmartSession
+      || (
+        nextSmartSession.longRest.mode === 'interval'
+        && nextLongRestIntervalHours === null
+      )
+      || (
+        nextSmartSession.longRest.mode === 'schedule'
+        && nextLongRestScheduledTimes === null
+      )
+    ) {
+      setError('Long rest fields are invalid for the selected mode.')
+      return
+    }
+
+    await persistSmartSession({
+      ...nextSmartSession,
+      longRest: {
+        ...nextSmartSession.longRest,
+        durationMinutes: nextLongRestDurationMinutes,
+        durationDelayMinutes: nextLongRestDurationDelayMinutes,
+        intervalHours: nextLongRestIntervalHours ?? nextSmartSession.longRest.intervalHours,
+        startDelayMinutes: nextLongRestStartDelayMinutes,
+        scheduledTimes: nextLongRestScheduledTimes ?? nextSmartSession.longRest.scheduledTimes,
+      },
+    })
+  }, [
+    buildLongRestSmartSessionPayload,
+    longRestDurationDelayMinutesDraft,
+    longRestDurationMinutesDraft,
+    longRestIntervalHoursDraft,
+    longRestScheduledTimesDraft,
+    longRestStartDelayMinutesDraft,
+    persistSmartSession,
+  ])
 
   const handleVerifyWorldPlayerLicense = useCallback(async () => {
     if (
@@ -1273,6 +1811,13 @@ export default function App() {
     && !isMdfScope
     && !savingReconnectOnSessionExpired
   )
+  const smartSessionState = state?.smartSession ?? createDefaultSmartSessionConfig()
+  const hasSmartSessionOption = hasPlayerIdentity
+  const canEditSmartSession = (
+    hasSmartSessionOption
+    && !savingSmartSession
+  )
+  const showSmartSessionConfigPage = popupView === 'smart-session' && hasSmartSessionOption
   const enabledByUserTooltip = !hasPlayerIdentity
     ? 'Waiting for player identification'
     : isPlayerEnabledByUser
@@ -1285,6 +1830,26 @@ export default function App() {
     : reconnectOnSessionExpiredState === true
       ? 'Disable automatic reconnect when the session expires'
       : 'Enable automatic reconnect when the session expires'
+  const shortBreakTooltip = !hasSmartSessionOption
+    ? 'Waiting for player identification'
+    : smartSessionState.shortBreak.enabled
+      ? 'Disable smart short breaks'
+      : 'Enable smart short breaks'
+  const longRestTooltip = !hasSmartSessionOption
+    ? 'Waiting for player identification'
+    : smartSessionState.longRest.enabled
+      ? 'Disable scheduled long rest'
+      : 'Enable scheduled long rest'
+  const smartSessionSummary = [
+    smartSessionState.shortBreak.enabled
+      ? `short ${smartSessionState.shortBreak.minIdleMinutes}+${smartSessionState.shortBreak.delayMinutes}m`
+      : 'short off',
+    smartSessionState.longRest.enabled
+      ? smartSessionState.longRest.mode === 'schedule'
+        ? `long ${smartSessionState.longRest.scheduledTimes.join(', ')}`
+        : `long every ${smartSessionState.longRest.intervalHours}h`
+      : 'long off',
+  ].join(' • ')
   const playerMetrics = [
     {
       key: 'points',
@@ -1359,6 +1924,229 @@ export default function App() {
               The popup is ready, but it only shows data when the active tab belongs to the game.
             </EmptyText>
           </EmptyPanel>
+        ) : showSmartSessionConfigPage ? (
+          <Panel>
+            <BotSection>
+              <SettingRow>
+                <SettingText>
+                  <SettingTitle>Smart Session Management</SettingTitle>
+                  <SettingDescription>
+                    Configure short breaks and long rests without polluting the main popup view.
+                  </SettingDescription>
+                </SettingText>
+                <SmartSettingButton
+                  type="button"
+                  onClick={() => {
+                    setPopupView('main')
+                  }}
+                >
+                  Back
+                </SmartSettingButton>
+              </SettingRow>
+
+              <TechnicalMeta>
+                <TechnicalMetaItem>
+                  <strong>Scope:</strong> {getScopeLabel(state?.world, state?.t)}
+                </TechnicalMetaItem>
+                {typeof state?.playerId === 'number' ? (
+                  <TechnicalMetaItem>
+                    <strong>Player:</strong> #{state.playerId}
+                  </TechnicalMetaItem>
+                ) : null}
+              </TechnicalMeta>
+
+              <SmartSettingCard>
+                <SmartSettingHeader>
+                  <SettingText>
+                    <SettingTitle>Smart Short Breaks</SettingTitle>
+                    <SettingDescription>
+                      Only enters when the next useful execution is safely beyond the configured threshold.
+                    </SettingDescription>
+                  </SettingText>
+                  <ToggleSwitch
+                    $checked={smartSessionState.shortBreak.enabled}
+                    $disabled={!canEditSmartSession}
+                    data-popup-title={shortBreakTooltip}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={smartSessionState.shortBreak.enabled === true}
+                      disabled={!canEditSmartSession}
+                      aria-label="Toggle smart short breaks"
+                      onChange={() => { void handleShortBreakToggleChange() }}
+                    />
+                  </ToggleSwitch>
+                </SmartSettingHeader>
+
+                <SmartSettingInputs>
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Idle threshold (min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES}
+                      step={1}
+                      value={shortBreakMinIdleDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setShortBreakMinIdleDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Delay window (min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_SHORT_BREAK_DELAY_MINUTES}
+                      step={1}
+                      value={shortBreakDelayDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setShortBreakDelayDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+                </SmartSettingInputs>
+
+                <SmartSettingActions>
+                  <SmartSettingButton
+                    type="button"
+                    disabled={!canEditSmartSession}
+                    onClick={() => { void handleShortBreakSave() }}
+                  >
+                    Save
+                  </SmartSettingButton>
+                </SmartSettingActions>
+              </SmartSettingCard>
+
+              <SmartSettingCard>
+                <SmartSettingHeader>
+                  <SettingText>
+                    <SettingTitle>Scheduled Long Rest</SettingTitle>
+                    <SettingDescription>
+                      Supports interval mode or a daily schedule list such as 08:00, 12:00 and 18:00.
+                    </SettingDescription>
+                  </SettingText>
+                  <ToggleSwitch
+                    $checked={smartSessionState.longRest.enabled}
+                    $disabled={!canEditSmartSession}
+                    data-popup-title={longRestTooltip}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={smartSessionState.longRest.enabled === true}
+                      disabled={!canEditSmartSession}
+                      aria-label="Toggle scheduled long rest"
+                      onChange={() => { void handleLongRestToggleChange() }}
+                    />
+                  </ToggleSwitch>
+                </SmartSettingHeader>
+
+                <SmartSettingInputs>
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Mode</SmartSettingFieldLabel>
+                    <SmartSettingSelect
+                      value={longRestModeDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        const nextMode = parseSmartSessionLongRestMode(event.currentTarget.value)
+
+                        if (nextMode) {
+                          setLongRestModeDraft(nextMode)
+                        }
+                      }}
+                    >
+                      <option value="interval">Interval</option>
+                      <option value="schedule">Schedule list</option>
+                    </SmartSettingSelect>
+                  </SmartSettingField>
+
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Duration (min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_LONG_REST_DURATION_MINUTES}
+                      step={1}
+                      value={longRestDurationMinutesDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setLongRestDurationMinutesDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Duration delay (1-5 min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES}
+                      max={MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES}
+                      step={1}
+                      value={longRestDurationDelayMinutesDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setLongRestDurationDelayMinutesDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Start delay (5-10 min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_LONG_REST_START_DELAY_MINUTES}
+                      max={MAX_SMART_LONG_REST_START_DELAY_MINUTES}
+                      step={1}
+                      value={longRestStartDelayMinutesDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setLongRestStartDelayMinutesDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+
+                  {longRestModeDraft === 'interval' ? (
+                    <SmartSettingField>
+                      <SmartSettingFieldLabel>Every (hours)</SmartSettingFieldLabel>
+                      <SmartSettingInput
+                        type="number"
+                        min={1}
+                        max={MAX_SMART_LONG_REST_INTERVAL_HOURS}
+                        step={1}
+                        value={longRestIntervalHoursDraft}
+                        disabled={!canEditSmartSession}
+                        onChange={(event) => {
+                          setLongRestIntervalHoursDraft(event.currentTarget.value)
+                        }}
+                      />
+                    </SmartSettingField>
+                  ) : (
+                    <SmartSettingField>
+                      <SmartSettingFieldLabel>Daily times</SmartSettingFieldLabel>
+                      <SmartSettingInput
+                        type="text"
+                        value={longRestScheduledTimesDraft}
+                        disabled={!canEditSmartSession}
+                        onChange={(event) => {
+                          setLongRestScheduledTimesDraft(event.currentTarget.value)
+                        }}
+                      />
+                    </SmartSettingField>
+                  )}
+                </SmartSettingInputs>
+
+                <SmartSettingActions>
+                  <SmartSettingButton
+                    type="button"
+                    disabled={!canEditSmartSession}
+                    onClick={() => { void handleLongRestSave() }}
+                  >
+                    Save
+                  </SmartSettingButton>
+                </SmartSettingActions>
+              </SmartSettingCard>
+            </BotSection>
+          </Panel>
         ) : (
           <Panel>
             <BotSection>
@@ -1450,29 +2238,49 @@ export default function App() {
               </TechnicalMeta>
 
               {showReconnectOption ? (
-                <SettingRow>
-                  <SettingText>
-                    <SettingTitle>Reconnect on session expired</SettingTitle>
-                    <SettingDescription>
-                      {isMdfScope
-                        ? 'Disabled for MDF scopes.'
-                        : 'Waits 15-30s and reconnects automatically when no manual login input is required.'}
-                    </SettingDescription>
-                  </SettingText>
-                  <ToggleSwitch
-                    $checked={reconnectOnSessionExpiredState}
-                    $disabled={!canToggleReconnectOnSessionExpired}
-                    data-popup-title={reconnectTooltip}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={reconnectOnSessionExpiredState === true}
-                      disabled={!canToggleReconnectOnSessionExpired}
-                      aria-label="Toggle reconnect on session expired"
-                      onChange={() => { void handleReconnectOnSessionExpiredChange() }}
-                    />
-                  </ToggleSwitch>
-                </SettingRow>
+                <>
+                  <SettingRow>
+                    <SettingText>
+                      <SettingTitle>Reconnect on session expired</SettingTitle>
+                      <SettingDescription>
+                        {isMdfScope
+                          ? 'Disabled for MDF scopes.'
+                          : 'Waits 15-30s and reconnects automatically when no manual login input is required.'}
+                      </SettingDescription>
+                    </SettingText>
+                    <ToggleSwitch
+                      $checked={reconnectOnSessionExpiredState}
+                      $disabled={!canToggleReconnectOnSessionExpired}
+                      data-popup-title={reconnectTooltip}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={reconnectOnSessionExpiredState === true}
+                        disabled={!canToggleReconnectOnSessionExpired}
+                        aria-label="Toggle reconnect on session expired"
+                        onChange={() => { void handleReconnectOnSessionExpiredChange() }}
+                      />
+                    </ToggleSwitch>
+                  </SettingRow>
+
+                  <SettingRow>
+                    <SettingText>
+                      <SettingTitle>Smart Session Management</SettingTitle>
+                      <SettingDescription>
+                        {smartSessionSummary}. Open the dedicated config page to edit rules and schedules.
+                      </SettingDescription>
+                    </SettingText>
+                    <SmartSettingButton
+                      type="button"
+                      disabled={!hasSmartSessionOption}
+                      onClick={() => {
+                        setPopupView('smart-session')
+                      }}
+                    >
+                      Configure
+                    </SmartSettingButton>
+                  </SettingRow>
+                </>
               ) : null}
             </BotSection>
 

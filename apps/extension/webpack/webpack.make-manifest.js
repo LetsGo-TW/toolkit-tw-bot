@@ -10,9 +10,15 @@ function loadReleaseConfig() {
   }
 }
 
-const { extensionVersion } = loadReleaseConfig()
+const { assetBasePath, extensionVersion } = loadReleaseConfig()
 const BACKGROUND_DEFAULTS = {
   type: 'module',
+}
+
+function shouldExposeBundledCdnAssets() {
+  const buildEnv = process.env.WEBPACK_BUILD_ENV || 'dev'
+
+  return buildEnv === 'dev'
 }
 
 function cloneManifestTemplate() {
@@ -125,6 +131,28 @@ function buildAsyncChunkWebAccessibleResources() {
   ]
 }
 
+function buildCdnWebAccessibleResources(manifest) {
+  if (!shouldExposeBundledCdnAssets()) {
+    return []
+  }
+
+  const matches = manifest.externally_connectable?.matches
+
+  if (!Array.isArray(matches) || matches.length === 0) {
+    return []
+  }
+
+  return [
+    {
+      resources: [
+        `${assetBasePath}/web/*`,
+        `${assetBasePath}/workers/*`,
+      ],
+      matches,
+    },
+  ]
+}
+
 function buildBackground(manifest) {
   const serviceWorkerEntry = getFirstEntry('sw')
 
@@ -177,6 +205,7 @@ function buildExtensionManifest() {
 
   const webAccessibleResources = [
     ...(manifest.web_accessible_resources || []),
+    ...buildCdnWebAccessibleResources(manifest),
     ...buildAsyncChunkWebAccessibleResources(),
   ]
 

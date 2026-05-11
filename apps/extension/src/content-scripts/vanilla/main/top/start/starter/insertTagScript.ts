@@ -4,7 +4,6 @@ const insertScript = (src: string) =>
 
     script.src = src;
     script.async = false;
-
     script.onload = () => {
       script.remove();
       resolve();

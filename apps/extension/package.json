@@ -9,13 +9,20 @@
   "scripts": {
     "clean": "rimraf dist",
     "dev": "webpack --config webpack/webpack.config.js --env env=dev --watch",
+    "prebuild:dev": "yarn clean",
     "build:dev": "webpack --config webpack/webpack.config.js --env env=dev",
+    "prebuild:prod-local": "yarn clean",
     "build:prod-local": "webpack --config webpack/webpack.config.js --env env=prod-local",
+    "prebuild:prod": "yarn clean",
     "build:prod": "webpack --config webpack/webpack.config.js --env env=prod",
     "build": "yarn build:prod",
+    "prebuild:analyze": "yarn clean",
     "build:analyze": "ANALYZE=true webpack --config webpack/webpack.config.js --env env=prod",
+    "prebuild:obfuscate:default": "yarn clean",
     "build:obfuscate:default": "OBFUSCATE=true OBFUSCATE_LEVEL=default webpack --config webpack/webpack.config.js --env env=prod",
+    "prebuild:obfuscate:low": "yarn clean",
     "build:obfuscate:low": "OBFUSCATE=true OBFUSCATE_LEVEL=low webpack --config webpack/webpack.config.js --env env=prod",
+    "prebuild:obfuscate:medium": "yarn clean",
     "build:obfuscate:medium": "OBFUSCATE=true OBFUSCATE_LEVEL=medium webpack --config webpack/webpack.config.js --env env=prod"
   },
   "devDependencies": {

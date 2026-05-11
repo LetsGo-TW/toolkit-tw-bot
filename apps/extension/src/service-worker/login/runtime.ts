@@ -7,6 +7,15 @@ import { ensureEnabledByUserLoaded } from '../enabled-by-user'
 import { LOGIN_MESSAGE_TYPE } from '../message/types'
 import { normalizeStrictBoolean } from '../normalize'
 import { ensurePreparedContextLoaded, getTabContext, getWorldFromUrl } from '../prepared-context'
+import {
+  clearReconnectRuntimeActive,
+  ensureReconnectRuntimeStateLoaded,
+  getReconnectRuntimeState,
+  markReconnectRuntimeLoginSeen,
+  planReconnectRuntime,
+  RECONNECT_RUNTIME_REASONS,
+  type ReconnectRuntimeReason,
+} from '../reconnect-runtime-state'
 import { ensureReconnectOnSessionExpiredLoaded } from '../reconnect-on-session-expired'
 import {
   ensureRunnerTabsLoaded,
@@ -15,6 +24,10 @@ import {
 } from '../runner-tabs'
 import { evaluateWorldPlayerState } from '../resolved-state'
 import { ensureWorldPlayersLoaded, getWorldPlayerByScopeKey } from '../world-players'
+
+const SESSION_EXPIRED_RECONNECT_MIN_DELAY_MS = 15_000
+const SESSION_EXPIRED_RECONNECT_MAX_DELAY_MS = 30_000
+const STALE_SESSION_EXPIRED_RECONNECT_MS = 60_000
 
 type LoginRequest = Partial<SWMessage> & {
   isReconnectable?: unknown
@@ -36,9 +49,21 @@ function buildReconnectUrl(world?: string | null) {
     : null
 }
 
+function getSessionExpiredReconnectAt(now = Date.now()) {
+  const span = SESSION_EXPIRED_RECONNECT_MAX_DELAY_MS - SESSION_EXPIRED_RECONNECT_MIN_DELAY_MS
+
+  return now + SESSION_EXPIRED_RECONNECT_MIN_DELAY_MS + Math.floor(Math.random() * (span + 1))
+}
+
+function isSmartReconnectReason(reason?: ReconnectRuntimeReason | null) {
+  return reason === RECONNECT_RUNTIME_REASONS.SHORT_BREAK
+    || reason === RECONNECT_RUNTIME_REASONS.LONG_REST
+}
+
 export async function handleLogin(request: LoginRequest = {}, sender: chrome.runtime.MessageSender) {
   await ensurePreparedContextLoaded()
   await ensureEnabledByUserLoaded()
+  await ensureReconnectRuntimeStateLoaded()
   await ensureReconnectOnSessionExpiredLoaded()
   await ensureRunnerTabsLoaded()
   await ensureWorldPlayersLoaded()
@@ -85,16 +110,67 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
     && currentRunner.tabId === tabId
     && currentRunner.windowId === senderWindowId
   )
-  const canReconnect = Boolean(
+  const reconnectRuntimeState = scopeKey
+    ? await getReconnectRuntimeState(scopeKey)
+    : null
+  const canUseReconnect = Boolean(
     isRunningTab
     && !isMdfScope
     && urlParams.isInLogin
-    && urlParams.sessionExpired
     && world
     && enabledByUser
-    && reconnectOnSessionExpired
     && isAllowedByLicense
     && isReconnectable
+  )
+  let reconnectReason = reconnectRuntimeState?.activeReason ?? null
+  let reconnectAt = reconnectRuntimeState?.activeReconnectAt ?? null
+  const now = Date.now()
+
+  if (
+    scopeKey
+    && reconnectReason === RECONNECT_RUNTIME_REASONS.SESSION_EXPIRED
+    && typeof reconnectAt === 'number'
+    && reconnectAt < (now - STALE_SESSION_EXPIRED_RECONNECT_MS)
+  ) {
+    await clearReconnectRuntimeActive(scopeKey)
+    reconnectReason = null
+    reconnectAt = null
+  }
+
+  if (
+    reconnectReason === null
+    && canUseReconnect
+    && urlParams.sessionExpired
+    && reconnectOnSessionExpired
+    && scopeKey
+  ) {
+    reconnectReason = RECONNECT_RUNTIME_REASONS.SESSION_EXPIRED
+    reconnectAt = getSessionExpiredReconnectAt()
+
+    await planReconnectRuntime({
+      scopeKey,
+      world,
+      playerId,
+      reason: reconnectReason,
+      reconnectAt,
+      plannedAt: now,
+    })
+  }
+
+  if (
+    reconnectReason !== null
+    && scopeKey
+  ) {
+    await markReconnectRuntimeLoginSeen(scopeKey)
+  }
+
+  const canReconnect = Boolean(
+    canUseReconnect
+    && reconnectAt !== null
+    && (
+      (reconnectReason === RECONNECT_RUNTIME_REASONS.SESSION_EXPIRED && reconnectOnSessionExpired && urlParams.sessionExpired)
+      || isSmartReconnectReason(reconnectReason)
+    )
   )
   const shouldCloseTab = Boolean(
     isMdfScope
@@ -120,6 +196,8 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
     playerId,
     isRunningTab,
     reconnectOnSessionExpired,
+    reconnectReason,
+    reconnectAt,
     enabledByUser,
     isAllowedByLicense,
     isReconnectable,
@@ -133,7 +211,7 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
       isAllowedByLicense,
       isLicenseExpiring,
       isReconnectState: true,
-      isReconnectEnabled: !isMdfScope && reconnectOnSessionExpired && isReconnectable,
+      isReconnectEnabled: canReconnect,
       isMdfScope,
     },
   }
