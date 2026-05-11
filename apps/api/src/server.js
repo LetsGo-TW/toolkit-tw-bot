@@ -10,10 +10,10 @@ const isHeroku = !!process.env.DYNO;
 
 const express = require("express");
 const http = require("http");
-const cors = require("cors");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 
+const corsMiddleware = require("./middlewares/cors.middleware");
 const forceHttpsMiddleware = require("./middlewares/force-https.middleware");
 const { startCleanupJob } = require("./database/cleanup-expired");
 const publicDir = path.join(__dirname, "public");
@@ -23,7 +23,7 @@ require("./database");
 
 const app = express();
 
-app.use(cors());
+app.use(corsMiddleware);
 
 // Heroku fica atrás de proxy, isso é importante pro redirect HTTPS
 app.set("trust proxy", 1);
