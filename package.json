@@ -20,6 +20,7 @@
     "build:assets:dev": "bash ./scripts/build-assets.sh --env=dev",
     "build:assets:prod-local": "bash ./scripts/build-assets.sh --env=prod-local",
     "build:assets:prod": "bash ./scripts/build-assets.sh --env=prod",
+    "build:cdn:cloudflare": "bash ./scripts/build-cdn-cloudflare.sh",
     "publish:cdn": "bash ./scripts/publish-cdn.sh",
     "zip:extension": "bash ./apps/extension/generate-extension-zip.sh",
     "backup:players": "yarn workspace @toolkit-tw-bot/ops backup:players",
