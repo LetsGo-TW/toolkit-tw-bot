@@ -4,5 +4,5 @@ const webpackWebworker = require('./webpack.webworker')
 
 module.exports = [
   webpackWebworker(),
-  webpackWeb(),
+  ...webpackWeb(),
 ]
