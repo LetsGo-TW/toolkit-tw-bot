@@ -415,6 +415,42 @@ function clearBotViewExecutionStatusText() {
   renderBotViewCurrentStatus()
 }
 
+function isSolverBotProtectMode(candidate = null, {
+  isBotProtected = false,
+} = {}) {
+  return isBotProtected === true
+    && normalizeNonEmptyString(candidate?.machine)?.toLowerCase() === 'solver'
+}
+
+function getComposerRuntimeContext() {
+  return {
+    getBotView: getInjectedBotViewElements,
+    getState: getGameStateSnapshot,
+    clearBotViewExecutionStatusText,
+    setBotViewExecutionStatusText,
+  }
+}
+
+async function syncGameBootstrapUis({
+  isolateForCaptcha = false,
+  reason = 'bootstrap-sync',
+} = {}) {
+  if (isolateForCaptcha) {
+    await destroyGameCollectorLauncherRunning()
+    await destroyGameCtxMenuRunning()
+    await destroyGamePlannerActionsRunning()
+    await destroyCurrentPage({
+      action: 'page-destroy',
+      reason,
+    })
+    return
+  }
+
+  await syncGameCollectorLauncherRunning()
+  await syncGameCtxMenuRunning()
+  await syncGamePlannerActionsRunning()
+}
+
 function setBotViewNextStatus(payload = null) {
   const source = payload && typeof payload === 'object'
     ? payload
@@ -1022,18 +1058,18 @@ async function requestStageInstruction(detail = {}) {
     return null
   }
 
-  await syncGameCollectorLauncherRunning()
-  await syncGameCtxMenuRunning()
-  await syncGamePlannerActionsRunning()
+  const isSolverCaptchaMode = isSolverBotProtectMode(response, {
+    isBotProtected,
+  })
+
+  await syncGameBootstrapUis({
+    isolateForCaptcha: isSolverCaptchaMode,
+    reason: 'solver-bot-protect:game-stage',
+  })
 
   await syncGameComposerRunning({
     registry: Array.isArray(response?.registry) ? response.registry : null,
-  }, {
-    getBotView: getInjectedBotViewElements,
-    getState: getGameStateSnapshot,
-    clearBotViewExecutionStatusText,
-    setBotViewExecutionStatusText,
-  })
+  }, getComposerRuntimeContext())
 
   const botView = getInjectedBotViewElements()
 
@@ -1219,6 +1255,13 @@ async function executeControllerRun(detail = {}) {
   }
 
   try {
+    await syncGameBootstrapUis({
+      isolateForCaptcha: isSolverBotProtectMode(instruction, {
+        isBotProtected: ProtectingBot['bot-protect-all-in-game'].active(),
+      }),
+      reason: 'solver-bot-protect:controller-run',
+    })
+
     await runInstruction(instruction, {
       raw: detail,
     })
