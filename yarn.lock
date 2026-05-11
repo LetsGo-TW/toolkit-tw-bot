@@ -1460,6 +1460,7 @@ __metadata:
     "@babel/core": "npm:^7.28.4"
     "@babel/preset-env": "npm:^7.28.3"
     "@babel/preset-typescript": "npm:^7.27.1"
+    "@toolkit-tw-bot/browser": "workspace:*"
     "@toolkit-tw-bot/core": "workspace:*"
     "@toolkit-tw-bot/document": "workspace:*"
     "@toolkit-tw-bot/release": "workspace:*"
