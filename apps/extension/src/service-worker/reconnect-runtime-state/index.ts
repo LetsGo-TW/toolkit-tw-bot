@@ -24,6 +24,7 @@ export type ReconnectRuntimeState = {
   longRestAnchorAt: number | null
   lastLongRestStartedAt: number | null
   playerId: number | null
+  shortBreakAnchorAt: number | null
   scopeKey: string
   world: string | null
 }
@@ -66,6 +67,7 @@ function cloneReconnectRuntimeState(
     longRestAnchorAt: state.longRestAnchorAt ?? null,
     lastLongRestStartedAt: state.lastLongRestStartedAt ?? null,
     playerId: state.playerId ?? null,
+    shortBreakAnchorAt: state.shortBreakAnchorAt ?? null,
     scopeKey: state.scopeKey,
     world: state.world ?? null,
   }
@@ -113,6 +115,7 @@ function normalizeReconnectRuntimeStateRecord(
     longRestAnchorAt: normalizeNumber(candidate.longRestAnchorAt),
     lastLongRestStartedAt: normalizeNumber(candidate.lastLongRestStartedAt),
     playerId: normalizeNumber(candidate.playerId),
+    shortBreakAnchorAt: normalizeNumber(candidate.shortBreakAnchorAt),
     scopeKey,
     updatedAt: normalizeString(candidate.updatedAt) ?? new Date().toISOString(),
     world: normalizeString(candidate.world),
@@ -136,6 +139,7 @@ function createEmptyReconnectRuntimeState({
     longRestAnchorAt: null,
     lastLongRestStartedAt: null,
     playerId: normalizeNumber(playerId),
+    shortBreakAnchorAt: null,
     scopeKey,
     world: normalizeString(world),
   }
@@ -251,6 +255,7 @@ export async function setReconnectRuntimeState(
     activeReconnectAt,
     longRestAnchorAt,
     lastLongRestStartedAt,
+    shortBreakAnchorAt,
   }: {
     scopeKey?: string | null
     world?: string | null
@@ -261,6 +266,7 @@ export async function setReconnectRuntimeState(
     activeReconnectAt?: number | null
     longRestAnchorAt?: number | null
     lastLongRestStartedAt?: number | null
+    shortBreakAnchorAt?: number | null
   },
 ) {
   const normalizedScopeKey = normalizeString(scopeKey)
@@ -300,6 +306,9 @@ export async function setReconnectRuntimeState(
       ? normalizeNumber(lastLongRestStartedAt)
       : baseState.lastLongRestStartedAt,
     playerId: normalizeNumber(playerId) ?? baseState.playerId,
+    shortBreakAnchorAt: shortBreakAnchorAt !== undefined
+      ? normalizeNumber(shortBreakAnchorAt)
+      : baseState.shortBreakAnchorAt,
     scopeKey: normalizedScopeKey,
     world: normalizeString(world) ?? baseState.world,
   }
@@ -356,6 +365,73 @@ export async function clearReconnectRuntimeActive(
     activePlannedAt: null,
     activeReason: null,
     activeReconnectAt: null,
+  })
+}
+
+export async function ensureReconnectRuntimeShortBreakAnchor(
+  {
+    scopeKey,
+    world = null,
+    playerId = null,
+    anchorAt = Date.now(),
+  }: {
+    scopeKey?: string | null
+    world?: string | null
+    playerId?: number | null
+    anchorAt?: number
+  },
+) {
+  const state = await ensureReconnectRuntimeState({
+    scopeKey,
+    world,
+    playerId,
+  })
+
+  if (!state) {
+    return null
+  }
+
+  if (state.shortBreakAnchorAt !== null) {
+    return state.shortBreakAnchorAt
+  }
+
+  const nextState = await setReconnectRuntimeState({
+    scopeKey,
+    world,
+    playerId,
+    shortBreakAnchorAt: anchorAt,
+  })
+
+  return nextState?.shortBreakAnchorAt ?? normalizeNumber(anchorAt)
+}
+
+export async function clearReconnectRuntimeActiveOnGameReturn(
+  scopeKey?: string | null,
+  returnedAt = Date.now(),
+) {
+  const state = await getReconnectRuntimeState(scopeKey)
+
+  if (
+    state?.activeReason === null
+    || state?.activeLoginSeenAt === null
+  ) {
+    return null
+  }
+
+  const shouldRefreshShortBreakAnchor = (
+    state.activeReason === RECONNECT_RUNTIME_REASONS.SHORT_BREAK
+    || state.activeReason === RECONNECT_RUNTIME_REASONS.LONG_REST
+  )
+
+  return await setReconnectRuntimeState({
+    scopeKey,
+    activeLoginSeenAt: null,
+    activePlannedAt: null,
+    activeReason: null,
+    activeReconnectAt: null,
+    shortBreakAnchorAt: shouldRefreshShortBreakAnchor
+      ? returnedAt
+      : state.shortBreakAnchorAt,
   })
 }
 

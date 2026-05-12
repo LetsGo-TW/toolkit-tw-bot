@@ -241,12 +241,29 @@ export async function setSmartSessionConfig(
   await setPlayerSmartSessionConfig(world, playerId, smartSession)
   const worldPlayer = getWorldPlayer(world, playerId)
   const openTwTabIds = await getOpenTwTabIds()
+
+  console.log('[SW][SESSION_MANAGEMENT][SET_SMART_SESSION_CONFIG]', {
+    world,
+    playerId,
+    worldPlayerScopeKey: worldPlayer?.scopeKey ?? null,
+    worldPlayerUpdatedAt: worldPlayer?.updatedAt ?? null,
+    openTwTabIds,
+    shortBreak: smartSession.shortBreak,
+    longRest: smartSession.longRest,
+  })
+
   await Promise.all(
     openTwTabIds.map((tabId) => syncTabActionByTabId(tabId)),
   )
 
   if (worldPlayer?.scopeKey) {
     await syncControllerScopeAlarm(worldPlayer.scopeKey)
+  } else {
+    console.warn('[SW][SESSION_MANAGEMENT][SET_SMART_SESSION_CONFIG] missing scopeKey for world player', {
+      world,
+      playerId,
+      openTwTabIds,
+    })
   }
 
   return getPopupState(request)

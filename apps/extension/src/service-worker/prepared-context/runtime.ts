@@ -15,8 +15,7 @@ import {
   SUPPORT_SYNC_CTX_MESSAGE_TYPE,
 } from '../message/types'
 import {
-  clearReconnectRuntimeActive,
-  getReconnectRuntimeState,
+  clearReconnectRuntimeActiveOnGameReturn,
 } from '../reconnect-runtime-state'
 import { type PreparedMessageData } from './index'
 import { syncSenderVisibleState } from '../sync-visible-state'
@@ -111,15 +110,9 @@ async function clearReconnectRuntimeAfterGameReturn(scopeKey?: string | null) {
     return false
   }
 
-  const reconnectRuntimeState = await getReconnectRuntimeState(scopeKey)
-
-  if (reconnectRuntimeState?.activeLoginSeenAt === null) {
-    return false
-  }
-
-  await clearReconnectRuntimeActive(scopeKey)
-
-  return true
+  return Boolean(
+    await clearReconnectRuntimeActiveOnGameReturn(scopeKey),
+  )
 }
 
 export async function registerPreparedCtx(

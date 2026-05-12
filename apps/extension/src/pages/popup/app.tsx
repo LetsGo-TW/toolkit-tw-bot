@@ -1838,8 +1838,8 @@ export default function App() {
   const longRestTooltip = !hasSmartSessionOption
     ? 'Waiting for player identification'
     : smartSessionState.longRest.enabled
-      ? 'Disable scheduled long rest'
-      : 'Enable scheduled long rest'
+      ? 'Disable smart long rest'
+      : 'Enable smart long rest'
   const smartSessionSummary = [
     smartSessionState.shortBreak.enabled
       ? `short ${smartSessionState.shortBreak.minIdleMinutes}+${smartSessionState.shortBreak.delayMinutes}m`
@@ -1957,12 +1957,12 @@ export default function App() {
 
               <SmartSettingCard>
                 <SmartSettingHeader>
-                  <SettingText>
-                    <SettingTitle>Smart Short Breaks</SettingTitle>
-                    <SettingDescription>
-                      Only enters when the next useful execution is safely beyond the configured threshold.
-                    </SettingDescription>
-                  </SettingText>
+                    <SettingText>
+                      <SettingTitle>Smart Short Breaks</SettingTitle>
+                      <SettingDescription>
+                      Leaves the game after the configured delay and reconnects after the idle threshold. If a useful execution would happen during the break, it waits until after it.
+                      </SettingDescription>
+                    </SettingText>
                   <ToggleSwitch
                     $checked={smartSessionState.shortBreak.enabled}
                     $disabled={!canEditSmartSession}
@@ -2021,10 +2021,10 @@ export default function App() {
 
               <SmartSettingCard>
                 <SmartSettingHeader>
-                  <SettingText>
-                    <SettingTitle>Scheduled Long Rest</SettingTitle>
+                    <SettingText>
+                    <SettingTitle>Smart Long Rest</SettingTitle>
                     <SettingDescription>
-                      Supports interval mode or a daily schedule list such as 08:00, 12:00 and 18:00.
+                      Supports interval mode or a daily schedule list such as 08:00, 12:00 and 18:00. If a useful execution would happen during the rest window, the exit is postponed until after it.
                     </SettingDescription>
                   </SettingText>
                   <ToggleSwitch
