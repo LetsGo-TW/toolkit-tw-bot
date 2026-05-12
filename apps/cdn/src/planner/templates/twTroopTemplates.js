@@ -1,5 +1,16 @@
 import { getPlaceTemplates } from "../../requests/getPlaceTemplates";
 
+function normalizeLooseObjectLiteralToJson(raw) {
+  return String(raw || '')
+    .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
+    .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_, inner) => JSON.stringify(
+      inner
+        .replace(/\\\\/g, '\\')
+        .replace(/\\'/g, "'"),
+    ))
+    .replace(/,\s*([}\]])/g, '$1')
+}
+
 function parseTroopTemplatesFromText(text) {
   if (!text) return null
   const m = text.match(/TroopTemplates\.current\s*=\s*(\{[\s\S]*?\});/)
@@ -9,8 +20,7 @@ function parseTroopTemplatesFromText(text) {
     return Object.values(JSON.parse(raw))
   } catch {
     try {
-      // fallback: parse object literal
-      return Object.values((new Function(`return (${raw})`))())
+      return Object.values(JSON.parse(normalizeLooseObjectLiteralToJson(raw)))
     } catch {
       return null
     }

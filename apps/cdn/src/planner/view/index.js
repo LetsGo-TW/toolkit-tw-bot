@@ -110,6 +110,16 @@ let plannerModeModulePromise = null
 let plannerSendersTickModulePromise = null
 
 const gameData = getGameData();
+const PLANNER_POPUP_ROOT_SELECTOR = '#go-popup-map-planner'
+
+function getPlannerPopupRoot() {
+  return document.querySelector(PLANNER_POPUP_ROOT_SELECTOR)
+}
+
+function getPlannerPopupContent() {
+  const root = getPlannerPopupRoot()
+  return root?.querySelector?.('.popup_box_content') || null
+}
 
 // Flag de debug local para testes do guard sem bridge de vilas.
 const DEBUG_DISABLE_TARGETS_VILLAGES_BRIDGE = false
@@ -3644,7 +3654,7 @@ function cancelEventPlannerTableView() {
 }
 
 function flexContainer() {
-  const popUpBoxContent = document.querySelector('.popup_box_content')
+  const popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) throw new Error('Popup not exist')
   let flexContainerEl = popUpBoxContent.querySelector('.go-flex-container')
   if (!flexContainerEl) {
@@ -3726,7 +3736,7 @@ function insertGroups(data, groupElement) {
 }
 
 async function insertPlannerTemplatesView() {
-  const popUpBoxContent = document.querySelector('.popup_box_content')
+  const popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) throw new Error('Popup not exist')
   const { plannerTemplatesView } = await loadPlannerTemplatesModule()
   const incomingTemplateComponentState = (
@@ -3793,7 +3803,7 @@ function scheduleModeSwitchRender() {
 }
 
 async function insertPlannerModeView() {
-  const popUpBoxContent = document.querySelector('.popup_box_content')
+  const popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) throw new Error('Popup not exist')
   const { plannerModeView, readyPlannerModeStorage } = await loadPlannerModeModule()
   if (typeof readyPlannerModeStorage === 'function') {
@@ -3822,7 +3832,7 @@ async function insertPlannerModeView() {
 }
 
 function insertSendersContent() {
-  const popUpBoxContent = document.querySelector('.popup_box_content')
+  const popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) throw new Error('Popup not exist')
   if (document.querySelector('#go-planner-senders')) return
   const plannerSenders = document.createElement('div')
@@ -3831,7 +3841,7 @@ function insertSendersContent() {
 }
 
 async function insertExecutionFeedOverlay() {
-  const popUpBoxContent = document.querySelector('.popup_box_content')
+  const popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) throw new Error('Popup not exist')
   const { createExecutionFeed } = await loadPlannerExecutionFeedModule()
   executionFeedController?.destroy?.()
@@ -4390,7 +4400,7 @@ export async function plannerView(data) {
     await insertDinpatchContent()
     await insertExecutionFeedOverlay()
     insertSendersContent()
-    const popUpBoxContent = document.querySelector('.popup_box_content')
+    const popUpBoxContent = getPlannerPopupContent()
     const plannerSenders = document.querySelector('#go-planner-senders')
     const onSelectionChange = () => {
       updateDispatchButtonsState()
