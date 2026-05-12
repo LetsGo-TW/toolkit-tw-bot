@@ -225,6 +225,11 @@ class FarmScheduleCore {
     }
 
     console.error(data)
+    emitter.emit('terminate', {
+      reason: 'runtime-error',
+      error: data?.error || null,
+      source: data?.source || null,
+    })
   }
 
   #save = async () => {

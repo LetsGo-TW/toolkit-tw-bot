@@ -10,7 +10,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -k --names api,cdn,extension --prefix-colors blue,magenta,green \"yarn dev:api\" \"yarn dev:cdn\" \"yarn dev:extension\"",
+    "dev": "node ./scripts/dev.js",
+    "dev:parallel": "concurrently -k --names api,cdn,extension --prefix-colors blue,magenta,green \"yarn dev:api\" \"yarn dev:cdn\" \"yarn dev:extension\"",
     "dev:api": "yarn workspace @toolkit-tw-bot/api dev",
     "dev:cdn": "yarn workspace @toolkit-tw-bot/cdn dev",
     "dev:extension": "yarn workspace @toolkit-tw-bot/extension dev",

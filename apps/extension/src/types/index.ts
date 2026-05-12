@@ -3,3 +3,4 @@ export * from "./webRequest";
 export * from "./game-data";
 export * from "./license";
 export * from "./runtime";
+export * from "./session-management";

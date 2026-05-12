@@ -22,6 +22,10 @@ function makeConfigName(entryName) {
   return `WEB__${String(entryName || 'default').replace(/[^a-z0-9_-]/gi, '_').toUpperCase()}`
 }
 
+function makeRuntimeScopeName(entryName) {
+  return `toolkit_tw_bot_cdn__${sanitizeNameSegment(entryName, 'default')}`
+}
+
 function makeWebConfig(
   groupedConfig,
   {
@@ -106,6 +110,8 @@ function makeWebConfig(
       filename: '[name].js',
       chunkFilename: `chunks/${sanitizeNameSegment(primaryEntryName)}/[name].js`,
       assetModuleFilename: '[name].[contenthash][ext][query]',
+      uniqueName: makeRuntimeScopeName(primaryEntryName),
+      chunkLoadingGlobal: `webpackChunk_${makeRuntimeScopeName(primaryEntryName)}`,
     },
 
     optimization: {

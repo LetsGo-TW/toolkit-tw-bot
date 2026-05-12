@@ -7,8 +7,6 @@ import { setActiveTitle } from '../../../../shared/setActiveTitle'
 
 const LOGIN_RECONNECT_HINT_ID = 'toolkit-tw-bot-login-reconnect-hint'
 const LOGIN_RECONNECT_WRAP_SELECTOR = '#home > div.center > div.content.box-border.red > div.inner > div.right.login > div.wrap'
-const LOGIN_RECONNECT_MIN_DELAY_MS = 15_000
-const LOGIN_RECONNECT_MAX_DELAY_MS = 30_000
 
 let reconnectTimerId: number | null = null
 
@@ -16,6 +14,8 @@ type LoginReconnectResponse = {
   ok?: boolean
   canReconnect?: boolean
   reconnectUrl?: string | null
+  reconnectAt?: number | null
+  reconnectReason?: string | null
   enabledByUser?: boolean
   reconnectOnSessionExpired?: boolean
   isAllowedByLicense?: boolean
@@ -115,10 +115,35 @@ function setLoginReconnectHint(
   hint.append(icon, label)
 }
 
-function getReconnectDelayMs() {
-  const span = LOGIN_RECONNECT_MAX_DELAY_MS - LOGIN_RECONNECT_MIN_DELAY_MS
+function getReconnectReasonLabel(reason?: string | null) {
+  switch (reason) {
+    case 'short-break':
+      return 'short break'
+    case 'long-rest':
+      return 'long rest'
+    case 'session-expired':
+      return 'session expired'
+    default:
+      return 'reconnect'
+  }
+}
 
-  return LOGIN_RECONNECT_MIN_DELAY_MS + Math.floor(Math.random() * (span + 1))
+function formatReconnectTime(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '--:--'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '--:--'
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date)
 }
 
 function clearReconnectTimer() {
@@ -136,7 +161,7 @@ export async function maybeHandleLoginReconnect() {
     window.location.origin,
   )
 
-  if (!runtimeParams.isInLogin || !runtimeParams.sessionExpired) {
+  if (!runtimeParams.isInLogin) {
     return false
   }
 
@@ -148,6 +173,23 @@ export async function maybeHandleLoginReconnect() {
 
   if (response?.data) {
     setActiveTitle(response.data)
+  }
+
+  const reconnectReason = typeof response?.reconnectReason === 'string'
+    ? response.reconnectReason
+    : null
+  const reconnectAt = typeof response?.reconnectAt === 'number'
+    ? response.reconnectAt
+    : null
+  const isManagedReconnect = (
+    runtimeParams.sessionExpired === true
+    || reconnectReason === 'session-expired'
+    || reconnectReason === 'short-break'
+    || reconnectReason === 'long-rest'
+  )
+
+  if (!isManagedReconnect) {
+    return false
   }
 
   if (response?.shouldCloseTab === true) {
@@ -169,12 +211,15 @@ export async function maybeHandleLoginReconnect() {
     return true
   }
 
-  setLoginReconnectHint('aguarde para reconnectar.', 'success')
+  setLoginReconnectHint(
+    `aguarde para reconnectar. motivo: ${getReconnectReasonLabel(reconnectReason)}. horário: ${formatReconnectTime(reconnectAt)}.`,
+    'success',
+  )
 
   reconnectTimerId = window.setTimeout(() => {
     reconnectTimerId = null
     window.location.assign(response.reconnectUrl as string)
-  }, getReconnectDelayMs())
+  }, Math.max(0, (reconnectAt ?? Date.now()) - Date.now()))
 
   return true
 }

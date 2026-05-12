@@ -14,6 +14,10 @@ import {
   GAME_STAGE_MESSAGE_TYPE,
   SUPPORT_SYNC_CTX_MESSAGE_TYPE,
 } from '../message/types'
+import {
+  clearReconnectRuntimeActive,
+  getReconnectRuntimeState,
+} from '../reconnect-runtime-state'
 import { type PreparedMessageData } from './index'
 import { syncSenderVisibleState } from '../sync-visible-state'
 import { ensureInjectedGameBotView } from './view'
@@ -75,6 +79,47 @@ function createStageRegistry(shouldStart = false) {
   return SCRIPT_REGISTRY
     .filter((entry) => entry && typeof entry === 'object')
     .map((entry) => cloneStageRegistryEntry(entry as Record<string, unknown>))
+}
+
+function filterStageRegistryByIds(
+  registry: ReturnType<typeof createStageRegistry>,
+  ids: string[] = [],
+) {
+  if (!Array.isArray(registry) || registry.length === 0) {
+    return null
+  }
+
+  const allowedIds = new Set(
+    ids
+      .map((value) => typeof value === 'string' ? value.trim() : '')
+      .filter((value) => value.length > 0),
+  )
+
+  if (allowedIds.size === 0) {
+    return registry
+  }
+
+  const filtered = registry.filter((entry) => allowedIds.has(String(entry?.id || '').trim()))
+
+  return filtered.length > 0
+    ? filtered
+    : null
+}
+
+async function clearReconnectRuntimeAfterGameReturn(scopeKey?: string | null) {
+  if (!scopeKey) {
+    return false
+  }
+
+  const reconnectRuntimeState = await getReconnectRuntimeState(scopeKey)
+
+  if (reconnectRuntimeState?.activeLoginSeenAt === null) {
+    return false
+  }
+
+  await clearReconnectRuntimeActive(scopeKey)
+
+  return true
 }
 
 export async function registerPreparedCtx(
@@ -178,6 +223,10 @@ export async function syncSupportCtx(
   const { tabContext, data } = result
 
   if (tabContext?.scopeKey) {
+    await clearReconnectRuntimeAfterGameReturn(tabContext.scopeKey)
+  }
+
+  if (tabContext?.scopeKey) {
     try {
       const controllerScopeState = getRunnerControllerScopeState(tabContext.scopeKey)
 
@@ -270,6 +319,10 @@ export async function syncGameStage(
   const { tabContext, isActive, data } = result
   const screen = getScreenFromSenderUrl(sender)
 
+  if (tabContext?.scopeKey) {
+    await clearReconnectRuntimeAfterGameReturn(tabContext.scopeKey)
+  }
+
   if (tabContext?.scopeKey && tabContext?.world && typeof tabContext.playerId === 'number') {
     try {
       await reconcileFarmMaxScope({
@@ -294,9 +347,12 @@ export async function syncGameStage(
     senderTabId: sender.tab?.id ?? null,
     senderWindowId: sender.tab?.windowId ?? null,
   })
-  const registry = createStageRegistry(
+  const stageRegistry = createStageRegistry(
     isActive && data?.enabledByUser === true && data?.isAllowedByLicense === true,
   )
+  const registry = instruction?.machine === 'solver'
+    ? filterStageRegistryByIds(stageRegistry, ['hcaptcha'])
+    : stageRegistry
 
   if (instruction || (Array.isArray(registry) && registry.length > 0)) {
     const hasBotView = await ensureInjectedGameBotView(sender, 'running')

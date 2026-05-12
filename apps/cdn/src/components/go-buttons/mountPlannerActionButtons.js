@@ -442,6 +442,13 @@ async function enrichSinglePlannerPayloadWithRecoveredStatus(payload = null) {
   }
 }
 
+function warnPlannerPayloadUnavailable(source = 'planner') {
+  console.warn(`[${source}] planner payload unavailable`, {
+    href: window.location.href,
+  })
+  printMessage.warn('Planner indisponível nesta tela/alvo.', 2200)
+}
+
 export function saveLastDraftAsNamed(name = '', { onSaved = null } = {}) {
   const payload = readSavedTargetsDraftList()
   const draft = payload?.draft || null
@@ -972,7 +979,10 @@ function createBotViewPlannerSlotsController({
         }
         await recoverAnyUnexpectedInterruption()
         const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-        if (!payload) return
+        if (!payload) {
+          warnPlannerPayloadUnavailable('planner:bot-view:schedule')
+          return
+        }
         void runPlannerOneToMany({ ...payload, dispatchMode: 'schedule', mode: 'schedule' })
       } catch (error) {
         console.error('[planner:bot-view:schedule]', error)
@@ -986,7 +996,10 @@ function createBotViewPlannerSlotsController({
       try {
         await recoverAnyUnexpectedInterruption()
         const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-        if (!payload) return
+        if (!payload) {
+          warnPlannerPayloadUnavailable('planner:bot-view:send')
+          return
+        }
         void runPlannerOneToMany({ ...payload, dispatchMode: 'send', mode: 'send' })
       } catch (error) {
         console.error('[planner:bot-view:send]', error)
@@ -1440,7 +1453,10 @@ export function mountPlannerActionButtons(data) {
         }
         await recoverAnyUnexpectedInterruption()
         const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-        if (!payload) return
+        if (!payload) {
+          warnPlannerPayloadUnavailable('planner:action:schedule')
+          return
+        }
         void runPlannerOneToMany({ ...payload, dispatchMode: 'schedule', mode: 'schedule' })
       } catch (error) {
         console.error('[planner:action:schedule]', error)
@@ -1454,7 +1470,10 @@ export function mountPlannerActionButtons(data) {
       try {
         await recoverAnyUnexpectedInterruption()
         const payload = await enrichSinglePlannerPayloadWithRecoveredStatus(getPlannerPayload())
-        if (!payload) return
+        if (!payload) {
+          warnPlannerPayloadUnavailable('planner:action:send')
+          return
+        }
         void runPlannerOneToMany({ ...payload, dispatchMode: 'send', mode: 'send' })
       } catch (error) {
         console.error('[planner:action:send]', error)

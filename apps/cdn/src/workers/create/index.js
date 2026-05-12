@@ -28,6 +28,7 @@ const createBlobFromScript = (script = "") => new Blob([String(script || "")], {
 })
 
 const fetchWorkerScript = async (url) => {
+  console.log('[Workers/create] fetching worker script', { url })
   const response = await fetch(url, {
     cache: "no-store"
   })
@@ -36,7 +37,15 @@ const fetchWorkerScript = async (url) => {
     throw new Error(`HTTP ${response.status}`)
   }
 
-  return await response.text()
+  const script = await response.text()
+
+  console.log('[Workers/create] fetched worker script', {
+    url,
+    length: script.length,
+    preview: script.slice(0, 120)
+  })
+
+  return script
 }
 
 export const clearWorkerCache = (baseUrl, name) => {
@@ -72,24 +81,63 @@ const loadWorkerScript = async (baseUrl, name) => {
 export default async (baseUrl, name, blob = null, context = window) => {
   try {
     if (typeof context?.Worker === "undefined") {
-      console.debug("Not Worker in window!")
+      console.log("[Workers/create] Worker API unavailable in context", {
+        name,
+        baseUrl
+      })
       return { worker: null, blob }
     }
 
     if (!baseUrl || !name) {
+      console.log('[Workers/create] missing baseUrl or name', {
+        baseUrl,
+        name
+      })
       return { worker: null, blob }
     }
 
     const cacheKey = getCacheKey(baseUrl, name)
     let cachedBlob = blob || cache.blobs[cacheKey] || null
 
+    console.log('[Workers/create] starting worker bootstrap', {
+      name,
+      baseUrl,
+      cacheKey,
+      hasIncomingBlob: Boolean(blob),
+      hasCachedBlob: Boolean(cache.blobs[cacheKey]),
+      hasCachedScript: Boolean(cache.scripts[cacheKey])
+    })
+
     if (!cachedBlob) {
       const { script } = await loadWorkerScript(baseUrl, name)
       cachedBlob = createBlobFromScript(script)
       cache.blobs[cacheKey] = cachedBlob
+
+      console.log('[Workers/create] created blob from fetched script', {
+        name,
+        baseUrl,
+        cacheKey,
+        blobSize: cachedBlob.size,
+        blobType: cachedBlob.type
+      })
+    } else {
+      console.log('[Workers/create] reusing cached blob', {
+        name,
+        baseUrl,
+        cacheKey,
+        blobSize: cachedBlob.size,
+        blobType: cachedBlob.type
+      })
     }
 
     const workerUrl = context.URL.createObjectURL(cachedBlob)
+
+    console.log('[Workers/create] created worker object URL', {
+      name,
+      baseUrl,
+      cacheKey,
+      workerUrl
+    })
 
     try {
       const worker = new context.Worker(workerUrl, {
@@ -97,12 +145,30 @@ export default async (baseUrl, name, blob = null, context = window) => {
         type: "module"
       })
 
+      console.log('[Workers/create] worker constructed', {
+        name,
+        baseUrl,
+        cacheKey,
+        workerUrl
+      })
+
       return { worker, blob: cachedBlob }
     } finally {
       context.URL.revokeObjectURL(workerUrl)
+
+      console.log('[Workers/create] revoked worker object URL', {
+        name,
+        baseUrl,
+        cacheKey,
+        workerUrl
+      })
     }
   } catch (error) {
-    console.warn(`[Workers/create] fail create worker "${name}"`, error?.message || error)
+    console.warn(`[Workers/create] fail create worker "${name}"`, {
+      baseUrl,
+      error: error?.message || error,
+      stack: error?.stack || null
+    })
     return { worker: null, blob }
   }
 }

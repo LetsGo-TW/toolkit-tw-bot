@@ -108,6 +108,8 @@ export async function syncTabActionByTabId(tabId?: number | null) {
     isBotProtected: context?.isBotProtected === true,
     isConnectServerError,
     isNetError,
+    reconnectOnSessionExpired: evaluatedState.reconnectOnSessionExpired,
+    smartSession: evaluatedState.smartSession,
     isTryConfirm: context?.isTryConfirm === true || urlParams.isTryConfirm === true,
     active: isActiveRunner,
     license: evaluatedState.license,

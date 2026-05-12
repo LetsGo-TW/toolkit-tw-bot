@@ -1,20 +1,22 @@
 /// <reference types="chrome" />
 
 import {
-  ensureWorldPlayersLoaded,
-  getWorldPlayer,
-  setWorldPlayerReconnectOnSessionExpired,
-} from '../world-players'
+  ensureSessionManagementLoaded,
+  getPlayerSessionManagementConfig,
+  setPlayerReconnectOnSessionExpiredConfig,
+} from '../session-management'
 
 export async function ensureReconnectOnSessionExpiredLoaded() {
-  await ensureWorldPlayersLoaded()
+  await ensureSessionManagementLoaded()
 }
 
-export function getPlayerReconnectOnSessionExpired(
+export async function getPlayerReconnectOnSessionExpired(
   world?: string | null,
   playerId?: number | null,
 ) {
-  return getWorldPlayer(world, playerId)?.reconnectOnSessionExpired === true
+  const config = await getPlayerSessionManagementConfig(world, playerId)
+
+  return config?.reconnectOnSessionExpired === true
 }
 
 export async function setPlayerReconnectOnSessionExpired(
@@ -22,9 +24,9 @@ export async function setPlayerReconnectOnSessionExpired(
   playerId: number,
   reconnectOnSessionExpired: boolean,
 ) {
-  return setWorldPlayerReconnectOnSessionExpired({
+  return await setPlayerReconnectOnSessionExpiredConfig(
     world,
     playerId,
     reconnectOnSessionExpired,
-  })
+  )
 }

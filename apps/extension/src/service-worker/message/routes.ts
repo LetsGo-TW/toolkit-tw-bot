@@ -18,6 +18,7 @@ import { getTabContext } from "../prepared-context";
 import { registerPreparedCtx, syncGameStage, syncSupportCtx } from "../prepared-context/runtime";
 import { updatePlayerAvatar } from "../player-avatar/runtime";
 import { setReconnectOnSessionExpired } from "../reconnect-on-session-expired/runtime";
+import { setSmartSessionConfig } from "../session-management/runtime";
 import { handleScriptStorage } from "../indexdb/runtime";
 import { handleNotify } from "../notify/runtime";
 import { handlePlannerDistribute } from "../planner/runtime";
@@ -39,8 +40,9 @@ import {
     SCRIPT_EXECUTION_SYNC_MESSAGE_TYPE,
     SCRIPT_STORAGE_MESSAGE_TYPE,
     SET_ENABLED_BY_USER_MESSAGE_TYPE,
-  SET_PLAYER_AVATAR_MESSAGE_TYPE,
-  SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE,
+    SET_PLAYER_AVATAR_MESSAGE_TYPE,
+    SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE,
+    SET_SMART_SESSION_CONFIG_MESSAGE_TYPE,
   SUPPORT_SYNC_CTX_MESSAGE_TYPE,
   VERIFY_WORLD_PLAYER_LICENSE_MESSAGE_TYPE,
   WINDOW_FORCE_FOCUS,
@@ -161,6 +163,8 @@ export async function handleMessage({ received, sender }: MessageEnvelope): Prom
       return setEnabledByUser(received);
     case SET_RECONNECT_ON_SESSION_EXPIRED_MESSAGE_TYPE:
       return setReconnectOnSessionExpired(received);
+    case SET_SMART_SESSION_CONFIG_MESSAGE_TYPE:
+      return setSmartSessionConfig(received);
     case SET_PLAYER_AVATAR_MESSAGE_TYPE:
       return updatePlayerAvatar(received, sender as chrome.runtime.MessageSender);
     case ARM_NATIVE_MESSAGE_TYPE:

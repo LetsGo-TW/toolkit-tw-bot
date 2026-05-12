@@ -200,6 +200,7 @@ export async function getPopupState(request: PopupStateRequest = {}) {
     isBotProtected: pageState?.isBotProtected === true || tabContext?.isBotProtected === true,
     isConnectServerError: pageState?.isConnectServerError === true || tabContext?.isConnectServerError === true,
     reconnectOnSessionExpired: evaluatedState.reconnectOnSessionExpired,
+    smartSession: evaluatedState.smartSession,
     nextPostLicenseButtonAt: worldPlayer?.license.nextPostLicenseButtonAt ?? null,
     isNetError,
     isTryConfirm: pageState?.isTryConfirm === true || tabContext?.isTryConfirm === true || urlParams.isTryConfirm === true,

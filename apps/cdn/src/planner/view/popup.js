@@ -4,6 +4,16 @@ import { printMessage } from '../../components/printMessage'
 import { extensionId } from '@toolkit-tw-bot/release';
 
 const DEFAULT_BOT_ICON_URL = `chrome-extension://${extensionId}/icons/ico.green.128.png`;
+const PLANNER_POPUP_ROOT_SELECTOR = '#go-popup-map-planner'
+
+function getPlannerPopupRoot() {
+  return document.querySelector(PLANNER_POPUP_ROOT_SELECTOR)
+}
+
+function getPlannerPopupContent() {
+  const root = getPlannerPopupRoot()
+  return root?.querySelector?.('.popup_box_content') || null
+}
 
 function bindEsc(callback, cancelEvents) {
   const onKeyPress = (event) => {
@@ -72,7 +82,7 @@ export async function showPopUpPlanner(data, deps = {}) {
   }
   const x = Number(data?.x)
   const y = Number(data?.y)
-  let popUpBoxContent = document.querySelector('.popup_box_content')
+  let popUpBoxContent = getPlannerPopupContent()
   if (!popUpBoxContent) {
     const villageSelection = await getTargeSelection(x, y)
     if (!villageSelection || typeof villageSelection !== 'object') {
@@ -89,7 +99,7 @@ export async function showPopUpPlanner(data, deps = {}) {
     if (safeGoLogoUrl) {
       document.querySelector('#go-logo').src = safeGoLogoUrl
     }
-    popUpBoxContent = document.querySelector('.popup_box_content')
+    popUpBoxContent = getPlannerPopupContent()
     const village = { ...villageSelection, x, y }
     village.id = Number(villageSelection.id)
     village.playerId = Number(villageSelection.player_id)
@@ -160,8 +170,8 @@ export async function showPopUpPlanner(data, deps = {}) {
     cancelEvents.unbindActionIncomingTarget = targetApi.actionIncomingTargetInit(targetContent, village)
     targetApi.actionSchedulesTargetInit(targetContent, village)
     targetApi.actionSchedulesSenderInit(targetContent, village)
-    const popUpMapPlanner = document.querySelector('#go-popup-map-planner')
-    const popUpBoxClose = document.querySelector('a.popup_box_close')
+    const popUpMapPlanner = getPlannerPopupRoot()
+    const popUpBoxClose = popUpMapPlanner?.querySelector?.('a.popup_box_close')
     state.syncPlannerLastReportIndicatorUiCurrent = () => {
       ensurePlannerLastReportIndicator()
     }

@@ -334,6 +334,7 @@ export function createTargetsDraftButton(container, {
                 type="text"
                 class="go-planner-targets-draft-menu-input"
                 data-draft-input="${escapeHtml(inputKey)}"
+                name="${escapeHtml(inputKey)}"
                 value="${escapeHtml(value)}"
                 ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}
                 ${title ? `data-title="${escapeHtml(title)}"` : ''}
