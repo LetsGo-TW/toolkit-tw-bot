@@ -1,7 +1,14 @@
 /* eslint-disable no-undef */
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { reloadCurrentTabOnSessionExpired } from '../../../../shared/reloadCurrentTabOnSessionExpired'
 
 const ANTI_TRACKING_INSTALLED_KEY = "__goAntiTrackingInstalled";
+const OWN_EXTENSION_CDN_PREFIX = `chrome-extension://${RELEASE_EXTENSION_ID}/cdn/2.0/`
+
+function isOwnExtensionCdnRequestUrl(value) {
+  return typeof value === 'string'
+    && value.startsWith(OWN_EXTENSION_CDN_PREFIX)
+}
 
 function isPingRequestUrl(url) {
   try {
@@ -166,6 +173,7 @@ function runAntiTrack() {
     } catch (e) {}
 
     for (let target of toCheck) {
+      if (isOwnExtensionCdnRequestUrl(target)) return false;
       // Bloqueia eventos de telemetria conhecidos do Socket.io
       if (/^\d+\["(?:Script|ac\/r|cs)"/.test(target)) return true;
       // Bloqueia pacotes de qualquer tipo que tentem dedurar nossos scripts ou extensões
