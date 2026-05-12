@@ -146,6 +146,8 @@ function buildCdnWebAccessibleResources(manifest) {
     {
       resources: [
         `${assetBasePath}/web/*`,
+        `${assetBasePath}/web/chunks/*`,
+        `${assetBasePath}/web/chunks/game-staged/*`,
         `${assetBasePath}/workers/*`,
       ],
       matches,
