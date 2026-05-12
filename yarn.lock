@@ -1472,6 +1472,8 @@ __metadata:
     dotenv-webpack: "npm:^8.1.1"
     html-loader: "npm:^5.1.0"
     javascript-obfuscator: "npm:^4.1.1"
+    multi-stage-sourcemap: "npm:^0.3.1"
+    multimatch: "npm:^5.0.0"
     rimraf: "npm:^6.0.1"
     style-loader: "npm:^4.0.0"
     terser-webpack-plugin: "npm:^5.3.14"
