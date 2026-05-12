@@ -4,13 +4,13 @@ module.exports = {
     'game.prepared': {
       entry: '../src/index.js',
       build: {
-        obfuscationLevel: 'low',
+        obfuscationLevel: 'lowCompact',
       },
     },
     'game.staged': {
       entry: '../src/game/index.js',
       build: {
-        obfuscationLevel: 'mediumSafe',
+        obfuscationLevel: 'low',
       },
     },
   },
@@ -19,7 +19,7 @@ module.exports = {
     "worker.table-production": {
       entry: "../src/table-production/worker/index.js",
       build: {
-        obfuscationLevel: "high",
+        obfuscationLevel: "default",
       },
     },
     "worker.farm-schedules": {

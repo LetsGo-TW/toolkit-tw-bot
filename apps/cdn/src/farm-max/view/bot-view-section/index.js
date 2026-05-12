@@ -51,7 +51,10 @@ const montFarmMaxConfig = (container, sectionApi = {}) => {
     }
   }
 
-  import('../index.js').then(({ default: farmMaxView }) => {
+  import(
+    /* webpackChunkName: "farm-max-view" */
+    '../index.js'
+  ).then(({ default: farmMaxView }) => {
     if (isDestroyed) return;
     farmMaxView.render(container).then(destroyFn => {
       if (isDestroyed) {

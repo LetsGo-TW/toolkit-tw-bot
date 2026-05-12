@@ -1,8 +1,12 @@
 const { merge } = require('webpack-merge')
 const commonConfig = require('./webpack.common.js')
-const WebpackObfuscator = require('webpack-obfuscator')
 const { getObfuscatorOptions } = require('@toolkit-tw-bot/webpack')
-const { getGroupedEntryConfigs } = require('./webpack.get-entry-config')
+const { ObfuscateAssetsPlugin } = require('./webpack.make-obfuscate-assets-plugin')
+const { getEntryBuildConfig, getEntryConfigs, getGroupedEntryConfigs } = require('./webpack.get-entry-config')
+const dynamicModules = require('../entries/dynamic-modules')
+const dynamicRuntime = require('../entries/dynamic-runtime')
+const dynamicBootstrap = require('../entries/dynamic-bootstrap')
+const dynamicChunks = require('../entries/dynamic-chunks')
 
 function getBaseConfigName(configName) {
   return String(configName).split('__')[0].toUpperCase()
@@ -25,42 +29,80 @@ function getConfigObfuscatorOptions(configName, levelOverride = null) {
   )
 }
 
-function makeEntryExcludePatterns(groupedEntryConfigs, targetEntryNames) {
-  const keep = new Set(targetEntryNames.map((entryName) => `${entryName}.js`))
+function normalizeAssetTargetBuildConfig(buildConfig = null) {
+  const normalized = buildConfig && typeof buildConfig === 'object'
+    ? buildConfig
+    : {}
 
-  return groupedEntryConfigs
-    .flatMap(({ entries }) => Object.keys(entries))
-    .map((entryName) => `${entryName}.js`)
-    .filter((assetName) => !keep.has(assetName))
+  return {
+    obfuscate: normalized.obfuscate !== false,
+    obfuscationLevel: normalized.obfuscationLevel || null,
+  }
 }
 
-function applyWebEntryObfuscators(config) {
-  const groupedEntryConfigs = getGroupedEntryConfigs('web')
-  const hasGlobalObfuscationLevel = typeof process.env.OBFUSCATE_LEVEL === 'string'
-    && process.env.OBFUSCATE_LEVEL.length > 0
+function makeWebEntryAssetTargets() {
+  return getGroupedEntryConfigs('web')
+    .flatMap(({ entries, ...groupedBuildConfig }) => (
+      Object.keys(entries).map((entryName) => ({
+        assetPatterns: [`${entryName}.js`],
+        ...normalizeAssetTargetBuildConfig(groupedBuildConfig),
+      }))
+    ))
+}
 
-  if (hasGlobalObfuscationLevel) {
-    config.plugins.push(
-      new WebpackObfuscator(
-        getConfigObfuscatorOptions(config.name),
-      ),
-    )
+function makeWorkerAssetTargets() {
+  return Object.entries(getEntryConfigs('workers')).map(([entryName, entryConfig]) => ({
+    assetPatterns: [`${entryName}.js`],
+    ...normalizeAssetTargetBuildConfig(getEntryBuildConfig(entryConfig)),
+  }))
+}
 
-    return
+function makeDynamicChunkAssetTargets(registry) {
+  return Object.values(registry || {}).map((entryConfig = {}) => ({
+    assetPatterns: [`**/${String(entryConfig.chunkName || '').trim()}.js`],
+    ...normalizeAssetTargetBuildConfig(entryConfig.build),
+  }))
+}
+
+function makeNamedChunkAssetTargets() {
+  return Object.entries(dynamicChunks || {}).map(([chunkName, config = {}]) => ({
+    assetPatterns: [`**/${String(chunkName).trim()}.js`],
+    ...normalizeAssetTargetBuildConfig(config.build),
+  }))
+}
+
+function makeAssetTargetsForConfig(config) {
+  if (getBaseConfigName(config.name) === 'WEB') {
+    return [
+      ...makeWebEntryAssetTargets(),
+      ...makeDynamicChunkAssetTargets(dynamicModules),
+      ...makeDynamicChunkAssetTargets(dynamicRuntime),
+      ...makeDynamicChunkAssetTargets(dynamicBootstrap),
+      ...makeNamedChunkAssetTargets(),
+    ]
   }
 
-  for (const groupedConfig of groupedEntryConfigs) {
-    if (groupedConfig.obfuscate === false) {
+  if (getBaseConfigName(config.name) === 'WORKERS') {
+    return makeWorkerAssetTargets()
+  }
+
+  return []
+}
+
+function applyAssetObfuscators(config) {
+  const assetTargets = makeAssetTargetsForConfig(config)
+
+  for (const assetTarget of assetTargets) {
+    if (!assetTarget.obfuscate) {
       continue
     }
 
-    const targetEntryNames = Object.keys(groupedConfig.entries)
-    const excludes = makeEntryExcludePatterns(groupedEntryConfigs, targetEntryNames)
-
     config.plugins.push(
-      new WebpackObfuscator(
-        getConfigObfuscatorOptions(config.name, groupedConfig.obfuscationLevel),
-        excludes,
+      new ObfuscateAssetsPlugin(
+        getConfigObfuscatorOptions(config.name, assetTarget.obfuscationLevel),
+        {
+          include: assetTarget.assetPatterns,
+        },
       ),
     )
   }
@@ -76,14 +118,7 @@ module.exports = (envVars = {}) => {
 
     if (isProductionLikeBuild && process.env.OBFUSCATE !== 'false') {
       merged.plugins = merged.plugins || []
-
-      if (getBaseConfigName(merged.name) === 'WEB') {
-        applyWebEntryObfuscators(merged)
-      } else {
-        merged.plugins.push(
-          new WebpackObfuscator(getConfigObfuscatorOptions(merged.name)),
-        )
-      }
+      applyAssetObfuscators(merged)
     }
 
     return merged

@@ -50,7 +50,10 @@ function isCurrentMapScreen() {
 
 async function loadSelectorCoordsSearch() {
   if (!selectorCoordsSearchModulePromise) {
-    selectorCoordsSearchModulePromise = import('../selectorCoordsSearch.js')
+    selectorCoordsSearchModulePromise = import(
+      /* webpackChunkName: "map-selector-coords-search" */
+      '../selectorCoordsSearch.js'
+    )
       .then((module) => module?.selectorCoordsSearch)
       .catch((error) => {
         selectorCoordsSearchModulePromise = null
@@ -67,7 +70,10 @@ async function loadSelectorCoordsSearch() {
 
 async function loadSelectorCoordsSearchDestroy() {
   if (!selectorCoordsSearchDestroyModulePromise) {
-    selectorCoordsSearchDestroyModulePromise = import('../selectorCoordsSearch.js')
+    selectorCoordsSearchDestroyModulePromise = import(
+      /* webpackChunkName: "map-selector-coords-search" */
+      '../selectorCoordsSearch.js'
+    )
       .then((module) => module?.destroySelectorCoordsSearch)
       .catch((error) => {
         selectorCoordsSearchDestroyModulePromise = null

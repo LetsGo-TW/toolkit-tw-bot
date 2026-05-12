@@ -8,7 +8,10 @@ let incomingModulePromise = null
 
 async function loadIncomingModule() {
   if (!incomingModulePromise) {
-    incomingModulePromise = import('./incoming')
+    incomingModulePromise = import(
+      /* webpackChunkName: "planner-target-view-incoming" */
+      './incoming'
+    )
       .then((module) => {
         const createIncomingTargetController = module?.createIncomingTargetController
         if (typeof createIncomingTargetController !== 'function') {

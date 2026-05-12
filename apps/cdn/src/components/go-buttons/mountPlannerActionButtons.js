@@ -63,7 +63,10 @@ function onPlannerSlotsBodyMutation() {
 
 async function loadPlannerModule() {
   if (!plannerModulePromise) {
-    plannerModulePromise = import('../../planner')
+    plannerModulePromise = import(
+      /* webpackChunkName: "planner-one-to-many" */
+      '../../planner'
+    )
       .catch((error) => {
         plannerModulePromise = null
         throw error

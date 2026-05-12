@@ -96,7 +96,10 @@ let collectorDraftCoreReadyPromise = null
 
 async function loadPlannerOneToMany() {
   if (!plannerOneToManyModulePromise) {
-    plannerOneToManyModulePromise = import('../planner/index.js').then((module) => module?.plannerOneToMany)
+    plannerOneToManyModulePromise = import(
+      /* webpackChunkName: "planner-one-to-many" */
+      '../planner/index.js'
+    ).then((module) => module?.plannerOneToMany)
   }
   const plannerOneToMany = await plannerOneToManyModulePromise
   if (typeof plannerOneToMany !== 'function') {

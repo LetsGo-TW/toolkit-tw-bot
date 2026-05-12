@@ -144,7 +144,10 @@ const normalizeIncomingDispatchMode = (value) => {
 
 async function loadPlannerExecutionModule() {
   if (!plannerExecutionModulePromise) {
-    plannerExecutionModulePromise = import('../execution')
+    plannerExecutionModulePromise = import(
+      /* webpackChunkName: "planner-execution" */
+      '../execution'
+    )
       .then((module) => {
         const createExecutionView = module?.createExecutionView
         const executeSendPhases = module?.executeSendPhases
@@ -163,7 +166,10 @@ async function loadPlannerExecutionModule() {
 
 async function loadPlannerTableModule() {
   if (!plannerTableModulePromise) {
-    plannerTableModulePromise = import('./table')
+    plannerTableModulePromise = import(
+      /* webpackChunkName: "planner-table" */
+      './table'
+    )
       .then(async(module) => {
         const plannerTableView = module?.plannerTableView
         if (!plannerTableView || typeof plannerTableView.insert !== 'function') {
@@ -187,8 +193,14 @@ async function loadPlannerTableModule() {
 async function loadPlannerTargetModules() {
   if (!plannerTargetModulesPromise) {
     plannerTargetModulesPromise = Promise.all([
-      import('../target/view'),
-      import('../target/view/schedules')
+      import(
+        /* webpackChunkName: "planner-target-view" */
+        '../target/view'
+      ),
+      import(
+        /* webpackChunkName: "planner-target-schedules" */
+        '../target/view/schedules'
+      )
     ])
       .then(([targetViewModule, schedulesModule]) => {
         const plannerTargetView = targetViewModule?.plannerTargetView
@@ -225,7 +237,10 @@ async function loadPlannerTargetModules() {
 
 async function loadPlannerExecutionFeedModule() {
   if (!plannerExecutionFeedModulePromise) {
-    plannerExecutionFeedModulePromise = import('../../components/execution-feed')
+    plannerExecutionFeedModulePromise = import(
+      /* webpackChunkName: "planner-execution-feed" */
+      '../../components/execution-feed'
+    )
       .then((module) => {
         const createExecutionFeed = module?.createExecutionFeed
         if (typeof createExecutionFeed !== 'function') {
@@ -243,7 +258,10 @@ async function loadPlannerExecutionFeedModule() {
 
 async function loadPlannerTargetsMapInfoModule() {
   if (!plannerTargetsMapInfoModulePromise) {
-    plannerTargetsMapInfoModulePromise = import('./targets-map-info')
+    plannerTargetsMapInfoModulePromise = import(
+      /* webpackChunkName: "planner-targets-map-info" */
+      './targets-map-info'
+    )
       .then((module) => {
         const applyMapInfoToTargetsNavigatorMeta = module?.applyMapInfoToTargetsNavigatorMeta
         const ensureTargetsNavigatorPreviewMapInfo = module?.ensureTargetsNavigatorPreviewMapInfo
@@ -273,7 +291,10 @@ async function loadPlannerTargetsMapInfoModule() {
 
 async function loadPlannerNormalizeTemplateModule() {
   if (!plannerNormalizeTemplateModulePromise) {
-    plannerNormalizeTemplateModulePromise = import('../../send/utils/normalizeTemplateForCommand')
+    plannerNormalizeTemplateModulePromise = import(
+      /* webpackChunkName: "planner-normalize-template" */
+      '../../send/utils/normalizeTemplateForCommand'
+    )
       .then((module) => {
         const normalizeTemplateForCommand = module?.normalizeTemplateForCommand
         if (typeof normalizeTemplateForCommand !== 'function') {
@@ -291,7 +312,10 @@ async function loadPlannerNormalizeTemplateModule() {
 
 async function loadPlannerDispatchExecutionModule() {
   if (!plannerDispatchExecutionModulePromise) {
-    plannerDispatchExecutionModulePromise = import('./dispatch-execution')
+    plannerDispatchExecutionModulePromise = import(
+      /* webpackChunkName: "planner-dispatch-execution" */
+      './dispatch-execution'
+    )
       .then((module) => {
         const executePlannerDispatchAction = module?.executePlannerDispatchAction
         if (typeof executePlannerDispatchAction !== 'function') {
@@ -309,7 +333,10 @@ async function loadPlannerDispatchExecutionModule() {
 
 async function loadPlannerPopupModule() {
   if (!plannerPopupModulePromise) {
-    plannerPopupModulePromise = import('./popup')
+    plannerPopupModulePromise = import(
+      /* webpackChunkName: "planner-popup" */
+      './popup'
+    )
       .then((module) => {
         const showPopUpPlanner = module?.showPopUpPlanner
         if (typeof showPopUpPlanner !== 'function') {
@@ -327,7 +354,10 @@ async function loadPlannerPopupModule() {
 
 async function loadPlannerTargetsNavigatorModule() {
   if (!plannerTargetsNavigatorModulePromise) {
-    plannerTargetsNavigatorModulePromise = import('./targets-navigator')
+    plannerTargetsNavigatorModulePromise = import(
+      /* webpackChunkName: "planner-targets-navigator" */
+      './targets-navigator'
+    )
       .then((module) => {
         const insertTargetsAccordion = module?.insertTargetsAccordion
         const filterIncomingTargetsToExistingVillages = module?.filterIncomingTargetsToExistingVillages
@@ -354,7 +384,10 @@ async function loadPlannerTargetsNavigatorModule() {
 
 async function loadPlannerTemplatesModule() {
   if (!plannerTemplatesModulePromise) {
-    plannerTemplatesModulePromise = import('../templates/view')
+    plannerTemplatesModulePromise = import(
+      /* webpackChunkName: "planner-templates-view" */
+      '../templates/view'
+    )
       .then((module) => {
         const plannerTemplatesView = module?.plannerTemplatesView
         if (typeof plannerTemplatesView !== 'function') {
@@ -372,7 +405,10 @@ async function loadPlannerTemplatesModule() {
 
 async function loadPlannerDispatchModule() {
   if (!plannerDispatchModulePromise) {
-    plannerDispatchModulePromise = import('../dispatch')
+    plannerDispatchModulePromise = import(
+      /* webpackChunkName: "planner-dispatch" */
+      '../dispatch'
+    )
       .then((module) => {
         const createDispatch = module?.createDispatch
         if (typeof createDispatch !== 'function') {
@@ -390,7 +426,10 @@ async function loadPlannerDispatchModule() {
 
 async function loadPlannerModeModule() {
   if (!plannerModeModulePromise) {
-    plannerModeModulePromise = import('../mode')
+    plannerModeModulePromise = import(
+      /* webpackChunkName: "planner-mode" */
+      '../mode'
+    )
       .then((module) => {
         const plannerModeView = module?.plannerModeView
         if (typeof plannerModeView !== 'function') {
@@ -411,7 +450,10 @@ async function loadPlannerModeModule() {
 
 async function loadPlannerSendersTickModule() {
   if (!plannerSendersTickModulePromise) {
-    plannerSendersTickModulePromise = import('./senders-tick')
+    plannerSendersTickModulePromise = import(
+      /* webpackChunkName: "planner-senders-tick" */
+      './senders-tick'
+    )
       .then((module) => {
         const updateSendersPerSecond = module?.updateSendersPerSecond
         if (typeof updateSendersPerSecond !== 'function') {

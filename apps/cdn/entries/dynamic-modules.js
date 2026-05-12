@@ -33,12 +33,18 @@ module.exports = {
     importPath: './map/index.js',
     chunkName: 'map',
     exportName: 'default',
+    build: {
+      obfuscationLevel: 'lowCompact',
+    },
   },
 
   others: {
     importPath: './others/index.js',
     chunkName: 'others',
     exportName: 'default',
+    build: {
+      obfuscationLevel: 'high',
+    },
   },
 
   // overview: {

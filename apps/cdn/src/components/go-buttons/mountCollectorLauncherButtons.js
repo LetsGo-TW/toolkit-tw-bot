@@ -57,7 +57,10 @@ let botViewCollectorLauncherSyncFrame = 0
 
 async function loadPlannerOneToMany() {
   if (!plannerOneToManyModulePromise) {
-    plannerOneToManyModulePromise = import('../../planner').then((module) => module?.plannerOneToMany)
+    plannerOneToManyModulePromise = import(
+      /* webpackChunkName: "planner-one-to-many" */
+      '../../planner'
+    ).then((module) => module?.plannerOneToMany)
   }
   const plannerOneToMany = await plannerOneToManyModulePromise
   if (typeof plannerOneToMany !== 'function') {
