@@ -4,6 +4,7 @@ import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { DynamicModules } from "../dynamic-modules"
 import { DynamicRuntime } from "../dynamic-runtime"
 import { useGoTiming } from "../hooks/useGoTiming"
+import { copyToClipboardInit, destroyCopyToClipboard } from "../clipboard"
 import {
   destroyGameCollectorLauncherRunning,
   syncGameCollectorLauncherRunning,
@@ -1329,12 +1330,14 @@ async function startGame(detail = {}) {
   gameState.startPromise = Promise.resolve()
     .then(async () => {
       installRunnerControllerListener()
+      await copyToClipboardInit()
       gameState.active = true
       clearGameError()
       setGameStatus('starting')
       await run(detail)
     })
     .catch(async(error) => {
+      destroyCopyToClipboard()
       gameState.runnerControllerCleanup?.()
       gameState.active = false
       setGameError(error)
@@ -1358,6 +1361,7 @@ async function stopGame(detail = {}) {
   }
 
   if (!gameState.active) {
+    destroyCopyToClipboard()
     gameState.runnerControllerCleanup?.()
     return
   }
@@ -1372,6 +1376,7 @@ async function stopGame(detail = {}) {
   try {
     await destroyGameExecution(detail, { skipReport: true })
   } finally {
+    destroyCopyToClipboard()
     await destroyGameCollectorLauncherRunning()
     await destroyGameCtxMenuRunning()
     await destroyGamePlannerActionsRunning()

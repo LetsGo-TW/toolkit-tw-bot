@@ -6,6 +6,7 @@ const RE_TIME = /(?<= )(?<hh>(?:0\d|1\d|2[0-3])):(?<mm>[0-5]\d)(?::(?<ss>[0-5]\d
 const RE_DATE_TIME_TW = /(?<= )(?<hh>(?:[01]\d|2[0-3])):(?<mm>[0-5]\d)(?::(?<ss>[0-5]\d)(?:(?<msSep>[:.])(?<sss>\d{3}))?)?$/;
 const RE_DATETIME_TOKEN_GLOBAL =
   /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:,\s*|\s+)(?:[01]\d|2[0-3]):[0-5]\d(?:\:[0-5]\d(?:[:.]\d{3})?)?\b|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b|\b(?:[01]\d|2[0-3]):[0-5]\d(?:\:[0-5]\d(?:[:.]\d{3})?)?\b/g;
+let removeClipboardClickListener = null;
 
 async function tryCopy(text) {
   // 1) tenta Clipboard API
@@ -92,27 +93,52 @@ function extractDateTimeTokensFromText(text = "") {
   return unique;
 }
 
+function getEventText(target) {
+  if (!(target instanceof Element)) {
+    return "";
+  }
+
+  return copyText(target.innerText || target.textContent || "") || "";
+}
+
+function shouldSkipClipboardClick(target) {
+  if (!(target instanceof Element)) {
+    return true;
+  }
+
+  if (target.id === "ds_body" || target.id === "content_value") {
+    return true;
+  }
+
+  return Boolean(target.closest?.(".go-no-copy"));
+}
+
 export async function copyToClipboardInit () {
+  if (typeof removeClipboardClickListener === "function") {
+    return removeClipboardClickListener;
+  }
+
   const { copyToClipboardStorageLocal } = await copyToClipboardConfigInit()
 
-  document.addEventListener('click', async (e) => {
+  const onDocumentClick = async (e) => {
     if (!e.isTrusted) return;
-    if (e.target.id === "ds_body") return;
-    if (e.target.id === "content_value") return;
-    //** classe para não copiar */
-    if (e.target.className?.includes('go-no-copy')) return;
-    e.stopImmediatePropagation?.();
-    e.stopPropagation();
+    if (shouldSkipClipboardClick(e.target)) return;
 
     const copyToClipboardConfig = await copyToClipboardStorageLocal.get();
+    const isDatetimeActive = copyToClipboardConfig?.datetime?.active === true;
+    const isCoordsActive = copyToClipboardConfig?.coords?.active === true;
 
-    const text = e.target.innerText.replaceAll('/n', '').trim();
+    if (!isDatetimeActive && !isCoordsActive) {
+      return;
+    }
+
+    const text = getEventText(e.target);
 
     // 1) tenta copiar o texto “do TW” sob o cursor/seleção
     // (bom pra table/células/linhas)
     const selection = window.getSelection?.();
     const selected = selection && selection.toString ? selection.toString().trim() : "";
-    if (selected && copyToClipboardConfig.datetime.active) {
+    if (selected && isDatetimeActive) {
       const selectedText = copyText(selected);
       const selectedTokens = extractDateTimeTokensFromText(selectedText);
       if (selectedTokens.length) {
@@ -124,7 +150,7 @@ export async function copyToClipboardInit () {
     }
 
     // tenta o texto do elemento clicado (ex: td, span)
-    if (text.match(RE_DATE_TIME_TW) && copyToClipboardConfig.datetime.active) {
+    if (text.match(RE_DATE_TIME_TW) && isDatetimeActive) {
       let date
       try {
         date = normalizeDateTwString(text);
@@ -140,23 +166,36 @@ export async function copyToClipboardInit () {
       return;
     }
 
-    if (text && looksLikeDateOrTime(text) && copyToClipboardConfig.datetime.active) {
+    if (text && looksLikeDateOrTime(text) && isDatetimeActive) {
       await copyToClipboard(text, copyToClipboardConfig?.datetime?.print);
       return;
     }
 
     const rawSel = selected?.match(/\b\d{2,3}\|\d{2,3}\b/)
-    if (rawSel && copyToClipboardConfig.coords.active) {
+    if (rawSel && isCoordsActive) {
       await copyToClipboard(copyText(rawSel), copyToClipboardConfig?.coords?.print);
       window.getSelection()?.removeAllRanges(); // ✅ limpa highlight
       return;
     }
 
     const rawText = text.match(/\b\d{2,3}\|\d{2,3}\b/)
-    if (rawText && copyToClipboardConfig.coords.active) {
+    if (rawText && isCoordsActive) {
       if (copyToClipboardConfig.coords?.selectionOnly) return;
       await copyToClipboard(rawText, copyToClipboardConfig?.coords?.print)
       return;
     }
-  })
+  }
+
+  document.addEventListener("click", onDocumentClick);
+
+  removeClipboardClickListener = () => {
+    document.removeEventListener("click", onDocumentClick);
+    removeClipboardClickListener = null;
+  };
+
+  return removeClipboardClickListener;
 };
+
+export function destroyCopyToClipboard() {
+  removeClipboardClickListener?.();
+}
