@@ -18,6 +18,17 @@ const running = new Running('farmSchedules')
 
 export const emitter = new Emitters()
 
+function ensureFarmSchedulesCoreStarted() {
+  if (farmSchedules.farmScheduleCore) {
+    return
+  }
+
+  BotViewStatus.setCurrent("Farm Max")
+  BotViewStatus.setExecution("Executando agendamento")
+
+  farmSchedules.farmScheduleCore = FarmScheduleCore.create()
+}
+
 const getCurrentGameData = () => {
   if (typeof window !== "undefined" && typeof window.game_data !== "undefined") {
     return window.game_data
@@ -112,10 +123,7 @@ export default async function start (data, context) {
   })
 
   emitter.on('alive', () => {
-    BotViewStatus.setCurrent("Farm Max")
-    BotViewStatus.setExecution("Executando agendamento")
-  
-    farmSchedules.farmScheduleCore = FarmScheduleCore.create()
+    ensureFarmSchedulesCoreStarted()
   })
 
   emitter.on('terminate', (detail = {}) => {
@@ -123,9 +131,19 @@ export default async function start (data, context) {
       ? detail.reason.trim().toLowerCase()
       : ''
     const isBotProtect = reason === 'bot-protect'
+    const isRuntimeError = reason === 'runtime-error'
+    const runtimeError = isRuntimeError
+      ? Object.assign(
+        new Error(detail?.error || 'Farm schedules runtime error'),
+        {
+          reason,
+          source: detail?.source || null,
+        },
+      )
+      : null
 
     cleanupFarmSchedules({
-      error: isBotProtect ? ProtectingBot.error() : null,
+      error: isBotProtect ? ProtectingBot.error() : runtimeError,
     })
 
     if (isBotProtect) {
@@ -150,6 +168,7 @@ export default async function start (data, context) {
     const created = await create(baseUrl, 'farm-schedules', null, window)
     farmSchedules.worker = created?.worker || null
     farmSchedules.controller = Controller.create(farmSchedules.worker)
+    ensureFarmSchedulesCoreStarted()
 
     return await completion
   } catch (error) {

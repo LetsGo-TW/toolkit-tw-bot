@@ -47,6 +47,21 @@ export default class Controller {
   #configureWorker(worker) {
     if (worker) {
       worker.onmessage = ({ data }) => emitter.emit(data.eventName, data)
+      worker.onerror = (errorEvent = {}) => {
+        emitter.emit('error', {
+          error: errorEvent?.message || 'Worker execution failed',
+          filename: errorEvent?.filename || null,
+          lineno: Number.isFinite(Number(errorEvent?.lineno)) ? Number(errorEvent.lineno) : null,
+          colno: Number.isFinite(Number(errorEvent?.colno)) ? Number(errorEvent.colno) : null,
+          source: 'worker.onerror',
+        })
+      }
+      worker.onmessageerror = (errorEvent = {}) => {
+        emitter.emit('error', {
+          error: errorEvent?.message || 'Worker message handling failed',
+          source: 'worker.onmessageerror',
+        })
+      }
     } else {
       this.#service = Service.create()
 
