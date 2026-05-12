@@ -15,25 +15,22 @@ const assetBaseDir = assetBasePath.replace(/^\/+/, '')
 class SyncApiPublicCdnPlugin {
   apply(compiler) {
     compiler.hooks.afterEmit.tap('SyncApiPublicCdnPlugin', () => {
-      const outputPath = compiler.options.output?.path
-
-      if (!outputPath) {
-        return
-      }
-
-      const outputDirName = path.basename(outputPath)
+      const sourceDir = path.resolve(__dirname, '../dist')
       const targetDir = path.resolve(
         __dirname,
         '../../api/src/public',
         assetBaseDir,
-        outputDirName,
       )
+
+      if (!fs.existsSync(sourceDir)) {
+        return
+      }
 
       fs.mkdirSync(path.dirname(targetDir), { recursive: true })
       fs.rmSync(targetDir, { recursive: true, force: true })
-      fs.cpSync(outputPath, targetDir, { recursive: true })
+      fs.cpSync(sourceDir, targetDir, { recursive: true })
 
-      console.log(`[cdn] synced ${outputDirName} -> ${targetDir}`)
+      console.log(`[cdn] synced dist -> ${targetDir}`)
     })
   }
 }

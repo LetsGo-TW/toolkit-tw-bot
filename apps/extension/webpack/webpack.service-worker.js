@@ -6,6 +6,18 @@ const { GenerateExtensionManifestPlugin } = require('./webpack.make-manifest')
 const { makeDotenvPlugin } = require('./webpack.make-dotenv-plugin')
 const babelConfigFile = path.resolve(__dirname, '../../../babel.config.json')
 
+function loadReleaseConfig() {
+  try {
+    return require('@toolkit-tw-bot/release')
+  } catch {
+    return require('../../../packages/release/src')
+  }
+}
+
+const { assetBasePath } = loadReleaseConfig()
+const bundledCdnOutputDir = assetBasePath.replace(/^\/+/, '')
+const bundledCdnSourceDir = path.resolve(__dirname, '../../cdn/dist')
+
 function shouldBundleExtensionCdn() {
   const buildEnv = process.env.WEBPACK_BUILD_ENV || 'dev'
 
@@ -51,8 +63,9 @@ module.exports = () => {
 
   if (shouldBundleExtensionCdn()) {
     copyPatterns.push({
-      from: path.resolve(__dirname, '../../api/src/public/cdn'),
-      to: 'cdn',
+      from: path.resolve(bundledCdnSourceDir, '**/*'),
+      context: bundledCdnSourceDir,
+      to: `${bundledCdnOutputDir}/[path][name][ext]`,
       noErrorOnMissing: true,
     })
   }
