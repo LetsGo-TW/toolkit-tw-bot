@@ -9,11 +9,15 @@ import {
   MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
   MAX_SMART_LONG_REST_INTERVAL_HOURS,
   MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+  MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
   MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
   MIN_SMART_LONG_REST_DURATION_MINUTES,
   MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+  MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
   MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
-  MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+  MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
   type SessionManagementConfig,
   type SmartSessionConfig,
   type SmartSessionLongRestMode,
@@ -145,16 +149,70 @@ function normalizeScheduledTimes(
     : [...fallback]
 }
 
+function normalizeSmartShortBreakConfig(
+  value: {
+    enabled?: unknown
+    everyMinutes?: unknown
+    durationMinutes?: unknown
+    delayMinutes?: unknown
+    minIdleMinutes?: unknown
+  } | null | undefined,
+  fallback = createDefaultSmartSessionConfig().shortBreak,
+) {
+  const defaults = {
+    enabled: fallback.enabled === true,
+    everyMinutes: fallback.everyMinutes,
+    durationMinutes: fallback.durationMinutes,
+    delayMinutes: fallback.delayMinutes,
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return defaults
+  }
+
+  const usesCurrentShape = (
+    Object.prototype.hasOwnProperty.call(value, 'everyMinutes')
+    || Object.prototype.hasOwnProperty.call(value, 'durationMinutes')
+  )
+
+  if (!usesCurrentShape) {
+    return {
+      enabled: normalizeStrictBoolean(value.enabled) ?? defaults.enabled,
+      everyMinutes: normalizePositiveIntegerInRange(value.delayMinutes, {
+        min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+      }) ?? defaults.everyMinutes,
+      durationMinutes: normalizePositiveIntegerInRange(value.minIdleMinutes, {
+        min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+      }) ?? defaults.durationMinutes,
+      delayMinutes: defaults.delayMinutes,
+    }
+  }
+
+  return {
+    enabled: normalizeStrictBoolean(value.enabled) ?? defaults.enabled,
+    everyMinutes: normalizePositiveIntegerInRange(value.everyMinutes, {
+      min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+    }) ?? defaults.everyMinutes,
+    durationMinutes: normalizePositiveIntegerInRange(value.durationMinutes, {
+      min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+    }) ?? defaults.durationMinutes,
+    delayMinutes: normalizePositiveIntegerInRange(value.delayMinutes, {
+      min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
+    }) ?? defaults.delayMinutes,
+  }
+}
+
 function cloneSmartSessionConfig(config?: SmartSessionConfig | null): SmartSessionConfig {
   const fallback = createDefaultSmartSessionConfig()
   const source = config ?? fallback
 
   return {
-    shortBreak: {
-      enabled: source.shortBreak.enabled === true,
-      minIdleMinutes: source.shortBreak.minIdleMinutes,
-      delayMinutes: source.shortBreak.delayMinutes,
-    },
+    shortBreak: normalizeSmartShortBreakConfig(source.shortBreak, fallback.shortBreak),
     longRest: {
       enabled: source.longRest.enabled === true,
       mode: source.longRest.mode,
@@ -190,8 +248,10 @@ function normalizeSmartSessionConfig(
   const candidate = value as {
     shortBreak?: {
       enabled?: unknown
-      minIdleMinutes?: unknown
+      everyMinutes?: unknown
+      durationMinutes?: unknown
       delayMinutes?: unknown
+      minIdleMinutes?: unknown
     } | null
     longRest?: {
       enabled?: unknown
@@ -206,15 +266,7 @@ function normalizeSmartSessionConfig(
   const normalizedLongRestMode = normalizeLongRestMode(candidate.longRest?.mode) ?? defaults.longRest.mode
 
   return {
-    shortBreak: {
-      enabled: normalizeStrictBoolean(candidate.shortBreak?.enabled) ?? defaults.shortBreak.enabled,
-      minIdleMinutes: normalizePositiveIntegerInRange(candidate.shortBreak?.minIdleMinutes, {
-        min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
-      }) ?? defaults.shortBreak.minIdleMinutes,
-      delayMinutes: normalizePositiveIntegerInRange(candidate.shortBreak?.delayMinutes, {
-        min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
-      }) ?? defaults.shortBreak.delayMinutes,
-    },
+    shortBreak: normalizeSmartShortBreakConfig(candidate.shortBreak, defaults.shortBreak),
     longRest: {
       enabled: normalizeStrictBoolean(candidate.longRest?.enabled) ?? defaults.longRest.enabled,
       mode: normalizedLongRestMode,

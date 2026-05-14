@@ -12,11 +12,15 @@ import {
   MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
   MAX_SMART_LONG_REST_INTERVAL_HOURS,
   MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+  MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
   MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
   MIN_SMART_LONG_REST_DURATION_MINUTES,
   MIN_SMART_LONG_REST_START_DELAY_MINUTES,
   MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
-  MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+  MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+  MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
   getRuntimeStatus,
   type ExtensionLicenseState,
   type FeaturesMap,
@@ -1032,8 +1036,11 @@ export default function App() {
   const [savingEnabledByUser, setSavingEnabledByUser] = useState(false)
   const [savingReconnectOnSessionExpired, setSavingReconnectOnSessionExpired] = useState(false)
   const [savingSmartSession, setSavingSmartSession] = useState(false)
-  const [shortBreakMinIdleDraft, setShortBreakMinIdleDraft] = useState(() => (
-    formatPositiveIntegerInput(initialSmartSession.shortBreak.minIdleMinutes)
+  const [shortBreakEveryDraft, setShortBreakEveryDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.shortBreak.everyMinutes)
+  ))
+  const [shortBreakDurationDraft, setShortBreakDurationDraft] = useState(() => (
+    formatPositiveIntegerInput(initialSmartSession.shortBreak.durationMinutes)
   ))
   const [shortBreakDelayDraft, setShortBreakDelayDraft] = useState(() => (
     formatPositiveIntegerInput(initialSmartSession.shortBreak.delayMinutes)
@@ -1295,7 +1302,8 @@ export default function App() {
   useEffect(() => {
     const smartSession = state?.smartSession ?? createDefaultSmartSessionConfig()
 
-    setShortBreakMinIdleDraft(formatPositiveIntegerInput(smartSession.shortBreak.minIdleMinutes))
+    setShortBreakEveryDraft(formatPositiveIntegerInput(smartSession.shortBreak.everyMinutes))
+    setShortBreakDurationDraft(formatPositiveIntegerInput(smartSession.shortBreak.durationMinutes))
     setShortBreakDelayDraft(formatPositiveIntegerInput(smartSession.shortBreak.delayMinutes))
     setLongRestModeDraft(smartSession.longRest.mode)
     setLongRestIntervalHoursDraft(formatPositiveIntegerInput(smartSession.longRest.intervalHours))
@@ -1305,7 +1313,8 @@ export default function App() {
     setLongRestScheduledTimesDraft(formatScheduledTimesInput(smartSession.longRest.scheduledTimes))
   }, [
     state?.smartSession?.shortBreak.delayMinutes,
-    state?.smartSession?.shortBreak.minIdleMinutes,
+    state?.smartSession?.shortBreak.durationMinutes,
+    state?.smartSession?.shortBreak.everyMinutes,
     state?.smartSession?.longRest.durationDelayMinutes,
     state?.smartSession?.longRest.intervalHours,
     state?.smartSession?.longRest.mode,
@@ -1385,23 +1394,37 @@ export default function App() {
 
   const buildShortBreakSmartSessionPayload = useCallback(({ strict = false }: { strict?: boolean } = {}) => {
     const base = state?.smartSession ?? createDefaultSmartSessionConfig()
-    const nextShortBreakMinIdleMinutes = strict
-      ? parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
-        min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+    const nextShortBreakEveryMinutes = strict
+      ? parsePositiveIntegerInRange(shortBreakEveryDraft, {
+        min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
       })
-      : parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
-        min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
-      }) ?? base.shortBreak.minIdleMinutes
+      : parsePositiveIntegerInRange(shortBreakEveryDraft, {
+        min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+      }) ?? base.shortBreak.everyMinutes
+    const nextShortBreakDurationMinutes = strict
+      ? parsePositiveIntegerInRange(shortBreakDurationDraft, {
+        min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+      })
+      : parsePositiveIntegerInRange(shortBreakDurationDraft, {
+        min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+      }) ?? base.shortBreak.durationMinutes
     const nextShortBreakDelayMinutes = strict
       ? parsePositiveIntegerInRange(shortBreakDelayDraft, {
         min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
       })
       : parsePositiveIntegerInRange(shortBreakDelayDraft, {
         min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+        max: MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
       }) ?? base.shortBreak.delayMinutes
 
     if (
-      nextShortBreakMinIdleMinutes === null
+      nextShortBreakEveryMinutes === null
+      || nextShortBreakDurationMinutes === null
       || nextShortBreakDelayMinutes === null
     ) {
       return null
@@ -1410,14 +1433,16 @@ export default function App() {
     return {
       shortBreak: {
         enabled: base.shortBreak.enabled,
-        minIdleMinutes: nextShortBreakMinIdleMinutes,
+        everyMinutes: nextShortBreakEveryMinutes,
+        durationMinutes: nextShortBreakDurationMinutes,
         delayMinutes: nextShortBreakDelayMinutes,
       },
       longRest: base.longRest,
     } satisfies SmartSessionConfig
   }, [
     shortBreakDelayDraft,
-    shortBreakMinIdleDraft,
+    shortBreakDurationDraft,
+    shortBreakEveryDraft,
     state?.smartSession,
   ])
 
@@ -1619,20 +1644,27 @@ export default function App() {
   }, [buildShortBreakSmartSessionPayload, persistSmartSession, state?.smartSession])
 
   const handleShortBreakSave = useCallback(async () => {
-    const nextShortBreakMinIdleMinutes = parsePositiveIntegerInRange(shortBreakMinIdleDraft, {
-      min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
+    const nextShortBreakEveryMinutes = parsePositiveIntegerInRange(shortBreakEveryDraft, {
+      min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+    })
+    const nextShortBreakDurationMinutes = parsePositiveIntegerInRange(shortBreakDurationDraft, {
+      min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
     })
     const nextShortBreakDelayMinutes = parsePositiveIntegerInRange(shortBreakDelayDraft, {
       min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
     })
     const nextSmartSession = buildShortBreakSmartSessionPayload()
 
     if (
-      nextShortBreakMinIdleMinutes === null
+      nextShortBreakEveryMinutes === null
+      || nextShortBreakDurationMinutes === null
       || nextShortBreakDelayMinutes === null
       || !nextSmartSession
     ) {
-      setError('Short break threshold must be at least 3 minutes and delay at least 1 minute.')
+      setError('Short break every must be 3-60 minutes, duration 3-30 minutes, and delay 1-5 minutes.')
       return
     }
 
@@ -1640,7 +1672,8 @@ export default function App() {
       ...nextSmartSession,
       shortBreak: {
         ...nextSmartSession.shortBreak,
-        minIdleMinutes: nextShortBreakMinIdleMinutes,
+        everyMinutes: nextShortBreakEveryMinutes,
+        durationMinutes: nextShortBreakDurationMinutes,
         delayMinutes: nextShortBreakDelayMinutes,
       },
     })
@@ -1648,7 +1681,8 @@ export default function App() {
     buildShortBreakSmartSessionPayload,
     persistSmartSession,
     shortBreakDelayDraft,
-    shortBreakMinIdleDraft,
+    shortBreakDurationDraft,
+    shortBreakEveryDraft,
   ])
 
   const handleLongRestToggleChange = useCallback(async () => {
@@ -1842,7 +1876,7 @@ export default function App() {
       : 'Enable smart long rest'
   const smartSessionSummary = [
     smartSessionState.shortBreak.enabled
-      ? `short ${smartSessionState.shortBreak.minIdleMinutes}+${smartSessionState.shortBreak.delayMinutes}m`
+      ? `short every ${smartSessionState.shortBreak.everyMinutes}m for ${smartSessionState.shortBreak.durationMinutes}+${smartSessionState.shortBreak.delayMinutes}m`
       : 'short off',
     smartSessionState.longRest.enabled
       ? smartSessionState.longRest.mode === 'schedule'
@@ -1960,7 +1994,7 @@ export default function App() {
                     <SettingText>
                       <SettingTitle>Smart Short Breaks</SettingTitle>
                       <SettingDescription>
-                      Leaves the game after the configured delay and reconnects after the idle threshold. If a useful execution would happen during the break, it waits until after it.
+                      Leaves the game every configured interval after returning, with a short delay window used on both exit and reconnect. If any execution is already due or will run within 1 minute, the exit is postponed by 1 minute.
                       </SettingDescription>
                     </SettingText>
                   <ToggleSwitch
@@ -1980,24 +2014,41 @@ export default function App() {
 
                 <SmartSettingInputs>
                   <SmartSettingField>
-                    <SmartSettingFieldLabel>Idle threshold (min)</SmartSettingFieldLabel>
+                    <SmartSettingFieldLabel>Every (min)</SmartSettingFieldLabel>
                     <SmartSettingInput
                       type="number"
-                      min={MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES}
+                      min={MIN_SMART_SHORT_BREAK_EVERY_MINUTES}
+                      max={MAX_SMART_SHORT_BREAK_EVERY_MINUTES}
                       step={1}
-                      value={shortBreakMinIdleDraft}
+                      value={shortBreakEveryDraft}
                       disabled={!canEditSmartSession}
                       onChange={(event) => {
-                        setShortBreakMinIdleDraft(event.currentTarget.value)
+                        setShortBreakEveryDraft(event.currentTarget.value)
                       }}
                     />
                   </SmartSettingField>
 
                   <SmartSettingField>
-                    <SmartSettingFieldLabel>Delay window (min)</SmartSettingFieldLabel>
+                    <SmartSettingFieldLabel>Duration (min)</SmartSettingFieldLabel>
+                    <SmartSettingInput
+                      type="number"
+                      min={MIN_SMART_SHORT_BREAK_DURATION_MINUTES}
+                      max={MAX_SMART_SHORT_BREAK_DURATION_MINUTES}
+                      step={1}
+                      value={shortBreakDurationDraft}
+                      disabled={!canEditSmartSession}
+                      onChange={(event) => {
+                        setShortBreakDurationDraft(event.currentTarget.value)
+                      }}
+                    />
+                  </SmartSettingField>
+
+                  <SmartSettingField>
+                    <SmartSettingFieldLabel>Delay (min)</SmartSettingFieldLabel>
                     <SmartSettingInput
                       type="number"
                       min={MIN_SMART_SHORT_BREAK_DELAY_MINUTES}
+                      max={MAX_SMART_SHORT_BREAK_DELAY_MINUTES}
                       step={1}
                       value={shortBreakDelayDraft}
                       disabled={!canEditSmartSession}
