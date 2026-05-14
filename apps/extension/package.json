@@ -35,6 +35,8 @@
     "@babel/preset-typescript": "^7.27.1",
     "@toolkit-tw-bot/release": "workspace:*",
     "@toolkit-tw-bot/webpack": "workspace:*",
+    "@toolkit-tw-bot/browser": "workspace:*",
+    "@toolkit-tw-bot/core": "workspace:*",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/styled-components": "^5.1.36",
