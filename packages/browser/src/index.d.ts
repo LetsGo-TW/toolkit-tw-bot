@@ -2,6 +2,8 @@ export declare function combineAbortControllerSignals(
   signals?: Array<AbortSignal | null | undefined>,
 ): AbortSignal
 
+export declare const DOC_REQUEST_TIMEOUT_MS: number
+
 export declare const SCRIPT_STORAGE_MESSAGE_TYPE: 'SCRIPT_STORAGE'
 
 export type ScriptStorageCompose = {

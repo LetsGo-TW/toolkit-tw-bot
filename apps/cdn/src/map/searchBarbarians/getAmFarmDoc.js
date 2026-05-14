@@ -1,10 +1,10 @@
-import { combineAbortControllerSignals, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
 import { assertNoCaptchaInGame, assertNoGameUpdateOrBlockedRequest } from "@toolkit-tw-bot/document";
 
 export async function getAmFarmDoc(url, { signal } = {}) {
   const headers = makeAjaxHeadersGetDoc();
   const timeoutCtrl = new AbortController();
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000);
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS);
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
     : timeoutCtrl.signal;
@@ -14,7 +14,7 @@ export async function getAmFarmDoc(url, { signal } = {}) {
     credentials: "include",
     referrerPolicy: "origin",
     cache: "no-store",
-    signal: combinedSignal.signal
+    signal: combinedSignal
   });
   assertNoCaptchaInGame(document, 'getAmFarmDoc:pre-fetch')
   try {

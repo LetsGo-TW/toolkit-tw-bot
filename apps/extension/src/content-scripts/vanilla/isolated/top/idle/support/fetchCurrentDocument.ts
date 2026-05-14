@@ -1,6 +1,6 @@
-import { combineAbortControllerSignals, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
 
-const FETCH_TIMEOUT_MS = 15000
+const FETCH_TIMEOUT_MS = DOC_REQUEST_TIMEOUT_MS
 
 class FetchCurrentDocumentTimeoutError extends Error {
   constructor(timeoutMs: number) {

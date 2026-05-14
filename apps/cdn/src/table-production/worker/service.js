@@ -1,4 +1,4 @@
-import { makeAjaxBody, makeAjaxHeadersGetDoc, makeAjaxHeadersPost } from "@toolkit-tw-bot/browser"
+import { DOC_REQUEST_TIMEOUT_MS, makeAjaxBody, makeAjaxHeadersGetDoc, makeAjaxHeadersPost } from "@toolkit-tw-bot/browser"
 
 export default class Service {
   #abortController = null
@@ -134,7 +134,7 @@ export default class Service {
     return abortController.signal
   }
 
-  #createTimeoutController = (timeoutMs = 8000) => {
+  #createTimeoutController = (timeoutMs = DOC_REQUEST_TIMEOUT_MS) => {
     const timeoutController = new AbortController()
     const timeoutId = setTimeout(() => timeoutController.abort(new Error("timeout")), timeoutMs)
 

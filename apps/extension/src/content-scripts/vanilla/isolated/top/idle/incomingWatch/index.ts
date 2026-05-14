@@ -80,6 +80,14 @@ type ToolkitGameData = {
   } | null
 }
 
+function getChromeStorageLocalArea() {
+  try {
+    return chrome?.storage?.local ?? null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Tarefa pendente na fila de processamento.
  */
@@ -191,6 +199,13 @@ function normalizeIncomingPendingDetail(value: unknown): IncomingPendingStorageV
  * o próximo carregamento consegue recuperar e reiniciar o processo.
  */
 async function markIncomingPending(detail: IncomingObservedDetail) {
+  const storageLocal = getChromeStorageLocalArea()
+
+  if (!storageLocal?.set) {
+    logIncomingFlow('Pending não salvo. chrome.storage.local indisponível.')
+    return
+  }
+
   const key = getIncomingPendingStorageKey()
 
   if (!key) {
@@ -207,7 +222,7 @@ async function markIncomingPending(detail: IncomingObservedDetail) {
     startedAt: Date.now(),
   }
 
-  await chrome.storage.local.set({
+  await storageLocal.set({
     [key]: pendingValue,
   })
 
@@ -225,13 +240,19 @@ async function markIncomingPending(detail: IncomingObservedDetail) {
  * - requestIncomingApplyQueue()
  */
 async function clearIncomingPending() {
+  const storageLocal = getChromeStorageLocalArea()
+
+  if (!storageLocal?.remove) {
+    return
+  }
+
   const key = getIncomingPendingStorageKey()
 
   if (!key) {
     return
   }
 
-  await chrome.storage.local.remove(key)
+  await storageLocal.remove(key)
 
   console.log(
     `%c[CS][INCOMING_WATCH][PENDING_CLEAR] Pending removido | Key: ${key}`,
@@ -246,6 +267,13 @@ async function clearIncomingPending() {
  * Só verifica se havia um processamento aberto antes do reload.
  */
 async function getIncomingPendingDetail(): Promise<IncomingObservedDetail | null> {
+  const storageLocal = getChromeStorageLocalArea()
+
+  if (!storageLocal?.get || !storageLocal?.remove) {
+    logIncomingFlow('Pending bootstrap ignorado. chrome.storage.local indisponível.')
+    return null
+  }
+
   const key = getIncomingPendingStorageKey()
 
   if (!key) {
@@ -257,7 +285,7 @@ async function getIncomingPendingDetail(): Promise<IncomingObservedDetail | null
     return null
   }
 
-  const result = await chrome.storage.local.get(key)
+  const result = await storageLocal.get(key)
   const pending = normalizeIncomingPendingDetail(result?.[key])
 
   if (!pending) {
@@ -267,7 +295,7 @@ async function getIncomingPendingDetail(): Promise<IncomingObservedDetail | null
   const age = Date.now() - pending.startedAt
 
   if (age > INCOMING_PENDING_MAX_AGE_MS) {
-    await chrome.storage.local.remove(key)
+    await storageLocal.remove(key)
 
     console.warn(
       `%c[CS][INCOMING_WATCH][PENDING_EXPIRED] Pending antigo removido | Key: ${key}`,

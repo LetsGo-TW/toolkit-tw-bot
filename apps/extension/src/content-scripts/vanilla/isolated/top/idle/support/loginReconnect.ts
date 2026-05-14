@@ -6,6 +6,8 @@ import { LOGIN_MESSAGE_TYPE } from '../../../../../../service-worker/message/typ
 import { setActiveTitle } from '../../../../shared/setActiveTitle'
 
 const LOGIN_RECONNECT_HINT_ID = 'toolkit-tw-bot-login-reconnect-hint'
+const LOGIN_RECONNECT_LOG_STORAGE_KEY = 'toolkitTwBotLoginReconnectLog'
+const LOGIN_RECONNECT_LOG_MAX_ENTRIES = 50
 const LOGIN_RECONNECT_WRAP_SELECTOR = '#home > div.center > div.content.box-border.red > div.inner > div.right.login > div.wrap'
 
 let reconnectTimerId: number | null = null
@@ -13,6 +15,8 @@ let reconnectTimerId: number | null = null
 type LoginReconnectResponse = {
   ok?: boolean
   canReconnect?: boolean
+  world?: string | null
+  playerId?: number | null
   reconnectUrl?: string | null
   reconnectAt?: number | null
   reconnectReason?: string | null
@@ -21,6 +25,14 @@ type LoginReconnectResponse = {
   isAllowedByLicense?: boolean
   shouldCloseTab?: boolean
   data?: Record<string, unknown>
+}
+
+type LoginReconnectLogEntry = {
+  timestamp: number
+  world: string | null
+  playerId: number | null
+  reason: string | null
+  reconnectAt: number | null
 }
 
 type LoginReconnectHintTone = 'success' | 'danger' | 'warn'
@@ -153,6 +165,87 @@ function clearReconnectTimer() {
   }
 }
 
+function normalizeLoginReconnectLogEntry(value: unknown): LoginReconnectLogEntry | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const source = value as Partial<LoginReconnectLogEntry>
+  const timestamp = Number(source.timestamp)
+  const playerId = typeof source.playerId === 'number' && Number.isFinite(source.playerId)
+    ? source.playerId
+    : null
+  const reconnectAt = typeof source.reconnectAt === 'number' && Number.isFinite(source.reconnectAt)
+    ? source.reconnectAt
+    : null
+  const world = typeof source.world === 'string' && source.world.trim()
+    ? source.world.trim()
+    : null
+  const reason = typeof source.reason === 'string' && source.reason.trim()
+    ? source.reason.trim()
+    : null
+
+  if (!Number.isFinite(timestamp)) {
+    return null
+  }
+
+  return {
+    timestamp,
+    world,
+    playerId,
+    reason,
+    reconnectAt,
+  }
+}
+
+function readLoginReconnectLog() {
+  try {
+    const raw = window.localStorage.getItem(LOGIN_RECONNECT_LOG_STORAGE_KEY)
+
+    if (!raw) {
+      return []
+    }
+
+    const parsed = JSON.parse(raw) as unknown
+
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .map((entry) => normalizeLoginReconnectLogEntry(entry))
+      .filter((entry): entry is LoginReconnectLogEntry => entry !== null)
+  } catch {
+    return []
+  }
+}
+
+function appendLoginReconnectLogEntry(entry: LoginReconnectLogEntry) {
+  try {
+    const entries = readLoginReconnectLog()
+
+    const alreadyExists = entries.some((existingEntry) => (
+      existingEntry.world === entry.world
+      && existingEntry.playerId === entry.playerId
+      && existingEntry.reason === entry.reason
+      && existingEntry.reconnectAt === entry.reconnectAt
+    ))
+
+    if (alreadyExists) {
+      return
+    }
+
+    const nextEntries = [...entries, entry].slice(-LOGIN_RECONNECT_LOG_MAX_ENTRIES)
+
+    window.localStorage.setItem(
+      LOGIN_RECONNECT_LOG_STORAGE_KEY,
+      JSON.stringify(nextEntries),
+    )
+  } catch {
+    // Ignore storage write failures in restricted or private contexts.
+  }
+}
+
 export async function maybeHandleLoginReconnect() {
   clearReconnectTimer()
 
@@ -181,14 +274,16 @@ export async function maybeHandleLoginReconnect() {
   const reconnectAt = typeof response?.reconnectAt === 'number'
     ? response.reconnectAt
     : null
+  const hasSessionExpiredParam = Boolean(runtimeParams.sessionExpired)
   const isManagedReconnect = (
-    runtimeParams.sessionExpired === true
+    hasSessionExpiredParam
     || reconnectReason === 'session-expired'
     || reconnectReason === 'short-break'
     || reconnectReason === 'long-rest'
   )
 
   if (!isManagedReconnect) {
+    // TODO: notify the user when the tab reaches a plain login state outside managed reconnect.
     return false
   }
 
@@ -210,6 +305,18 @@ export async function maybeHandleLoginReconnect() {
     setLoginReconnectHint('reconnect desabilitado.', 'warn')
     return true
   }
+
+  appendLoginReconnectLogEntry({
+    timestamp: Date.now(),
+    world: typeof response.world === 'string' && response.world.trim()
+      ? response.world.trim()
+      : null,
+    playerId: typeof response.playerId === 'number' && Number.isFinite(response.playerId)
+      ? response.playerId
+      : null,
+    reason: reconnectReason,
+    reconnectAt,
+  })
 
   setLoginReconnectHint(
     `aguarde para reconnectar. motivo: ${getReconnectReasonLabel(reconnectReason)}. horário: ${formatReconnectTime(reconnectAt)}.`,
