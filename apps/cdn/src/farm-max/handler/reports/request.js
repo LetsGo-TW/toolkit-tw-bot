@@ -40,8 +40,18 @@ async function fetchReportView(villageId, reportId) {
     const { response, error } = parseTwJsonText(await res.text(), "reports:view-response");
     if (error || !response || !response.dialog) throw new Error(error ?? response.toString())
     const html = new DOMParser().parseFromString(response.dialog, "text/html");
+    const isBreakWall = () => {
+      const ramCount = html.querySelector("#attack_info_att_units tbody tr td.unit-item-ram")?.getAttribute('data-unit-count')
+      if (!ramCount) return false
+      return Number(ramCount) > 0
+    }
+    const [dots] = Array.from(html.querySelectorAll('img')).filter(img => img.getAttribute('src')?.match(/dots/))
+    const type = dots?.getAttribute('src')?.match(/red_blue|red_yellow|red|yellow|blue|green/i)?.[0];
+    if (type === 'red' && isBreakWall()) {
+      return { black: true, alive: false, wall: 0, units: [], buildings: [] };
+    }
     const trs = Array.from(html.querySelectorAll('#attack_info_def_units tbody tr'))
-    let alive = false
+    let alive = false;
     const units = Array.from(trs[1].querySelectorAll('.unit-item'))
       .map((e, i) => {
         const img = Array.from(trs[0].querySelectorAll('img'))[i]
@@ -99,7 +109,7 @@ async function fetchReportView(villageId, reportId) {
     }
     const wall = ram.level
 
-    return { alive, units, wall, destroy: { target: catapult.target, level: catapult.level },  buildings }
+    return { black: false, alive, units, wall, destroy: { target: catapult.target, level: catapult.level },  buildings }
   } finally {
     clearTimeout(t);
   }

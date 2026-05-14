@@ -679,7 +679,6 @@ async function withIframe(url, cb, data, opts = {}) {
   // ===== progresso/inflight =====
   function touchProgress(reason) {
     data._lastProgressAt = Date.now();
-    data._pageRefreshes = 0;
     data._lastReason = reason;
   }
 

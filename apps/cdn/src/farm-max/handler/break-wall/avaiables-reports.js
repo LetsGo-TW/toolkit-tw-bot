@@ -6,12 +6,15 @@ async function getAvaiablesReportBreakWall(html = document) {
   if (!config.active) return []
   const { plunderList } = getPlunderList(html)
   return plunderList.filter(report => {
+      const wallIsPositive = Number(report.wall) > 0
+      const wallIsUnknownOrPositive = report.wall == null || wallIsPositive
+
       return report.distance <= config.maxDistance &&
       (
-        (report.type === 'green' && report.wall && report.wall > 0) ||
-        (config.blue && report.type === 'blue' && report.wall > 0) ||
-        (config.yellow && report.type === 'yellow') ||
-        (config.red && report.type === 'red')
+        (report.type === 'green' && wallIsPositive) ||
+        (config.blue && report.type === 'blue' && wallIsPositive) ||
+        (config.yellow && report.type === 'yellow' && wallIsUnknownOrPositive) ||
+        (config.red && report.type === 'red' && wallIsUnknownOrPositive)
       )
   })
 }

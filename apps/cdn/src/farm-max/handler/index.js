@@ -166,6 +166,7 @@ export default async function start(data = {}, context = null) {
       return;
     }
     window.__twbot_iframe_mounting = true;
+
     await withIframe(
       url,
       async (...args) => {

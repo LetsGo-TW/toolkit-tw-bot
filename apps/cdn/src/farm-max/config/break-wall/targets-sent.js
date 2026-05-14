@@ -1,4 +1,4 @@
-import { storageBreakWallTargetsSent } from "."
+import { storageBreakWallTargetsSent } from "./index";
 import { dateTimeNow } from "../../../stable-compat/date-tw";
 
 async function getAvaiablesSents() {

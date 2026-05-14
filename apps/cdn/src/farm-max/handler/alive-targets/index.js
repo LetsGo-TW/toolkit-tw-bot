@@ -24,15 +24,18 @@ async function updateAliveTargets(data, api, d, w) {
   api.footer.set(`Verificando relatórios.`, "ok");
   const { plunderList } = getPlunderList(d)
   const aliveTargets = await getAllAliveTargets()
+  const removeAliveTargets = (target) => {
+    const ind = aliveTargets.findIndex(([t]) => Number(t) === Number(target))
+    if (ind !== -1) {
+      aliveTargets.splice(ind, 1)
+    }
+  }
   for (const { type, target, report_id, x, y } of plunderList) {
     if (
       ['green', 'yellow'].includes(type)
     ) {
       // remover
-      const ind = aliveTargets.findIndex(([t]) => Number(t) === Number(target))
-      if (ind !== -1) {
-        aliveTargets.splice(ind, 1)
-      }
+      removeAliveTargets(target)
     }
     if (
       ['blue', 'red_blue', 'yellow_blue'].includes(type) &&
@@ -48,23 +51,27 @@ async function updateAliveTargets(data, api, d, w) {
       const targetDisplay = `(${x}|${y}) K${String(y).padStart(3, 0).substring(0, 1)}${String(x).padStart(3, 0).substring(0, 1)}`
 
       try {
-        const { alive, units, wall } = await fetchReportView(data.village.id, report_id)
-        const aliveTarget = alive
-          ? [
-            target,
-            Number(report_id),
-            Number(x),
-            Number(y),
-            units.filter(u => u.id !== 'militia').map(u => Number(u.value)),
-            wall
-          ]
-          : [
-            target
-          ]
+        const { black, alive, units, wall } = await fetchReportView(data.village.id, report_id)
 
-        aliveTargets.push(aliveTarget)
-        await storageAliveTargets.set(aliveTargets)
-        api.footer.set(`${targetDisplay} verificado.`, "ok");
+        if (black) {
+          removeAliveTargets(target)
+          continue
+        }
+
+        if (alive) {
+          const aliveTarget = [
+              target,
+              Number(report_id),
+              Number(x),
+              Number(y),
+              units.filter(u => u.id !== 'militia').map(u => Number(u.value)),
+              wall
+          ];
+          aliveTargets.push(aliveTarget);
+          api.footer.set(`${targetDisplay} verificado (com tropas).`, "ok");
+        } else {
+          removeAliveTargets(target);
+        }
       } catch (error) {
         if (error?.message === 'Identified bot protection') {
           throw error
@@ -76,6 +83,7 @@ async function updateAliveTargets(data, api, d, w) {
       }
     }
   }
+  await storageAliveTargets.set(aliveTargets);
 }
 
 export { updateAliveTargets, getAllAliveTargets, getAliveTarget, isAliveTarget }

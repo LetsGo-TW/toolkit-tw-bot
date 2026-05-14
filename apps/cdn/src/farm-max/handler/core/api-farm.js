@@ -3,15 +3,16 @@ import { calculateNumberOfFarmsPerModel } from "../../common/calculate-number-of
 import { storageFarmSchedules } from "../../config";
 import { dataConfig } from "../../config/data";
 import { saveLastInConfig } from "../../config/save-last";
-import { getModels } from "../../models/get-models";
 import { runLoop } from "../../utils/runLoop";
 import { sleep, sleepAbort } from "../../utils/sleep";
 import { ensureFarmSession } from "./farm-session";
 import { avaiableButtonsForReport, getPlunderList, setPlunderListAvaliables } from "./plunder-list";
 import { transformUnitsFarm } from "../../common/transform-units-farm-array";
 import { handlerBreakWall } from "../break-wall";
+import { blacklistManager } from "../break-wall/black-list-manager.js";
 import { isAliveTarget, updateAliveTargets } from "../alive-targets";
 import { ProtectingBot } from "@toolkit-tw-bot/document";
+import { getModels } from "../../models/get-models";
 
 const PAGE_TIMEOUT_MS = 30_000;           // 30s sem progresso
 const PAGE_REFRESH_RETRIES = 1;           // tenta 1x refresh da página
@@ -171,21 +172,16 @@ function startPageWatchdog(w, d, ifr, api, data) {
 
       if (retries < PAGE_REFRESH_RETRIES) {
         data._pageRefreshes = retries + 1;
-        api.footer.set(
-          `Sem progresso há ${parseInt(PAGE_TIMEOUT_MS/1000)}s (inflight=${data._inflight|0}).` +
-          (retries < PAGE_REFRESH_RETRIES ? " Atualizando a página…" : " Avançando/fechando…"),
-          "warn"
-        );
+        const attempt = retries + 1;
+        api.footer.set(`Página sem progresso. Tentando recarregar (${attempt}/${PAGE_REFRESH_RETRIES})...`, "warn");
         const { w: w2, d: d2 } = await api.refresh();
         return await apiFarm(w2, d2, ifr, api, data);
       }
 
-      api.footer.set(`Sem progresso após atualização. Avançando/fechando…`, 'warn');
-
-      const aindaTemTropa = Math.max(...Object.values(calcFarmsPerModels(transformUnitsFarm(data.village?.units) || [], data.models, data.configData))) > 0;
-      if (data.pages?.length && data.page < data.totalPages && aindaTemTropa && data.count < data.totalItens) {
-        return await apiFarmNavigate(ifr, api, data);
-      }
+      // Se esgotaram as tentativas de recarregar a página, encerra para a vila atual e avança.
+      const attemptStr = PAGE_REFRESH_RETRIES === 1 ? '1 tentativa' : `${PAGE_REFRESH_RETRIES} tentativas`;
+      api.footer.set(`Página travada após ${attemptStr}. Avançando para a próxima vila...`, "err");
+      await updateSchedules();
       return await apiFarmTerminate(api, data);
     }
   }, 1000);
@@ -283,11 +279,14 @@ async function apiFarmTerminate(api, data, options = {}) {
   if (data) data.__terminated = true;
 
   const shouldRedirectToBotProtect = resolveTerminateReason(api, data, options) === BOT_PROTECT_REASON;
+  const drainInflightMs = Number(options?.drainInflightMs) > 0
+    ? Number(options.drainInflightMs)
+    : 1800;
 
   try { clearInterval(data._wd); } catch { /* intentionally empty */ }
 
   // 1) drena ajax pendente p/ refletir contadores na UI
-  await waitInflightToDrain(api, data, 1800);
+  await waitInflightToDrain(api, data, drainInflightMs);
   syncUI(api, data);
 
   const schedules = await storageFarmSchedules.get();
@@ -352,6 +351,26 @@ async function whenThereAreNoTroops(api, data, { claimed = false } = {}) {
   await apiFarmTerminate(api, data);
 }
 
+async function whenReachedDistanceLimit(api, data, {
+  claimed = false,
+  minDistance = null,
+  maxUsefulDistance = null,
+} = {}) {
+  if (!claimed && !claimPageTransition(data, "distance-limit")) return;
+  setPageTransition(data, "terminate");
+  try { controller.abort("Distance limit reached."); } catch { /* intentionally empty */ }
+
+  const distanceText = Number.isFinite(minDistance) && Number.isFinite(maxUsefulDistance)
+    ? `Distância mínima ${minDistance} acima do limite útil ${maxUsefulDistance}.`
+    : `Limite útil de distância atingido.`
+
+  api.footer.set(`${distanceText} Fechando...`, "warn");
+  await updateSchedules();
+  await sleep(1000, 1111);
+  syncUI(api, data)
+  await apiFarmTerminate(api, data, { drainInflightMs: 10_000 });
+}
+
 async function whenThereIsAnError(api, data, {
   claimed = false,
   reason = null,
@@ -399,6 +418,39 @@ function calcFarmsPerModels(units = [], models = [], configData) {
   return { a: parseInt(A) || 0, b: parseInt(B) || 0, c: parseInt(C) || 0 };
 }
 
+function getMaxUsefulDistance(configData) {
+  const buttons = Array.isArray(configData?.buttons) ? configData.buttons : [];
+  const config = configData?.config || {};
+
+  return buttons.reduce((maxDistance, button) => {
+    const buttonConfig = config?.[button];
+    if (!buttonConfig?.active) return maxDistance;
+
+    const nextDistance = Number(buttonConfig.maxDistance);
+    if (!Number.isFinite(nextDistance)) return maxDistance;
+
+    return Math.max(maxDistance, nextDistance);
+  }, 0);
+}
+
+function shouldStopDueDistance(plunderList = [], configData = {}) {
+  const orderBy = String(configData?.config?.orderBy || "").toLowerCase();
+  const orderDir = String(configData?.config?.orderDir || "").toLowerCase();
+  if (orderBy !== "distance" || orderDir !== "asc") return false;
+
+  const maxUsefulDistance = getMaxUsefulDistance(configData);
+  if (!Number.isFinite(maxUsefulDistance) || maxUsefulDistance <= 0) return false;
+
+  const distances = plunderList
+    .map(report => Number(report?.distance))
+    .filter(Number.isFinite);
+
+  if (!distances.length) return false;
+
+  const minDistanceInPage = Math.min(...distances);
+  return minDistanceInPage > maxUsefulDistance;
+}
+
 // -------- rotina principal por página --------
 const apiFarm = async (
   w = window, d = document, ifr = null, api = null,
@@ -428,13 +480,6 @@ const apiFarm = async (
   // manter UI de página aqui
   try { api.ui.setVillage?.(data.village); } catch { /* intentionally empty */ }
   try { api.ui.setPage?.(`${data.page}/${data.totalPages}`); } catch { /* intentionally empty */ }
-
-  // api-farm.js (correto)
-  ifr.addEventListener("load", () => {
-    // respeita o estado atual (minimizado ou não)
-    try { api.ui.applyVisibility?.(); } catch { /* intentionally empty */ }
-    try { api.isolatePlunderList(); api.presentCompactPlunder(); } catch { /* intentionally empty */ }
-  });
 
   // garante sessão da vila atual (não usa id na chave, só no payload)
   try {
@@ -478,8 +523,8 @@ const apiFarm = async (
     // break wall
     api.loader.show()
     await handlerBreakWall(data, api, d, w)
-    // await updateSentsBlue(data, api, d, w)
     await updateAliveTargets(data, api, d, w)
+    await blacklistManager(data, api, d, w)
     api.loader.hide()
   } catch (error) {
     api.loader.hide();
@@ -602,6 +647,20 @@ const apiFarm = async (
   // lança o loop inicial
   const show = async () => {
     api.footer.set(`Carregando a lista de farm...`, "warn");
+    const { plunderList: rawPlunderList } = getPlunderList(d);
+
+    if (shouldStopDueDistance(rawPlunderList, configData)) {
+      const minDistanceInPage = Math.min(
+        ...rawPlunderList.map(report => Number(report?.distance)).filter(Number.isFinite)
+      );
+      const maxUsefulDistance = getMaxUsefulDistance(configData);
+      await whenReachedDistanceLimit(api, data, {
+        minDistance: minDistanceInPage,
+        maxUsefulDistance,
+      });
+      return;
+    }
+
     const { plunderList } = await setPlunderListAvaliables(d);
 
     touch(data);
@@ -649,6 +708,7 @@ export {
   apiFarmTerminate,
   whenThereAreNoReports,
   whenThereAreNoTroops,
+  whenReachedDistanceLimit,
   whenThereIsAnError,
   requestApiFarmStop,
   skipReportPlunderListHtml,

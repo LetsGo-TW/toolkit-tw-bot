@@ -10,6 +10,8 @@ import { Distance } from "@toolkit-tw-bot/core";
 import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
 import { BotViewStatus } from "../../shared/bot-view-status";
+import { getBlacklist } from "../config/break-wall/targets-black";
+import { getAvaiablesSents } from "../config/break-wall/targets-sent";
 
 const handlerGroups = new Groups()
 
@@ -33,6 +35,46 @@ async function setStatusMessage(message) {
         : 'Desativado. Configure e ative o auto-farm para iniciar.'
     }
     statusMessage.textContent = message
+  }
+}
+
+async function hydrateGroupsSelect() {
+  const goFarmGroup = document.querySelector('#go-farm-group')
+  if (!goFarmGroup) return
+
+  const pendingValue = String(goFarmGroup.dataset.pendingValue ?? goFarmGroup.value ?? 0)
+  goFarmGroup.dataset.pendingValue = pendingValue
+  goFarmGroup.dataset.loading = 'true'
+  goFarmGroup.disabled = true
+  goFarmGroup.innerHTML = '<option value="0">Carregando grupos...</option>'
+
+  try {
+    const groups = await handlerGroups.get()
+    const htmlGroup = [
+      '<option value="0">todos</option>',
+      ...groups.map(({ group_id, name }) => `<option value="${group_id}">${name}</option>`)
+    ]
+
+    goFarmGroup.innerHTML = htmlGroup.join('')
+    goFarmGroup.value = pendingValue
+
+    if (goFarmGroup.value !== pendingValue) {
+      goFarmGroup.value = '0'
+    }
+  } catch (error) {
+    if (
+      error?.message === 'Identified bot protection'
+      || ProtectingBot["bot-protect-all-in-game"].active()
+    ) {
+      try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
+      return
+    }
+
+    console.error(error.message || error.toString())
+    goFarmGroup.innerHTML = '<option value="0">Falha ao carregar grupos</option>'
+  } finally {
+    delete goFarmGroup.dataset.loading
+    goFarmGroup.disabled = false
   }
 }
 
@@ -96,7 +138,11 @@ async function goFormSubmit(event) {
         }
         break;
       case 'select-one':
-        value = parseInt(elem.value, 10);
+        if (elem.dataset.loading === 'true' && elem.dataset.pendingValue) {
+          value = parseInt(elem.dataset.pendingValue, 10);
+        } else {
+          value = parseInt(elem.value, 10);
+        }
         break;
       default:
         value = elem.value;
@@ -178,6 +224,9 @@ async function insertConfig() {
         }
         break;
       case 'select-one':
+        if (elem.id === 'go-farm-group') {
+          elem.dataset.pendingValue = String(config[key] ?? 0)
+        }
         elem.value = config[key];
         break;
       default:
@@ -307,24 +356,158 @@ async function renderSchedules() {
   nodeSchedules.innerHTML = nodes.join('')
 }
 
-async function showAlives() {
+async function breakWallShow(e) {
+  const { id } = e.target
+  if (!id) return
+  const nodeCheck = document.querySelector('#go-farm-check')
+  const nodeBlack = document.querySelector('#go-farm-black')
   const nodeAlives = document.querySelector('#go-farm-alive')
-  if (!nodeAlives) return
 
-  const classNames = nodeAlives.getAttribute('class').trim().split(' ')
-
-  if (!classNames.includes('show')) {
-    classNames.push('show')
-    await renderAlives()
-  } else {
-    classNames.pop()
-    nodeAlives.innerHTML = ''
+  const removeShow = (node) => {
+    if (!node || !node?.classList.contains('show')) return
+    node?.classList.remove('show')
+    node.innerHTML = ''
   }
-  nodeAlives.setAttribute('class', classNames.join(' '))
+
+  const setShow = (node) => {
+    if (node?.classList.contains('show')) return
+    node?.classList.add('show')
+  }
+
+  switch (id) {
+    case 'go-farm-check-show':
+      removeShow(nodeAlives)
+      removeShow(nodeBlack)
+      if (nodeCheck?.classList.contains('show')) {
+        removeShow(nodeCheck)
+        break;
+      }
+      setShow(nodeCheck)
+      await renderCheck(nodeCheck)
+      break;
+    case 'go-farm-black-show':
+      removeShow(nodeAlives)
+      removeShow(nodeCheck)
+      if (nodeBlack?.classList.contains('show')) {
+        removeShow(nodeBlack)
+        break;
+      }
+      setShow(nodeBlack)
+      await renderBlack(nodeBlack)
+      break;
+    case 'go-farm-alive-show':
+      removeShow(nodeCheck)
+      removeShow(nodeBlack)
+      if (nodeAlives?.classList.contains('show')) {
+        removeShow(nodeAlives)
+        break;
+      }
+      setShow(nodeAlives)
+      await renderAlives(nodeAlives)
+      break;
+    default:
+      break;
+  }
 }
 
-async function renderAlives() {
-  const nodeAlives = document.querySelector('#go-farm-alive')
+function formatTargetCoords(target, x, y) {
+  if (!x || !y) return String(target)
+  const ko = `${String(y).padStart(3, '0').substring(0, 1)}${String(x).padStart(3, '0').substring(0, 1)}`
+  return `(${x}|${y}) K${ko}`
+}
+
+function getBaseGameUrl() {
+  const gameData = getGameData()
+  return new URL(gameData.link_base_pure, window.location.origin)
+}
+
+async function renderCheck(nodeCheck) {
+  if (!nodeCheck) return
+  const { avaible: breakWallSents = [] } = (await getAvaiablesSents()) || {}
+  if (!breakWallSents.length) {
+    nodeCheck.innerHTML = '<span class="red">Nenhum quebra muro em andamento.</span>'
+    return
+  }
+
+  const baseUrl = getBaseGameUrl()
+  const nodes = breakWallSents
+    .slice()
+    .sort((a, b) => Number(a.arrival) - Number(b.arrival))
+    .map(({ target, x, y, arrival }, i) => {
+      const infoUrl = new URL(baseUrl)
+      infoUrl.searchParams.set('screen', 'info_village')
+      infoUrl.searchParams.set('id', target)
+
+      const placeUrl = new URL(baseUrl)
+      placeUrl.searchParams.set('screen', 'place')
+      placeUrl.searchParams.set('target', target)
+
+      return `
+        <div class="go-farm-alive go-border">
+          <span>
+            <span data-go-title="Ir para a visualização da aldeia.">${i + 1}.
+              <a href="${infoUrl.toString()}">
+                <span>${formatTargetCoords(target, x, y)}</span>
+              </a>
+            </span>
+          </span>
+          <span>
+            <span data-go-title="Horário de chegada do quebra-muro.">
+              ⏱️ ${new Date(Number(arrival)).toLocaleString()}
+            </span>
+            <a href="${placeUrl.toString()}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" data-go-title="Praça">
+              <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/buildings/place.webp">
+            </a>
+          </span>
+        </div>
+      `
+    })
+
+  nodeCheck.innerHTML = nodes.join('')
+}
+
+async function renderBlack(nodeBlack) {
+  if (!nodeBlack) return
+  const blacklist = await getBlacklist();
+  if (!blacklist.length) {
+    nodeBlack.innerHTML = '<span class="red">Nenhum quebra muro com perda total.</span>'
+    return
+  }
+  const baseUrl = getBaseGameUrl()
+
+  nodeBlack.innerHTML = blacklist.map(({ target, report_id, x, y }, i) => {
+    const infoUrl = new URL(baseUrl)
+    infoUrl.searchParams.set('screen', 'info_village')
+    infoUrl.searchParams.set('id', target)
+
+    const reportUrl = new URL(baseUrl)
+    reportUrl.searchParams.set('screen', 'report')
+    reportUrl.searchParams.set('mode', 'all')
+    reportUrl.searchParams.set('view', report_id)
+
+    return `
+      <div class="go-farm-alive go-border">
+        <span>
+          <span data-go-title="Ir para a visualização da aldeia.">${i + 1}.
+            <a href="${infoUrl.toString()}">
+              <span>${formatTargetCoords(target, x, y)}</span>
+            </a>
+          </span>
+        </span>
+        <span>
+          <a href="${reportUrl.toString()}" data-go-title="Relatório.">
+            <span id="new_report" class="icon header new_report"></span>
+          </a>
+          <a style="vertical-align:middle; margin:5px;" class="cancel-icon" data-go-title="Remover da blacklist."></a>
+        </span>
+      </div>
+    `
+  }).join('')
+
+  return
+}
+
+async function renderAlives(nodeAlives) {
   if (!nodeAlives) return
 
   const allAliveTargets = await getAllAliveTargets()
@@ -394,14 +577,14 @@ async function renderAlives() {
                 <img src="https://dsbr.innogamescdn.com/asset/4e165360/graphic/buildings/wall.webp">
                 ${wall ?? '?'}
               </span>
-                <span data-go-title="Distância">
+              <span data-go-title="Distância">
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/rechts.webp">
                 ${calculateDistance.round({x, y}).toFixed(2)}
               </span>
                 <a href="${simUrl.toString()}" data-go-title="Simulador">🧮</a>
                 <a href="${reportUrl.toString()}" data-go-title="Relatório.">
-                <span id="new_report" class="icon header new_report"></span>
-              </a>
+                  <span id="new_report" class="icon header new_report"></span>
+                </a>
                 <a href="${placeUrl.toString()}" onclick="Accountmanager.farm.openRallyPoint(${target}, event)" data-go-title="Praça">
                 <img src="https://dsbr.innogamescdn.com/asset/28bd5527/graphic/buildings/place.webp">
               </a>
@@ -484,25 +667,6 @@ async function render(containerElement = null) {
     target.prepend(elemHtml)
   }
 
-  try {
-    const groups = await handlerGroups.get()
-    const htmlGroup = groups.map(e => {
-      return `<option value="${e.group_id}">${e.name}</option>`
-    })
-    const goFarmGroup = document.querySelector('#go-farm-group')
-    goFarmGroup.innerHTML = htmlGroup.join('')
-  } catch (error) {
-    if (
-      error?.message === 'Identified bot protection'
-      || ProtectingBot["bot-protect-all-in-game"].active()
-    ) {
-      try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
-      return
-    }
-
-    console.error(error.message || error.toString())
-  }
-
   await renderBreakWallTemplates()
 
   const youTube = youtubeLinkImage('https://www.youtube.com/playlist?list=PLo4rLFftjcxHCs7eqMxP1Jf3ivwohXXJr', (message) => {
@@ -548,8 +712,27 @@ async function render(containerElement = null) {
   goResetFarm.addEventListener('click', onClickResetFarm, true)
   const goSchedulesButton = document.querySelector('#go-farm-schedules-show')
   goSchedulesButton.addEventListener('click', showSchedules, true)
+
+  const goCheckButton = document.querySelector("#go-farm-check-show")
+  const goBlackButton = document.querySelector("#go-farm-black-show")
   const goAliveButton = document.querySelector("#go-farm-alive-show")
-  goAliveButton.addEventListener('click', showAlives, true)
+  goCheckButton?.addEventListener('click', breakWallShow, true)
+  goBlackButton?.addEventListener('click', breakWallShow, true)
+  goAliveButton?.addEventListener('click', breakWallShow, true)
+  void hydrateGroupsSelect()
+
+  const { avaible: breakWallSents = [] } = (await getAvaiablesSents()) || {}
+  if (breakWallSents.length) {
+    goCheckButton?.classList.add('active')
+  }
+  const blacklist = await getBlacklist();
+  if (blacklist.length) {
+    goBlackButton?.classList.add('active')
+  }
+  const allAliveTargets = await getAllAliveTargets()
+  if (allAliveTargets.length) {
+    goAliveButton?.classList.add('active')
+  }
   window.addEventListener('message', onMessage , false);
 
   const destroy = () => {
@@ -561,7 +744,9 @@ async function render(containerElement = null) {
     editButton.removeEventListener('click', editOpen, true)
     goResetFarm.removeEventListener('click', onClickResetFarm, true)
     goSchedulesButton.removeEventListener('click', showSchedules, true)
-    goAliveButton.removeEventListener('click', showAlives, true)
+    goCheckButton?.removeEventListener('click', breakWallShow, true)
+    goBlackButton?.removeEventListener('click', breakWallShow, true)
+    goAliveButton?.removeEventListener('click', breakWallShow, true)
     window.removeEventListener('message', onMessage , false);
     elemHtml.remove()
   }
