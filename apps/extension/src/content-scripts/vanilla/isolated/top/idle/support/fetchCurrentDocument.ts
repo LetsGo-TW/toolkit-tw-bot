@@ -1,7 +1,21 @@
-import combineAbortControllerSignals from "@toolkit-tw-bot/browser/combineAbortControllerSignals"
-import { makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser/makeAjax"
+import { combineAbortControllerSignals, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
 
-const FETCH_TIMEOUT_MS = 8000
+const FETCH_TIMEOUT_MS = 15000
+
+class FetchCurrentDocumentTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Timeout fetching document after ${timeoutMs}ms`)
+    this.name = 'FetchCurrentDocumentTimeoutError'
+  }
+}
+
+function isFetchCurrentDocumentTimeoutError(error: unknown): error is FetchCurrentDocumentTimeoutError {
+  return error instanceof FetchCurrentDocumentTimeoutError
+    || (
+      error instanceof Error
+      && error.name === 'FetchCurrentDocumentTimeoutError'
+    )
+}
 
 async function fetchCurrentDocument(url: string, {
   signal,
@@ -36,9 +50,18 @@ async function fetchCurrentDocument(url: string, {
     return {
       html,
     }
+  } catch (error) {
+    if (timeoutCtrl.signal.aborted && signal?.aborted !== true) {
+      throw new FetchCurrentDocumentTimeoutError(FETCH_TIMEOUT_MS)
+    }
+
+    throw error
   } finally {
     clearTimeout(timeoutId)
   }
 }
 
-export { fetchCurrentDocument }
+export {
+  fetchCurrentDocument,
+  isFetchCurrentDocumentTimeoutError,
+}

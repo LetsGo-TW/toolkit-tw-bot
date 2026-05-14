@@ -1,7 +1,5 @@
 /// <reference types="chrome" />
 
-import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
-import Tooltip from "@toolkit-tw-bot/document/tooltip"
 import { getParamsUrl } from "@toolkit-tw-bot/core"
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { SUPPORT_SYNC_CTX_MESSAGE_TYPE } from "../../../../../../service-worker/message/types"
@@ -12,14 +10,21 @@ import {
 } from "../../../../shared/preparedBootstrap"
 import { setActiveTitle } from "../../../../shared/setActiveTitle"
 import { installChangeGlobalSupport } from "./changeGlobal"
-import { SUPPORT_GET_POPUP_STATE_MESSAGE_TYPE, SUPPORT_PROBE_MESSAGE_TYPE } from './message-types'
+import {
+  SUPPORT_GET_POPUP_STATE_MESSAGE_TYPE,
+  SUPPORT_LOGOUT_MESSAGE_TYPE,
+  SUPPORT_PROBE_MESSAGE_TYPE,
+} from './message-types'
 import {
   infoPlayer,
   isSupportInfoPlayerMessage,
   syncPlayerAvatar,
 } from "./info-player"
 import { getCurrentGameData, getPopupPageSnapshot, isFinitePlayerId } from "./current"
+import { isFetchCurrentDocumentTimeoutError } from "./fetchCurrentDocument"
 import { maybeHandleLoginReconnect } from './loginReconnect'
+import { ProtectingBot } from "@toolkit-tw-bot/document";
+import Tooltip from "@toolkit-tw-bot/document/tooltip";
 
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupport__'
 const WORLD_PLAYERS_STORAGE_KEY = 'worldPlayers'
@@ -29,10 +34,78 @@ type ToolkitWindow = Window & {
   [BOOTSTRAP_KEY]?: boolean
 }
 
+type SupportAuxiliaryErrorKind = 'timeout' | 'fetch' | 'unknown'
+
 let probedBotProtectState: boolean | null = null
 let syncedBotProtectState: boolean | null = null
 let botProtectStateSyncTimer: ReturnType<typeof setTimeout> | null = null
 let unbindBotViewTooltip: (() => void) | null = null
+
+function getSupportAuxiliaryErrorMeta(error: unknown): {
+  kind: SupportAuxiliaryErrorKind
+  message: string
+} {
+  if (isFetchCurrentDocumentTimeoutError(error)) {
+    return {
+      kind: 'timeout',
+      message: error.message,
+    }
+  }
+
+  if (error instanceof Error) {
+    return {
+      kind: 'fetch',
+      message: error.message || error.name,
+    }
+  }
+
+  return {
+    kind: 'unknown',
+    message: String(error),
+  }
+}
+
+function getChromeStorageApi() {
+  try {
+    return chrome?.storage ?? null
+  } catch {
+    return null
+  }
+}
+
+function requestLogoutToReconnectLogin() {
+  const gameData = getCurrentGameData()
+  const linkBasePure = typeof gameData?.link_base_pure === 'string'
+    ? gameData.link_base_pure.trim()
+    : ''
+  const csrf = typeof gameData?.csrf === 'string'
+    ? gameData.csrf.trim()
+    : ''
+
+  if (!linkBasePure || !csrf) {
+    return {
+      ok: false,
+      reason: 'missing-game-data-logout-parts',
+      hasLinkBasePure: Boolean(linkBasePure),
+      hasCsrf: Boolean(csrf),
+    }
+  }
+
+  const url = new URL(
+    `${linkBasePure}&action=logout&h=${csrf}`,
+    window.location.origin,
+  )
+
+  window.setTimeout(() => {
+    window.location.assign(url.href)
+  }, 0)
+
+  return {
+    ok: true,
+    href: url.href,
+    type: SUPPORT_LOGOUT_MESSAGE_TYPE,
+  }
+}
 
 function getPageMessageData(event: MessageEvent<unknown>) {
   if (event.source !== window) {
@@ -165,10 +238,16 @@ async function runSupportProbe() {
   probedBotProtectState = isBotProtected
   syncedBotProtectState = isBotProtected
 
-  const avatarResponse = await syncPlayerAvatar().catch((error) => ({
-    ok: false,
-    error: error instanceof Error ? error.message : String(error),
-  }))
+  let avatarThrownErrorKind: SupportAuxiliaryErrorKind | null = null
+  const avatarResponse = await syncPlayerAvatar().catch((error) => {
+    const meta = getSupportAuxiliaryErrorMeta(error)
+    avatarThrownErrorKind = meta.kind
+
+    return {
+      ok: false,
+      error: meta.message,
+    }
+  })
 
   const ctxResponse = await syncCtxAndTitle({
     isBotProtected,
@@ -185,14 +264,18 @@ async function runSupportProbe() {
     ? (avatarResponse as { error: string }).error
     : null
 
-  const networkError = avatarError !== null
+  const avatarFetchError = avatarError !== null
+  const avatarFetchErrorKind = avatarFetchError
+    ? avatarThrownErrorKind ?? 'fetch'
+    : null
 
   return {
     ok: true,
     type: SUPPORT_PROBE_MESSAGE_TYPE,
     isBotProtected,
     isConnectServerError,
-    networkError,
+    avatarFetchError,
+    avatarFetchErrorKind,
     error: avatarError,
     avatarResponse,
     ctxResponse,
@@ -226,6 +309,15 @@ function onExtensionMessage(
       ...popupSnapshot,
       type: SUPPORT_GET_POPUP_STATE_MESSAGE_TYPE,
     })
+    return false
+  }
+
+  if (
+    received
+    && typeof received === 'object'
+    && (received as { type?: string }).type === SUPPORT_LOGOUT_MESSAGE_TYPE
+  ) {
+    sendResponse(requestLogoutToReconnectLogin())
     return false
   }
 
@@ -301,6 +393,7 @@ function onPreparedBootstrapStateMessage(event: MessageEvent<unknown>) {
 
 async function bootstrap() {
   const scope = window as ToolkitWindow
+  const storageApi = getChromeStorageApi()
 
   if (scope[BOOTSTRAP_KEY]) {
     return
@@ -313,7 +406,9 @@ async function bootstrap() {
   console.log('[CS][SUPPORT] bootstrap')
 
   chrome.runtime.onMessage.addListener(onExtensionMessage)
-  chrome.storage.onChanged.addListener(onStorageChanged)
+  if (storageApi?.onChanged) {
+    storageApi.onChanged.addListener(onStorageChanged)
+  }
   window.addEventListener('message', onPreparedBootstrapStateMessage, true)
   ensureBotViewTooltipOnce()
 

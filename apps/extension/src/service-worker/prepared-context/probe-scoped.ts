@@ -3,8 +3,8 @@ import { SUPPORT_PROBE_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolat
 import { random } from '@toolkit-tw-bot/core'
 import { getScopedRunnerTarget } from './get-targets'
 
-const MIN_DELAY_SECONDS = 30
-const MAX_DELAY_SECONDS = 40
+const MIN_DELAY_SECONDS = 3 * 60
+const MAX_DELAY_SECONDS = (3 * 60) + 10
 
 function parseProbeAlarmName(alarmName: string) {
   const scopeKey = alarmName.slice('probe:'.length)
@@ -64,6 +64,8 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
       type?: string
       isBotProtected?: boolean
       networkError?: boolean
+      avatarFetchError?: boolean
+      avatarFetchErrorKind?: string | null
       error?: string | null
     } | null
 
@@ -86,6 +88,16 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
       return
     }
 
+    if (response?.avatarFetchError) {
+      console.warn('[SW][PROBE] avatarFetchError', {
+        scopeKey,
+        tabId: target.runner.tabId,
+        kind: response.avatarFetchErrorKind ?? null,
+        error: response.error ?? null,
+      })
+      await scheduleProbeAlarm(scopeKey)
+      return
+    }
 
     if (response?.isBotProtected === true) {
       await clearProbeAlarm(alarm.name)
