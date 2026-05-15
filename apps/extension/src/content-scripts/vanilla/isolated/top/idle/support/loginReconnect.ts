@@ -158,6 +158,61 @@ function formatReconnectTime(value?: number | null) {
   }).format(date)
 }
 
+function getReconnectWorldFromUrl(url?: string | null) {
+  if (typeof url !== 'string' || !url.trim()) {
+    return null
+  }
+
+  try {
+    const parsedUrl = new URL(url)
+    const worldFromPath = parsedUrl.pathname.match(/^\/page\/play\/([^/?#]+)/)?.[1] || null
+
+    if (worldFromPath) {
+      return worldFromPath
+    }
+
+    const hostParts = parsedUrl.hostname.split('.')
+    const firstHostPart = hostParts[0] || null
+
+    if (!firstHostPart || firstHostPart === 'www' || firstHostPart === 'tribalwars') {
+      return null
+    }
+
+    return firstHostPart
+  } catch {
+    return null
+  }
+}
+
+function formatReconnectWorldLabel(value?: string | null) {
+  const normalizedWorld = typeof value === 'string' && value.trim()
+    ? value.trim()
+    : null
+
+  if (!normalizedWorld) {
+    return null
+  }
+
+  return `mundo: ${normalizedWorld}.`
+}
+
+function isSameReconnectTarget(url?: string | null, currentHref = window.location.href) {
+  if (typeof url !== 'string' || !url.trim()) {
+    return false
+  }
+
+  try {
+    const targetUrl = new URL(url)
+    const currentUrl = new URL(currentHref)
+
+    return targetUrl.origin === currentUrl.origin
+      && targetUrl.pathname === currentUrl.pathname
+      && targetUrl.search === currentUrl.search
+  } catch {
+    return false
+  }
+}
+
 function clearReconnectTimer() {
   if (reconnectTimerId !== null) {
     window.clearTimeout(reconnectTimerId)
@@ -274,6 +329,11 @@ export async function maybeHandleLoginReconnect() {
   const reconnectAt = typeof response?.reconnectAt === 'number'
     ? response.reconnectAt
     : null
+  const reconnectWorld = (
+    typeof response?.world === 'string' && response.world.trim()
+      ? response.world.trim()
+      : getReconnectWorldFromUrl(response?.reconnectUrl)
+  )
   const hasSessionExpiredParam = Boolean(runtimeParams.sessionExpired)
   const isManagedReconnect = (
     hasSessionExpiredParam
@@ -306,6 +366,25 @@ export async function maybeHandleLoginReconnect() {
     return true
   }
 
+  if (
+    runtimeParams.isPortalPage
+    && isSameReconnectTarget(response.reconnectUrl)
+  ) {
+    setLoginReconnectHint(
+      [
+        'aguarde o carregamento do mundo.',
+        formatReconnectWorldLabel(reconnectWorld),
+        `motivo: ${getReconnectReasonLabel(reconnectReason)}.`,
+        `horário: ${formatReconnectTime(reconnectAt)}.`,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      'success',
+    )
+
+    return true
+  }
+
   appendLoginReconnectLogEntry({
     timestamp: Date.now(),
     world: typeof response.world === 'string' && response.world.trim()
@@ -319,7 +398,14 @@ export async function maybeHandleLoginReconnect() {
   })
 
   setLoginReconnectHint(
-    `aguarde para reconnectar. motivo: ${getReconnectReasonLabel(reconnectReason)}. horário: ${formatReconnectTime(reconnectAt)}.`,
+    [
+      'aguarde para reconnectar.',
+      formatReconnectWorldLabel(reconnectWorld),
+      `motivo: ${getReconnectReasonLabel(reconnectReason)}.`,
+      `horário: ${formatReconnectTime(reconnectAt)}.`,
+    ]
+      .filter(Boolean)
+      .join(' '),
     'success',
   )
 

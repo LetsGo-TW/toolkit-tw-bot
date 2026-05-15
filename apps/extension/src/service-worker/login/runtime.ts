@@ -43,10 +43,30 @@ function isMdfScopeKey(scopeKey?: string | null) {
   return typeof tValue === 'string' && tValue.length > 0 && tValue !== 'main'
 }
 
-function buildReconnectUrl(world?: string | null) {
-  return world
-    ? `https://www.tribalwars.com.br/page/play/${world}`
+function buildReconnectUrl(world?: string | null, currentUrl?: string | null) {
+  const normalizedWorld = typeof world === 'string' && world.trim()
+    ? world.trim()
     : null
+
+  if (!normalizedWorld) {
+    return null
+  }
+
+  try {
+    const url = new URL(currentUrl || '')
+    const { protocol, hostname } = url
+
+    const parts = hostname.split('.')
+
+    if (parts.length > 2) {
+      parts[0] = 'www'
+      return `${protocol}//${parts.join('.')}/page/play/${normalizedWorld}`
+    }
+
+    return `${protocol}//www.${hostname}/page/play/${normalizedWorld}`
+  } catch {
+    return `https://www.tribalwars.com.br/page/play/${normalizedWorld}`
+  }
 }
 
 function getSessionExpiredReconnectAt(now = Date.now()) {
@@ -204,7 +224,7 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
     isMdfScope,
     shouldCloseTab,
     canReconnect,
-    reconnectUrl: buildReconnectUrl(world),
+    reconnectUrl: buildReconnectUrl(world, tabContext?.url ?? sender.tab?.url ?? null),
     data: {
       isRunningTab,
       enabledByUser,

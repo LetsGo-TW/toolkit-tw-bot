@@ -78,6 +78,10 @@ function buildContentScriptEntry(entryName, entryConfig) {
   return contentScript
 }
 
+function getBuiltContentScriptFilename(entryName, entryConfig = {}) {
+  return entryConfig.filename || `${entryName}.js`
+}
+
 function mergeContentScriptEntries(contentScripts) {
   const grouped = new Map()
 
@@ -129,6 +133,45 @@ function buildAsyncChunkWebAccessibleResources() {
       matches,
     },
   ]
+}
+
+function buildContentScriptAssetWebAccessibleResources(manifest) {
+  const rawEntries = Object.entries(entries.csAssetVanilla || {})
+
+  if (rawEntries.length === 0) {
+    return []
+  }
+
+  const grouped = new Map()
+
+  for (const [entryName, entryConfig] of rawEntries) {
+    let matches = []
+
+    if (entryConfig.exposeMatches === 'externally_connectable') {
+      matches = manifest.externally_connectable?.matches || []
+    }
+
+    if (!Array.isArray(matches) || matches.length === 0) {
+      continue
+    }
+
+    const resourcePath = `/content-scripts/${getBuiltContentScriptFilename(entryName, entryConfig)}`
+    const key = JSON.stringify(matches)
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        resources: new Set(),
+        matches,
+      })
+    }
+
+    grouped.get(key).resources.add(resourcePath)
+  }
+
+  return Array.from(grouped.values()).map(({ resources, matches }) => ({
+    resources: Array.from(resources),
+    matches,
+  }))
 }
 
 function buildCdnWebAccessibleResources(manifest) {
@@ -207,6 +250,7 @@ function buildExtensionManifest() {
 
   const webAccessibleResources = [
     ...(manifest.web_accessible_resources || []),
+    ...buildContentScriptAssetWebAccessibleResources(manifest),
     ...buildCdnWebAccessibleResources(manifest),
     ...buildAsyncChunkWebAccessibleResources(),
   ]

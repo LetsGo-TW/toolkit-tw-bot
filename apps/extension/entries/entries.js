@@ -181,6 +181,18 @@ module.exports = {
     },
   },
 
+  csAssetVanilla: {
+    'game.prepared': {
+      entry: 'content-scripts/vanilla/main/top/asset/prepared/index.js',
+      filename: 'game.prepared.js',
+      exposeMatches: 'externally_connectable',
+      build: {
+        profile: 'prepared-asset',
+        obfuscationLevel: 'lowCompact',
+      },
+    },
+  },
+
   csShadowDom: {
     // 'content-scripts/shadowdom/isolated.top.start': {
     //   entry: 'content-script/isolated/top/start/index.js',

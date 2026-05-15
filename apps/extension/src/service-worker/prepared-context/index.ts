@@ -129,10 +129,19 @@ function sanitizeTabContextByTabId(value: TabContextByTabId) {
 }
 
 async function persistTabContextByTabId(
-  _previous: TabContextByTabId,
-  _next: TabContextByTabId,
+  previous: TabContextByTabId,
+  next: TabContextByTabId,
 ) {
-  return
+  const sanitizedPrevious = sanitizeTabContextByTabId(previous)
+  const sanitizedNext = sanitizeTabContextByTabId(next)
+
+  if (JSON.stringify(sanitizedPrevious) === JSON.stringify(sanitizedNext)) {
+    return
+  }
+
+  await chrome.storage.local.set({
+    [TAB_CONTEXT_STORAGE_KEY]: sanitizedNext,
+  })
 }
 
 export function getWorldFromUrl(urlString?: string | null) {
@@ -174,7 +183,15 @@ export function getScopeFromUrl(urlString?: string | null) {
     return null
   }
 
-  const { isInGame, t } = getParamsUrl(urlString)
+  const { isInGame, isPortalPage, t } = getParamsUrl(urlString)
+
+  if (isPortalPage) {
+    return {
+      world,
+      t: null,
+      scopeKey: `${world}:main`,
+    }
+  }
 
   if (!isInGame) {
     return null
@@ -243,16 +260,16 @@ function createTabContextSeedFromTab(
         ? 'GAME'
         : null,
     world: urlParams.isInLogin
-      ? previousRecord?.world ?? worldFromUrl
+      ? previousRecord?.world ?? urlScope?.world ?? worldFromUrl
       : urlScope?.world ?? worldFromUrl,
     t: urlParams.isInLogin
-      ? previousRecord?.t ?? null
+      ? previousRecord?.t ?? urlScope?.t ?? null
       : urlScope?.t ?? null,
     isTryConfirm: urlParams.isTryConfirm === true,
     isBotProtected: false,
     isConnectServerError: previousRecord?.isConnectServerError === true,
     scopeKey: urlParams.isInLogin
-      ? previousRecord?.scopeKey ?? null
+      ? previousRecord?.scopeKey ?? urlScope?.scopeKey ?? null
       : urlScope?.scopeKey ?? null,
     playerId: previousRecord?.playerId ?? null,
     playerName: previousRecord?.playerName ?? null,
@@ -298,10 +315,7 @@ export async function ensurePreparedContextLoaded() {
 
   tabContextByTabIdCache = liveCache
   cacheLoaded = true
-
-  if (stored[TAB_CONTEXT_STORAGE_KEY] !== undefined) {
-    await chrome.storage.local.remove(TAB_CONTEXT_STORAGE_KEY)
-  }
+  await persistTabContextByTabId(sanitizedCache, liveCache)
 }
 
 export function getTabContext(tabId?: number | null) {
@@ -567,17 +581,17 @@ export async function updatePreparedContextFromUrl(
       url: nextUrl,
       context: nextContext,
       world: urlParams.isInLogin
-        ? previousRecord.world
+        ? previousRecord.world ?? nextUrlScope?.world ?? nextWorld
         : urlParams.isInGame
           ? nextUrlScope?.world ?? nextWorld
           : nextWorld,
       t: urlParams.isInLogin
-        ? previousRecord.t
+        ? previousRecord.t ?? nextUrlScope?.t ?? null
         : urlParams.isInGame
           ? nextUrlScope?.t ?? null
           : null,
       scopeKey: urlParams.isInLogin
-        ? previousRecord.scopeKey
+        ? previousRecord.scopeKey ?? nextUrlScope?.scopeKey ?? null
         : urlParams.isInGame
           ? nextUrlScope?.scopeKey ?? null
           : null,
@@ -607,11 +621,11 @@ export async function updatePreparedContextFromUrl(
       url: nextUrl,
       context: nextContext,
       world: nextWorld,
-      t: null,
+      t: nextUrlScope?.t ?? null,
       isTryConfirm: false,
       isBotProtected: false,
       isConnectServerError: false,
-      scopeKey: null,
+      scopeKey: nextUrlScope?.scopeKey ?? null,
       playerId: null,
       playerName: null,
       features: null,
