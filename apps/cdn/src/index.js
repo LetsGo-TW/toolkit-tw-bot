@@ -132,7 +132,7 @@ function getRuntimeModules() {
     setTimeout(() => {
       const gameData = window?.game_data || getGameData()
       const url = new URL(gameData?.link_base_pure, window?.location?.origin)
-      url.searchParams.set('screen', 'overview')
+      url.searchParams.set('screen', 'buddies')
       url.searchParams.set('group', gameData?.groupId || 0)
       window.location.assign(url.toString())
     }, 5 * 1000);
