@@ -1,12 +1,11 @@
 /// <reference types="chrome" />
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
-import ProtectingBot from '@toolkit-tw-bot/document/protectingBot'
 import searchPlayerImageUrl from '@toolkit-tw-bot/document/searchPlayerImageUrl'
 import { getParamsUrl } from '@toolkit-tw-bot/core'
 import { SET_PLAYER_AVATAR_MESSAGE_TYPE } from '../../../../../../../service-worker/message/types'
 import { SUPPORT_SYNC_PLAYER_AVATAR_MESSAGE_TYPE } from '../message-types'
-import { CurrentGameData, getCurrentGameData, getCurrentUrl, isFinitePlayerId, setCurrentGameData } from '../current'
+import { CurrentGameData, getCurrentGameData, getCurrentUrl, getFreshGameBotProtectObservation, isFinitePlayerId, setCurrentGameData } from '../current'
 import { fetchCurrentDocument } from '../fetchCurrentDocument'
 
 function isCurrentPlayerInfoPlayerScreen(
@@ -65,7 +64,7 @@ async function persistAvatar({
 async function syncAvatarFromDocument(
   doc: Document,
 ) {
-  const isProtectBot = ProtectingBot['bot-protect-all-in-game'].active(doc)
+  const isProtectBot = getFreshGameBotProtectObservation(doc).active
   const currentGameData = getCurrentGameData(doc)
   setCurrentGameData(currentGameData)
   const avatarUrl = searchPlayerImageUrl(doc) || null
@@ -105,7 +104,7 @@ export async function syncPlayerAvatar() {
 
   const infoPlayerUrl = createCurrentPlayerInfoPlayerUrl(gameData)
 
-  if (ProtectingBot['bot-protect-all-in-game'].active(document)) {
+  if (getFreshGameBotProtectObservation(document).active) {
     return syncAvatarFromDocument(document)
   }
 

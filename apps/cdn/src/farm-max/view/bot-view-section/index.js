@@ -147,7 +147,7 @@ export async function createFarmMaxBotViewSection() {
   const gameData = getGameData()
 
   const hasFarmAssistant = gameData?.features?.FarmAssistent?.active;
-  const hasAccountManager = gameData?.features?.AccountManager?.active;
+  const hasPremium = gameData?.features?.Premium?.active;
   const totalVillages = parseInt(gameData?.player?.villages || '0', 10);
 
   let hasRequirements = true;
@@ -157,9 +157,9 @@ export async function createFarmMaxBotViewSection() {
     hasRequirements = false;
     missingReason = 'Requer Assistente de Saque ativo no jogo.';
   }
-  if (totalVillages > 1 && !hasAccountManager) {
+  if (totalVillages > 1 && !hasPremium) {
     hasRequirements = false;
-    const text ='Requer Gerente de Contas ativo para operar com mais de 1 vila.';
+    const text ='Requer Conta Premium ativo para operar com mais de 1 vila.';
     missingReason += missingReason.length ? `<br><br>${text}` : text;
   }
 

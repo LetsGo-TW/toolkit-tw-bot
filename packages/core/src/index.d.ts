@@ -37,6 +37,7 @@ export interface GetParamsUrlResult {
   page?: number | null
   isMdf?: boolean
   isInGame?: boolean
+  isPortalPage?: boolean
   isInLogin?: boolean
 }
 
@@ -44,6 +45,21 @@ export interface ParsedGameData {
   player?: Record<string, unknown>
   village?: Record<string, unknown>
   [key: string]: unknown
+}
+
+export interface ResolvePreparedBaseUrlArgs {
+  preparedEntryPattern?: RegExp
+  assetOrigin?: string | null
+  extensionAssetOrigin?: string | null
+  assetBasePath?: string | null
+  currentScript?: {
+    src?: string | null
+  } | null
+  scripts?: ArrayLike<{
+    src?: string | null
+  }> | Iterable<{
+    src?: string | null
+  }> | null
 }
 
 export declare function getParamsUrl(
@@ -74,3 +90,19 @@ export declare function cTimeToSeg(cHora: string): number
 export declare function strTimeToSec(string: string): number | null
 
 export declare function random(min: number, max: number): number
+
+export declare const DEFAULT_PREPARED_ENTRY_PATTERN: RegExp
+
+export declare function shouldUseExtensionAssetOrigin(
+  assetOrigin?: string | null,
+): boolean
+
+export declare function resolvePreparedBaseUrl(
+  args?: ResolvePreparedBaseUrlArgs,
+): string | null
+
+export declare function syncPreparedBaseUrl(
+  preparedBaseUrl?: string | null,
+  key?: string,
+  scope?: Record<string, unknown> | null,
+): void

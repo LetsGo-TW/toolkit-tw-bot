@@ -40,8 +40,10 @@ async function updateSentsBlue(data, api, d, w) {
           throw error
         }
 
-        api.footer.set(`Erro ao verificar ${targetDisplay}.`, "err");
-        console.error(error)
+        const reason = error?.message || error?.name || String(error)
+        api.footer.set(`Erro ao verificar ${targetDisplay}: ${reason}.`, "err");
+        console.error(`[farm-max] Erro ao verificar ${targetDisplay}`, error)
+        await sleep(3500, 4200);
         continue
       }
     }

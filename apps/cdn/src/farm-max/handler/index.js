@@ -83,7 +83,7 @@ export default async function start(data = {}, context = null) {
   resetActiveExecution();
 
   const gameData = getGameData();
-  if (!gameData?.features?.FarmAssistent?.active) {
+  if (!gameData?.features?.FarmAssistent?.active || (!gameData?.features?.Premium?.active && gameData?.player?.villages > 1)) {
     console.warn("Assistente de Saque inativo no jogo. Abortando inicialização do Farm.");
     return;
   }

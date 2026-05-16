@@ -1,6 +1,6 @@
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM='
 
-import { getParamsUrl } from '@toolkit-tw-bot/core'
+import { getParamsUrl, resolvePreparedBaseUrl, syncPreparedBaseUrl } from '@toolkit-tw-bot/core'
 import { getGameData } from '@toolkit-tw-bot/document'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 
@@ -33,41 +33,12 @@ const runnerState = {
   startPromise: null,
   stagedScriptUrl: null,
   stagedScriptEl: null,
-  preparedBaseUrl: resolvePreparedBaseUrl(),
+  preparedBaseUrl: resolvePreparedBaseUrl({
+    preparedEntryPattern: PREPARED_ENTRY_PATTERN,
+  }),
 }
 
-syncPreparedBaseUrl()
-
-function resolvePreparedBaseUrl() {
-  const currentScript = document.currentScript
-
-  if (currentScript instanceof HTMLScriptElement && currentScript.src) {
-    return new URL('./', currentScript.src).toString()
-  }
-
-  const preparedScript = Array.from(document.scripts)
-    .reverse()
-    .find((script) => typeof script.src === 'string' && PREPARED_ENTRY_PATTERN.test(script.src))
-
-  if (!preparedScript?.src) {
-    return null
-  }
-
-  return new URL('./', preparedScript.src).toString()
-}
-
-function syncPreparedBaseUrl() {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  if (typeof runnerState.preparedBaseUrl === 'string' && runnerState.preparedBaseUrl.length > 0) {
-    window[PREPARED_BASE_URL_KEY] = runnerState.preparedBaseUrl
-    return
-  }
-
-  delete window[PREPARED_BASE_URL_KEY]
-}
+syncPreparedBaseUrl(runnerState.preparedBaseUrl, PREPARED_BASE_URL_KEY)
 
 function isValidPageMessage({ data, origin, source }) {
   if (source !== window) {

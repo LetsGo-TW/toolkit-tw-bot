@@ -3,8 +3,8 @@ import { SUPPORT_PROBE_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolat
 import { random } from '@toolkit-tw-bot/core'
 import { getScopedRunnerTarget } from './get-targets'
 
-const MIN_DELAY_SECONDS = 3 * 60
-const MAX_DELAY_SECONDS = (3 * 60) + 10
+const MIN_DELAY_SECONDS = 1 * 60
+const MAX_DELAY_SECONDS = 2 * 60
 
 function parseProbeAlarmName(alarmName: string) {
   const scopeKey = alarmName.slice('probe:'.length)
@@ -85,6 +85,8 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
         console.error('[SW][PROBE] reload failed', reloadError)
       }
 
+      await scheduleProbeAlarm(scopeKey)
+
       return
     }
 
@@ -100,7 +102,11 @@ async function handleProbeAlarm(alarm: chrome.alarms.Alarm) {
     }
 
     if (response?.isBotProtected === true) {
-      await clearProbeAlarm(alarm.name)
+      console.warn('[SW][PROBE] botProtectActive', {
+        scopeKey,
+        tabId: target.runner.tabId,
+      })
+      await scheduleProbeAlarm(scopeKey)
       return
     }
 

@@ -20,10 +20,9 @@ import {
   isSupportInfoPlayerMessage,
   syncPlayerAvatar,
 } from "./info-player"
-import { getCurrentGameData, getPopupPageSnapshot, isFinitePlayerId } from "./current"
+import { getCurrentGameData, getFreshGameBotProtectObservation, getPopupPageSnapshot, isFinitePlayerId } from "./current"
 import { isFetchCurrentDocumentTimeoutError } from "./fetchCurrentDocument"
 import { maybeHandleLoginReconnect } from './loginReconnect'
-import { ProtectingBot } from "@toolkit-tw-bot/document";
 import Tooltip from "@toolkit-tw-bot/document/tooltip";
 
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupport__'
@@ -131,6 +130,7 @@ async function syncCtxAndTitle({
   isConnectServerError?: boolean | null
 } = {}) {
   const gameData = getCurrentGameData();
+  const botProtectObservation = getFreshGameBotProtectObservation(document)
 
   if (!gameData) {
     return null
@@ -154,7 +154,7 @@ async function syncCtxAndTitle({
     t: runtimeParams.t ?? null,
     isBotProtected: typeof isBotProtected === 'boolean'
       ? isBotProtected
-      : ProtectingBot['bot-protect-all-in-game'].active(document),
+      : botProtectObservation.active,
     isConnectServerError: typeof isConnectServerError === 'boolean'
       ? isConnectServerError
       : isPreparedConnectServerError(document),
@@ -175,7 +175,7 @@ async function syncBotProtectStateIfChanged({
 }: {
   force?: boolean
 } = {}) {
-  const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active(document)
+  const isBotProtected = getFreshGameBotProtectObservation(document).active
 
   probedBotProtectState = isBotProtected
 
@@ -232,7 +232,7 @@ function ensureBotViewTooltipOnce() {
 }
 
 async function runSupportProbe() {
-  const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active(document)
+  const isBotProtected = getFreshGameBotProtectObservation(document).active
   const isConnectServerError = isPreparedConnectServerError(document)
 
   probedBotProtectState = isBotProtected

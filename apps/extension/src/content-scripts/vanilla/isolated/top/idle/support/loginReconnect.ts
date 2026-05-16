@@ -1,6 +1,6 @@
 /// <reference types="chrome" />
 
-import { getParamsUrl } from '@toolkit-tw-bot/core'
+import { getParamsUrl, random } from '@toolkit-tw-bot/core'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { LOGIN_MESSAGE_TYPE } from '../../../../../../service-worker/message/types'
 import { setActiveTitle } from '../../../../shared/setActiveTitle'
@@ -370,17 +370,10 @@ export async function maybeHandleLoginReconnect() {
     runtimeParams.isPortalPage
     && isSameReconnectTarget(response.reconnectUrl)
   ) {
-    setLoginReconnectHint(
-      [
-        'aguarde o carregamento do mundo.',
-        formatReconnectWorldLabel(reconnectWorld),
-        `motivo: ${getReconnectReasonLabel(reconnectReason)}.`,
-        `horário: ${formatReconnectTime(reconnectAt)}.`,
-      ]
-        .filter(Boolean)
-        .join(' '),
-      'success',
-    )
+    reconnectTimerId = window.setTimeout(() => {
+      reconnectTimerId = null
+      window.location.assign(response.reconnectUrl as string)
+    }, random(5000, 10000))
 
     return true
   }

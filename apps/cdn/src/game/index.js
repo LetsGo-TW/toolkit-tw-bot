@@ -84,6 +84,39 @@ function normalizeNonEmptyString(value) {
     : null
 }
 
+function hasStrongBotProtectSignal(doc = document) {
+  return (
+    ProtectingBot['bot-protection-quest'].active(doc)
+    || ProtectingBot['bot-protect'].active(doc)
+    || ProtectingBot['hCaptcha-in-page'].active(doc)
+    || Boolean(doc?.querySelectorAll?.('.bot-protection-row')?.length)
+  )
+}
+
+function getFreshBotProtectObservation(doc = document) {
+  if (hasStrongBotProtectSignal(doc)) {
+    return {
+      active: true,
+      ready: true,
+    }
+  }
+
+  const readyState = String(doc?.readyState || '').toLowerCase()
+  const ready = readyState === 'complete' && Boolean(ProtectingBot.dsBody(doc))
+
+  if (!ready) {
+    return {
+      active: false,
+      ready: false,
+    }
+  }
+
+  return {
+    active: ProtectingBot['bot-protect-all-in-game'].active(doc),
+    ready: true,
+  }
+}
+
 function normalizeRunnerHandle(
   value,
   {
@@ -746,7 +779,8 @@ const installRunnerControllerListener = () => {
         return
       }
 
-      if (!ProtectingBot["bot-protect-all-in-game"].active()) {
+      const botProtectObservation = getFreshBotProtectObservation(document)
+      if (botProtectObservation.ready && !botProtectObservation.active) {
         ProtectingBot.redirect()
       }
 
@@ -1037,7 +1071,7 @@ async function requestStageInstruction(detail = {}) {
     window.location.href,
     window.location.origin,
   )
-  const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active()
+  const isBotProtected = getFreshBotProtectObservation(document).active
   const response = await sendMessageToExtension({
     type: CDN,
     world: gameData?.world,
@@ -1258,7 +1292,7 @@ async function executeControllerRun(detail = {}) {
   try {
     await syncGameBootstrapUis({
       isolateForCaptcha: isSolverBotProtectMode(instruction, {
-        isBotProtected: ProtectingBot['bot-protect-all-in-game'].active(),
+        isBotProtected: getFreshBotProtectObservation(document).active,
       }),
       reason: 'solver-bot-protect:controller-run',
     })

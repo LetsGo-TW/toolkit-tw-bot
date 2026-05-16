@@ -133,7 +133,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
       // Skip if target is blacklisted, has troops, or wall is already known to be 0.
       if (currentBlacklist.some(b => b.target === targetId)) continue;
       if (isSent.alive) continue;
-      if (report.wall === 0) {
+      if (report.wall === 0 && report.type !== 'red') {
         // If a report for a village with no wall is in the queue, it's a finished or invalid task.
         terminatedTargets.add(targetId);
         api.footer.set(`Alvo ${report.x}|${report.y} já com muralha 0. Removendo da fila.`, 'info');
@@ -169,7 +169,7 @@ async function handlerBreakWall(data, api, d = document, w = window) {
           const response = await fetchReportView(data.village.id, reportIdToCheck);
 
           // Case 1: Report is RED (total loss). Blacklist it.
-          if (response.black && isSent.check) {
+          if (!response.hasDefenseInfo && response.isBreakWall) {
             await upsertToBlacklist(targetId, reportIdToCheck, report.x, report.y);
             await removeSentByTarget(targetId); // Clean from sent list as it's a final state.
             terminatedTargets.add(targetId);

@@ -9,6 +9,11 @@ type CurrentWindow = Window & {
   gameData?: CurrentGameData
 }
 
+type BotProtectObservation = {
+  active: boolean
+  ready: boolean
+}
+
 function setCurrentGameData(gameData: GameData) {
   const currentWindow = window as CurrentWindow
 
@@ -49,6 +54,41 @@ function getCurrentWorldFromUrl(urlString: string = window.location.href) {
   }
 }
 
+function hasStrongGameBotProtectSignal(doc: Document = document) {
+  return (
+    ProtectingBot['bot-protection-quest'].active(doc)
+    || ProtectingBot['bot-protect'].active(doc)
+    || ProtectingBot['hCaptcha-in-page'].active(doc)
+    || Boolean(doc?.querySelectorAll?.('.bot-protection-row')?.length)
+  )
+}
+
+function isReadyForFreshBotProtectCheck(doc: Document = document) {
+  const readyState = String(doc?.readyState || '').toLowerCase()
+  return readyState === 'complete' && Boolean(ProtectingBot.dsBody(doc))
+}
+
+function getFreshGameBotProtectObservation(doc: Document = document): BotProtectObservation {
+  if (hasStrongGameBotProtectSignal(doc)) {
+    return {
+      active: true,
+      ready: true,
+    }
+  }
+
+  if (!isReadyForFreshBotProtectCheck(doc)) {
+    return {
+      active: false,
+      ready: false,
+    }
+  }
+
+  return {
+    active: ProtectingBot['bot-protect-all-in-game'].active(doc),
+    ready: true,
+  }
+}
+
 function getPopupPageSnapshot({
   isBotProtected,
   isConnectServerError,
@@ -83,7 +123,7 @@ function getPopupPageSnapshot({
     isBotProtected: typeof isBotProtected === 'boolean'
       ? isBotProtected
       : runtimeParams.isInGame
-        ? ProtectingBot['bot-protect-all-in-game'].active(document)
+        ? getFreshGameBotProtectObservation(document).active
         : ProtectingBot['hCaptcha-in-popup'].active(document),
     isConnectServerError: typeof isConnectServerError === 'boolean'
       ? isConnectServerError
@@ -102,6 +142,7 @@ export {
   getCurrentGameData,
   getCurrentUrl,
   getCurrentWorldFromUrl,
+  getFreshGameBotProtectObservation,
   getPopupPageSnapshot,
   isFinitePlayerId,
   CurrentGameData,

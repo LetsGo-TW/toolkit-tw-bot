@@ -1,4 +1,5 @@
 import { storageBreakWallBlacklist } from "./index";
+import { removeReviewedRedTarget } from "./reviewed-red-targets.js";
 
 async function getBlacklist() {
   const blacklist = await storageBreakWallBlacklist.get() || [];
@@ -27,6 +28,7 @@ async function upsertToBlacklist(targetId, reportId, x, y) {
     blacklist.push(nextEntry);
   }
   await saveBlacklist(blacklist);
+  await removeReviewedRedTarget(numTargetId);
 }
 
 async function removeFromBlacklist(targetId) {

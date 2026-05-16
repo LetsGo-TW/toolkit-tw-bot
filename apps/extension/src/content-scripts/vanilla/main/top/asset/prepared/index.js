@@ -1,6 +1,6 @@
 __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM='
 
-import { getParamsUrl } from '@toolkit-tw-bot/core'
+import { getParamsUrl, resolvePreparedBaseUrl, syncPreparedBaseUrl } from '@toolkit-tw-bot/core'
 import { getGameData } from '@toolkit-tw-bot/document'
 import { assetBasePath, extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 
@@ -34,61 +34,15 @@ const runnerState = {
   startPromise: null,
   stagedScriptUrl: null,
   stagedScriptEl: null,
-  preparedBaseUrl: resolvePreparedBaseUrl(),
+  preparedBaseUrl: resolvePreparedBaseUrl({
+    preparedEntryPattern: PREPARED_ENTRY_PATTERN,
+    assetOrigin: process.env.EXTENSION_ASSET_ORIGIN,
+    extensionAssetOrigin: EXTENSION_ASSET_ORIGIN,
+    assetBasePath,
+  }),
 }
 
-syncPreparedBaseUrl()
-
-function resolvePreparedBaseUrl() {
-  const assetOrigin = process.env.EXTENSION_ASSET_ORIGIN
-
-  if (assetOrigin) {
-    if (shouldUseExtensionAssetOrigin(assetOrigin)) {
-      return `${EXTENSION_ASSET_ORIGIN}${assetBasePath}/web/`
-    }
-
-    return new URL(`${assetBasePath}/web/`, assetOrigin).toString()
-  }
-
-  const currentScript = document.currentScript
-
-  if (currentScript instanceof HTMLScriptElement && currentScript.src) {
-    return new URL('./', currentScript.src).toString()
-  }
-
-  const preparedScript = Array.from(document.scripts)
-    .reverse()
-    .find((script) => typeof script.src === 'string' && PREPARED_ENTRY_PATTERN.test(script.src))
-
-  if (!preparedScript?.src) {
-    return null
-  }
-
-  return new URL('./', preparedScript.src).toString()
-}
-
-function shouldUseExtensionAssetOrigin(assetOrigin) {
-  try {
-    const url = new URL(assetOrigin)
-
-    return url.hostname === 'localhost' || url.hostname === '127.0.0.1'
-  } catch {
-    return false
-  }
-}
-
-function syncPreparedBaseUrl() {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  if (typeof runnerState.preparedBaseUrl === 'string' && runnerState.preparedBaseUrl.length > 0) {
-    window[PREPARED_BASE_URL_KEY] = runnerState.preparedBaseUrl
-    return
-  }
-
-  delete window[PREPARED_BASE_URL_KEY]
-}
+syncPreparedBaseUrl(runnerState.preparedBaseUrl, PREPARED_BASE_URL_KEY)
 
 function isValidPageMessage({ data, origin, source }) {
   if (source !== window) {

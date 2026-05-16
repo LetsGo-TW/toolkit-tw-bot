@@ -1,4 +1,5 @@
 import { storageAliveTargets } from "../../config/alive-targets";
+import { removeReviewedRedTarget } from "../../config/break-wall/reviewed-red-targets.js";
 import { sleep } from "../../utils/sleep";
 import { getPlunderList } from "../core/plunder-list";
 import { fetchReportView } from "../reports/request";
@@ -51,23 +52,25 @@ async function updateAliveTargets(data, api, d, w) {
       const targetDisplay = `(${x}|${y}) K${String(y).padStart(3, 0).substring(0, 1)}${String(x).padStart(3, 0).substring(0, 1)}`
 
       try {
-        const { black, alive, units, wall } = await fetchReportView(data.village.id, report_id)
+        const { isBreakWall, alive, units, wall } = await fetchReportView(data.village.id, report_id)
 
-        if (black) {
+        if (isBreakWall && type === 'red') {
           removeAliveTargets(target)
+          await removeReviewedRedTarget(target)
           continue
         }
 
         if (alive) {
           const aliveTarget = [
-              target,
-              Number(report_id),
-              Number(x),
-              Number(y),
-              units.filter(u => u.id !== 'militia').map(u => Number(u.value)),
-              wall
+            target,
+            Number(report_id),
+            Number(x),
+            Number(y),
+            units.filter(u => u.id !== 'militia').map(u => Number(u.value)),
+            wall
           ];
           aliveTargets.push(aliveTarget);
+          await removeReviewedRedTarget(target)
           api.footer.set(`${targetDisplay} verificado (com tropas).`, "ok");
         } else {
           removeAliveTargets(target);
@@ -77,8 +80,10 @@ async function updateAliveTargets(data, api, d, w) {
           throw error
         }
 
-        api.footer.set(`Erro ao verificar ${targetDisplay}.`, "err");
-        console.error(error)
+        const reason = error?.message || error?.name || String(error)
+        api.footer.set(`Erro ao verificar ${targetDisplay}: ${reason}.`, "err");
+        console.error(`[farm-max] Erro ao verificar ${targetDisplay}`, error)
+        await sleep(3500, 4200);
         continue
       }
     }

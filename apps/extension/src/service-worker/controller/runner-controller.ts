@@ -1215,6 +1215,22 @@ function isBotProtectInstruction(instruction: ControllerRunInstruction | null) {
     || instruction.machine === 'solver'
 }
 
+function shouldDispatchBotProtectInstruction(
+  scopeState: ScopeRuntimeState,
+  {
+    isBotProtected,
+  }: {
+    isBotProtected?: boolean
+  } = {},
+) {
+  if (isBotProtected === true) {
+    return true
+  }
+
+  return isBotProtectInstruction(scopeState.current)
+    || isBotProtectInstruction(scopeState.pending)
+}
+
 function shouldDeferIncomingApplyPreemption(
   instruction: ControllerRunInstruction | null,
 ) {
@@ -1589,8 +1605,10 @@ async function dispatchControllerForScopeInternal(
     })
   }
 
-  const hasBotProtect = scopeState.botProtectActive
-  const dueInstruction = hasBotProtect
+  const shouldDispatchBotProtect = shouldDispatchBotProtectInstruction(scopeState, {
+    isBotProtected,
+  })
+  const dueInstruction = shouldDispatchBotProtect
     ? createFallbackInstruction(scopeState, {
       screen,
       isBotProtected: true,
@@ -1601,7 +1619,7 @@ async function dispatchControllerForScopeInternal(
       source,
       reason,
     })
-  const smartSessionDecision = !hasBotProtect && !dueInstruction
+  const smartSessionDecision = !shouldDispatchBotProtect && !dueInstruction
     ? await resolveSmartSessionDecision(scopeState)
     : null
 
@@ -1620,8 +1638,8 @@ async function dispatchControllerForScopeInternal(
     || (allowFallback
       ? createFallbackInstruction(scopeState, {
         screen,
-        isBotProtected: hasBotProtect,
-        reason: hasBotProtect ? 'bot-protect-active' : 'stage-fallback',
+        isBotProtected: shouldDispatchBotProtect,
+        reason: shouldDispatchBotProtect ? 'bot-protect-active' : 'stage-fallback',
         source,
       })
       : null)
