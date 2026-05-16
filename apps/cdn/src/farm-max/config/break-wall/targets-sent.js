@@ -1,4 +1,5 @@
-import { storageBreakWallTargetsSent } from "."
+import { storageBreakWallTargetsSent } from "./index";
+import { removeReviewedRedTarget } from "./reviewed-red-targets.js";
 import { dateTimeNow } from "../../../stable-compat/date-tw";
 
 async function getAvaiablesSents() {
@@ -30,6 +31,7 @@ async function saveTargetSent(data) {
     sents[index] = { ...sents[index], ...data }
   }
   await storageBreakWallTargetsSent.set(sents)
+  await removeReviewedRedTarget(data.target)
 }
 
 async function removeSentByTarget(target) {

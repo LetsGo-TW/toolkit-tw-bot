@@ -1,16 +1,47 @@
-import { makeAjaxHeadersGet } from "@toolkit-tw-bot/browser";
+import { DOC_REQUEST_TIMEOUT_MS, makeAjaxHeadersGet } from "@toolkit-tw-bot/browser";
 import { getGameData } from "@toolkit-tw-bot/document";
 import { parseTwJsonText } from "../../../requests/utils/parseTwResponseText.js";
+
+function getRequestErrorText(error) {
+  const reason = error?.cause ?? error?.reason;
+
+  if (
+    error?.name === "AbortError" ||
+    error?.message === "timeout" ||
+    reason?.message === "timeout" ||
+    reason === "timeout"
+  ) {
+    return `timeout apos ${DOC_REQUEST_TIMEOUT_MS}ms`;
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof reason?.message === "string" && reason.message.trim()) {
+    return reason.message.trim();
+  }
+
+  return String(error || "erro desconhecido");
+}
+
+function wrapRequestError(error, context) {
+  const wrapped = new Error(`${context}: ${getRequestErrorText(error)}`);
+  wrapped.cause = error;
+  return wrapped;
+}
 
 async function fetchReports({ url, init }) {
   const controller = new AbortController();
   init.signal = controller.signal
   const request = new Request(url, init)
-  const t = setTimeout(() => controller.abort(), 8000);
+  const t = setTimeout(() => controller.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(request);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text()
+  } catch (error) {
+    throw wrapRequestError(error, "Falha ao buscar pagina de relatorios");
   } finally {
     clearTimeout(t);
   }
@@ -32,7 +63,7 @@ async function fetchReportView(villageId, reportId) {
     signal: controller.signal
   });
 
-  const t = setTimeout(() => controller.abort(), 8000);
+  const t = setTimeout(() => controller.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(req);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -40,12 +71,39 @@ async function fetchReportView(villageId, reportId) {
     const { response, error } = parseTwJsonText(await res.text(), "reports:view-response");
     if (error || !response || !response.dialog) throw new Error(error ?? response.toString())
     const html = new DOMParser().parseFromString(response.dialog, "text/html");
+    const isBreakWall = () => {
+      const ramCount = html.querySelector("#attack_info_att_units tbody tr td.unit-item-ram")?.getAttribute('data-unit-count')
+      if (!ramCount) return false
+      return Number(ramCount) >= 2
+    }
+    const breakWall = isBreakWall()
+
     const trs = Array.from(html.querySelectorAll('#attack_info_def_units tbody tr'))
-    let alive = false
-    const units = Array.from(trs[1].querySelectorAll('.unit-item'))
+    if (!trs.length) {
+      return {
+        isBreakWall: breakWall,
+        hasDefenseInfo: false,
+        alive: false,
+        units: [],
+        wall: 0,
+        destroy: { target: undefined, level: undefined },
+        buildings: [],
+      }
+    }
+
+    const unitsTr = trs[1]
+    const lossesTr = trs[2]
+    const headerTr = trs[0]
+
+    if (!headerTr || !unitsTr || !lossesTr) {
+      throw new Error("Estrutura inesperada do relatorio");
+    }
+
+    let alive = false;
+    const units = Array.from(unitsTr.querySelectorAll('.unit-item'))
       .map((e, i) => {
-        const img = Array.from(trs[0].querySelectorAll('img'))[i]
-        const loss = Array.from(trs[2].querySelectorAll('.unit-item'))[i]
+        const img = Array.from(headerTr.querySelectorAll('img'))[i]
+        const loss = Array.from(lossesTr.querySelectorAll('.unit-item'))[i]
         const value = Number(e?.dataset?.unitCount) - Number(loss?.dataset?.unitCount)
         const name = img.getAttribute('data-title') || img.title
         const id = e?.getAttribute('class')?.match(/unit-item-([a-z]{1,})/)[1]
@@ -54,9 +112,10 @@ async function fetchReportView(villageId, reportId) {
       })
     const buildings = (JSON.parse(html.querySelector("#attack_spy_building_data")?.value || null) || [])
       .map(b => { if (!b.level) return b; return { ...b, level: Number(b.level) }})
+    const ramUnit = units.find(u => u.id === 'ram')
     const ram = {
-      name: units.find(u => u.id === 'ram').name,
-      id: units.find(u => u.id === 'ram').id,
+      name: ramUnit?.name,
+      id: ramUnit?.id,
       tr: undefined,
       level: undefined
     }
@@ -73,9 +132,10 @@ async function fetchReportView(villageId, reportId) {
       const bWall = buildings.find(b => b.id === 'wall')
       ram.level = bWall?.level || ram.level
     }
+    const catapultUnit = units.find(u => u.id === 'catapult')
     const catapult = {
-      name: units.find(u => u.id === 'catapult').name,
-      id: units.find(u => u.id === 'catapult').id,
+      name: catapultUnit?.name,
+      id: catapultUnit?.id,
       tr: undefined,
       level: undefined,
       target: undefined
@@ -99,7 +159,17 @@ async function fetchReportView(villageId, reportId) {
     }
     const wall = ram.level
 
-    return { alive, units, wall, destroy: { target: catapult.target, level: catapult.level },  buildings }
+    return {
+      isBreakWall: breakWall,
+      hasDefenseInfo: true,
+      alive,
+      units,
+      wall,
+      destroy: { target: catapult.target, level: catapult.level },
+      buildings
+    }
+  } catch (error) {
+    throw wrapRequestError(error, `Falha ao abrir relatorio ${reportId}`);
   } finally {
     clearTimeout(t);
   }

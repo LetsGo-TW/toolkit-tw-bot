@@ -1,5 +1,6 @@
 /// <reference types="chrome" />
 
+import { SUPPORT_LOGOUT_MESSAGE_TYPE } from '../../content-scripts/vanilla/isolated/top/idle/support/message-types'
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import { RUNNER_CONTROLLER_MESSAGE_TYPE } from '../message/types'
 import { normalizeNumber, normalizeString } from '../normalize'
@@ -11,9 +12,10 @@ import {
 } from '../prepared-context'
 import {
   clearReconnectRuntimeActive,
+  clearReconnectRuntimeActiveOnGameReturn,
   ensureReconnectRuntimeLongRestAnchor,
+  ensureReconnectRuntimeShortBreakAnchor,
   ensureReconnectRuntimeState,
-  getReconnectRuntimeState,
   markReconnectRuntimeLongRestStarted,
   planReconnectRuntime,
   RECONNECT_RUNTIME_REASONS,
@@ -148,9 +150,9 @@ const IMMEDIATE_DECISION_TYPES = new Set([
   'page-short-wakeup',
 ])
 const SMART_SESSION_MIN_BUFFER_MS = 60_000
-const SMART_SESSION_SHORT_BREAK_MIN_LEAD_MINUTES = 1
 const SMART_SESSION_LONG_REST_MIN_DURATION_DELAY_MINUTES = 1
 const SMART_SESSION_LONG_REST_MIN_START_DELAY_MINUTES = 5
+const SMART_SESSION_SHORT_BREAK_MIN_DELAY_MINUTES = 1
 const SMART_SESSION_PRIORITY_KINDS = new Set<ExecutionKind>([
   EXECUTION_KINDS.COMMAND,
   EXECUTION_KINDS.MINT,
@@ -179,6 +181,38 @@ function logRunnerController(
   detail: Record<string, unknown>,
 ) {
   console.log(`[SW][RUNNER_CONTROLLER][${label}]`, detail)
+}
+
+function summarizeExecutionWakeups(
+  entries: ExecutionWakeupEntry[] = [],
+) {
+  return entries.map((entry) => ({
+    executionId: entry.execution.executionId,
+    kind: entry.execution.kind,
+    status: entry.execution.status,
+    wakeupAt: entry.wakeupAt,
+  }))
+}
+
+function mergeWakeupAt(
+  currentWakeupAt: number | null,
+  candidateWakeupAt: number | null,
+) {
+  if (!Number.isFinite(candidateWakeupAt)) {
+    return currentWakeupAt
+  }
+
+  if (!Number.isFinite(currentWakeupAt)) {
+    return Number(candidateWakeupAt)
+  }
+
+  return Math.min(Number(currentWakeupAt), Number(candidateWakeupAt))
+}
+
+function getWakeupAtAfterExecution(
+  executionWakeupAt: number,
+) {
+  return executionWakeupAt + SMART_SESSION_MIN_BUFFER_MS
 }
 
 function isMdfScopeKey(scopeKey?: string | null) {
@@ -461,6 +495,15 @@ async function resolveScopeWorldPlayer(
   const worldPlayer = getWorldPlayerByScopeKey(scopeKey)
 
   if (worldPlayer) {
+    logRunnerController('SMART_SESSION_SCOPE_WORLD_PLAYER', {
+      source: 'world-player-cache',
+      scopeKey,
+      resolvedWorld: worldPlayer.world,
+      resolvedPlayerId: worldPlayer.playerId,
+      worldPlayerScopeKey: worldPlayer.scopeKey,
+      worldPlayerUpdatedAt: worldPlayer.updatedAt,
+    })
+
     return {
       playerId: worldPlayer.playerId,
       world: worldPlayer.world,
@@ -470,6 +513,19 @@ async function resolveScopeWorldPlayer(
   await ensurePreparedContextLoaded()
 
   const tabContext = getTabContextsByScopeKey(scopeKey)[0] || null
+
+  logRunnerController('SMART_SESSION_SCOPE_WORLD_PLAYER', {
+    source: 'prepared-context',
+    scopeKey,
+    resolvedWorld: normalizeString(tabContext?.world),
+    resolvedPlayerId: normalizeNumber(tabContext?.playerId),
+    tabContextCount: getTabContextsByScopeKey(scopeKey).length,
+    tabContextTabId: normalizeNumber(tabContext?.tabId),
+    tabContextWindowId: normalizeNumber(tabContext?.windowId),
+    tabContextUpdatedAt: normalizeString(tabContext?.updatedAt),
+    tabContextContext: normalizeString(tabContext?.context),
+    tabContextPlayerName: normalizeString(tabContext?.playerName),
+  })
 
   return {
     playerId: normalizeNumber(tabContext?.playerId),
@@ -501,6 +557,35 @@ function getLongRestStartDelayMs(
     seed: `${scopeKey}:long-rest-start:${candidateBaseAt}`,
     min: SMART_SESSION_LONG_REST_MIN_START_DELAY_MINUTES,
     max: maxStartDelayMinutes,
+  })
+
+  return delayMinutes * 60_000
+}
+
+function getShortBreakDurationMs(
+  scopeKey: string,
+  reconnectAtSeed: number,
+  maxDelayMinutes: number,
+  durationMinutes: number,
+) {
+  const extraMinutes = resolveDeterministicInteger({
+    seed: `${scopeKey}:short-break-duration:${reconnectAtSeed}`,
+    min: SMART_SESSION_SHORT_BREAK_MIN_DELAY_MINUTES,
+    max: maxDelayMinutes,
+  })
+
+  return (durationMinutes + extraMinutes) * 60_000
+}
+
+function getShortBreakStartDelayMs(
+  scopeKey: string,
+  candidateBaseAt: number,
+  maxDelayMinutes: number,
+) {
+  const delayMinutes = resolveDeterministicInteger({
+    seed: `${scopeKey}:short-break-start:${candidateBaseAt}`,
+    min: SMART_SESSION_SHORT_BREAK_MIN_DELAY_MINUTES,
+    max: maxDelayMinutes,
   })
 
   return delayMinutes * 60_000
@@ -595,10 +680,57 @@ async function resolveLongRestCandidateAt(
   return baseAt + getLongRestStartDelayMs(scopeKey, baseAt, startDelayMinutes)
 }
 
+async function resolveShortBreakCandidateAt(
+  scopeKey: string,
+  {
+    playerId,
+    world,
+  }: ScopeWorldPlayerRef,
+  reconnectRuntimeState: Awaited<ReturnType<typeof ensureReconnectRuntimeState>>,
+  everyMinutes: number,
+  delayMinutes: number,
+) {
+  const anchorAt = reconnectRuntimeState?.shortBreakAnchorAt ?? await ensureReconnectRuntimeShortBreakAnchor({
+    scopeKey,
+    world,
+    playerId,
+  })
+
+  if (anchorAt === null) {
+    return null
+  }
+
+  const candidateBaseAt = anchorAt + (everyMinutes * 60_000)
+
+  return candidateBaseAt + getShortBreakStartDelayMs(scopeKey, candidateBaseAt, delayMinutes)
+}
+
 async function resolveSmartSessionDecision(
   scopeState: ScopeRuntimeState,
 ): Promise<SmartSessionReconnectDecision> {
+  if (
+    scopeState.current
+    && (scopeState.status === 'running' || scopeState.status === 'pausing')
+  ) {
+    logRunnerController('SMART_SESSION_SKIP', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'instruction-running',
+      status: scopeState.status,
+      current: scopeState.current,
+    })
+
+    return {
+      activate: null,
+      nextWakeupAt: null,
+    }
+  }
+
   if (isMdfScopeKey(scopeState.scopeKey)) {
+    logRunnerController('SMART_SESSION_SKIP', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'mdf-scope',
+    })
+
     return {
       activate: null,
       nextWakeupAt: null,
@@ -608,6 +740,13 @@ async function resolveSmartSessionDecision(
   const scopeWorldPlayer = await resolveScopeWorldPlayer(scopeState.scopeKey)
 
   if (!scopeWorldPlayer.world || scopeWorldPlayer.playerId === null) {
+    logRunnerController('SMART_SESSION_SKIP', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'missing-scope-world-player',
+      resolvedWorld: scopeWorldPlayer.world,
+      resolvedPlayerId: scopeWorldPlayer.playerId,
+    })
+
     return {
       activate: null,
       nextWakeupAt: null,
@@ -625,6 +764,18 @@ async function resolveSmartSessionDecision(
   ])
 
   if (!sessionManagement || !reconnectRuntimeState || reconnectRuntimeState.activeReason !== null) {
+    logRunnerController('SMART_SESSION_SKIP', {
+      scopeKey: scopeState.scopeKey,
+      reason: !sessionManagement
+        ? 'missing-session-management'
+        : !reconnectRuntimeState
+          ? 'missing-reconnect-runtime-state'
+          : 'reconnect-already-active',
+      resolvedWorld: scopeWorldPlayer.world,
+      resolvedPlayerId: scopeWorldPlayer.playerId,
+      reconnectActiveReason: reconnectRuntimeState?.activeReason ?? null,
+    })
+
     return {
       activate: null,
       nextWakeupAt: null,
@@ -632,22 +783,62 @@ async function resolveSmartSessionDecision(
   }
 
   const now = Date.now()
+  const nextImmediateExecution = executionWakeups
+    .filter((entry) => entry.wakeupAt <= (now + SMART_SESSION_MIN_BUFFER_MS))
+    .sort(compareExecutionWakeupAscending)[0] ?? null
+  const hasOverdueExecution = Boolean(
+    nextImmediateExecution && nextImmediateExecution.wakeupAt <= now,
+  )
   const hasExecutionWithinOneMinute = executionWakeups.some((entry) => (
     entry.wakeupAt > now
     && (entry.wakeupAt - now) <= SMART_SESSION_MIN_BUFFER_MS
   ))
 
-  if (hasExecutionWithinOneMinute) {
-    return {
-      activate: null,
-      nextWakeupAt: null,
-    }
-  }
-
   const nextBlockingExecution = executionWakeups
     .filter((entry) => SMART_SESSION_PRIORITY_KINDS.has(entry.execution.kind) && entry.wakeupAt > now)
     .sort(compareExecutionWakeupAscending)[0] ?? null
   let nextWakeupAt: number | null = null
+
+  logRunnerController('SMART_SESSION_EVALUATE', {
+    scopeKey: scopeState.scopeKey,
+    resolvedWorld: scopeWorldPlayer.world,
+    resolvedPlayerId: scopeWorldPlayer.playerId,
+    reconnectActiveReason: reconnectRuntimeState.activeReason,
+    shortBreak: {
+      enabled: sessionManagement.smartSession.shortBreak.enabled,
+      everyMinutes: sessionManagement.smartSession.shortBreak.everyMinutes,
+      durationMinutes: sessionManagement.smartSession.shortBreak.durationMinutes,
+      delayMinutes: sessionManagement.smartSession.shortBreak.delayMinutes,
+    },
+    longRest: {
+      enabled: sessionManagement.smartSession.longRest.enabled,
+      mode: sessionManagement.smartSession.longRest.mode,
+      intervalHours: sessionManagement.smartSession.longRest.intervalHours,
+      durationMinutes: sessionManagement.smartSession.longRest.durationMinutes,
+      durationDelayMinutes: sessionManagement.smartSession.longRest.durationDelayMinutes,
+      startDelayMinutes: sessionManagement.smartSession.longRest.startDelayMinutes,
+      scheduledTimes: sessionManagement.smartSession.longRest.scheduledTimes,
+    },
+    hasOverdueExecution,
+    hasExecutionWithinOneMinute,
+    wakeups: summarizeExecutionWakeups(executionWakeups),
+    nextImmediateExecution: nextImmediateExecution
+      ? {
+        executionId: nextImmediateExecution.execution.executionId,
+        kind: nextImmediateExecution.execution.kind,
+        status: nextImmediateExecution.execution.status,
+        wakeupAt: nextImmediateExecution.wakeupAt,
+      }
+      : null,
+    nextBlockingExecution: nextBlockingExecution
+      ? {
+        executionId: nextBlockingExecution.execution.executionId,
+        kind: nextBlockingExecution.execution.kind,
+        status: nextBlockingExecution.execution.status,
+        wakeupAt: nextBlockingExecution.wakeupAt,
+      }
+      : null,
+  })
 
   if (sessionManagement.smartSession.longRest.enabled === true) {
     const candidateAt = await resolveLongRestCandidateAt(
@@ -658,15 +849,28 @@ async function resolveSmartSessionDecision(
     )
 
     if (typeof candidateAt === 'number') {
-      if (candidateAt <= now && nextBlockingExecution) {
+      if (candidateAt <= now) {
         const longRestDurationMs = getLongRestDurationMs(
           scopeState.scopeKey,
           candidateAt,
           sessionManagement.smartSession.longRest.durationDelayMinutes,
           sessionManagement.smartSession.longRest.durationMinutes,
         )
+        const conflictingExecution = nextBlockingExecution
+          && nextBlockingExecution.wakeupAt <= (now + longRestDurationMs + SMART_SESSION_MIN_BUFFER_MS)
+          ? nextBlockingExecution
+          : null
 
-        if ((nextBlockingExecution.wakeupAt - now) > (longRestDurationMs + SMART_SESSION_MIN_BUFFER_MS)) {
+        if (!conflictingExecution) {
+          logRunnerController('SMART_SESSION_ACTIVATE', {
+            scopeKey: scopeState.scopeKey,
+            reason: 'long-rest',
+            candidateAt,
+            reconnectAt: now + longRestDurationMs,
+            longRestDurationMs,
+            nextBlockingExecutionWakeupAt: nextBlockingExecution?.wakeupAt ?? null,
+          })
+
           return {
             activate: {
               reason: RECONNECT_RUNTIME_REASONS.LONG_REST,
@@ -675,35 +879,111 @@ async function resolveSmartSessionDecision(
             nextWakeupAt: null,
           }
         }
-      } else if (candidateAt > now) {
-        nextWakeupAt = candidateAt
+
+        nextWakeupAt = mergeWakeupAt(
+          nextWakeupAt,
+          getWakeupAtAfterExecution(conflictingExecution.wakeupAt),
+        )
+
+        logRunnerController('SMART_SESSION_PENDING', {
+          scopeKey: scopeState.scopeKey,
+          reason: 'long-rest-blocked-by-execution',
+          candidateAt,
+          nextWakeupAt,
+          longRestDurationMs,
+          nextBlockingExecutionWakeupAt: conflictingExecution.wakeupAt,
+        })
+
+        return {
+          activate: null,
+          nextWakeupAt,
+        }
+      }
+
+      if (candidateAt > now) {
+        nextWakeupAt = mergeWakeupAt(nextWakeupAt, candidateAt)
+
+        logRunnerController('SMART_SESSION_PENDING', {
+          scopeKey: scopeState.scopeKey,
+          reason: 'long-rest-candidate-future',
+          candidateAt,
+          nextWakeupAt,
+        })
       }
     }
   }
 
-  if (
-    sessionManagement.smartSession.shortBreak.enabled === true
-    && nextBlockingExecution
-  ) {
-    const minIdleMs = sessionManagement.smartSession.shortBreak.minIdleMinutes * 60_000
-    const gapMs = nextBlockingExecution.wakeupAt - now
+  if (sessionManagement.smartSession.shortBreak.enabled === true) {
+    const candidateAt = await resolveShortBreakCandidateAt(
+      scopeState.scopeKey,
+      scopeWorldPlayer,
+      reconnectRuntimeState,
+      sessionManagement.smartSession.shortBreak.everyMinutes,
+      sessionManagement.smartSession.shortBreak.delayMinutes,
+    )
 
-    if (gapMs > (minIdleMs + SMART_SESSION_MIN_BUFFER_MS)) {
-      const maxLeadMinutesByGap = Math.floor((gapMs - minIdleMs) / 60_000)
-      const maxLeadMinutes = Math.min(
-        sessionManagement.smartSession.shortBreak.delayMinutes,
-        maxLeadMinutesByGap,
-      )
+    if (typeof candidateAt === 'number') {
+      if (candidateAt > now) {
+        nextWakeupAt = mergeWakeupAt(nextWakeupAt, candidateAt)
 
-      if (maxLeadMinutes >= SMART_SESSION_SHORT_BREAK_MIN_LEAD_MINUTES) {
-        const leadMinutes = resolveDeterministicInteger({
-          seed: `${scopeState.scopeKey}:short-break:${nextBlockingExecution.wakeupAt}`,
-          min: SMART_SESSION_SHORT_BREAK_MIN_LEAD_MINUTES,
-          max: maxLeadMinutes,
+        logRunnerController('SMART_SESSION_PENDING', {
+          scopeKey: scopeState.scopeKey,
+          reason: 'short-break-candidate-future',
+          candidateAt,
+          nextWakeupAt,
         })
-        const reconnectAt = nextBlockingExecution.wakeupAt - (leadMinutes * 60_000)
 
-        if ((reconnectAt - now) >= minIdleMs) {
+      } else {
+        if (nextImmediateExecution) {
+          nextWakeupAt = mergeWakeupAt(
+            nextWakeupAt,
+            now + SMART_SESSION_MIN_BUFFER_MS,
+          )
+
+          logRunnerController('SMART_SESSION_PENDING', {
+            scopeKey: scopeState.scopeKey,
+            reason: 'short-break-delayed-by-nearby-execution',
+            candidateAt,
+            nextWakeupAt,
+            hasOverdueExecution,
+            nextImmediateExecution: {
+              executionId: nextImmediateExecution.execution.executionId,
+              kind: nextImmediateExecution.execution.kind,
+              status: nextImmediateExecution.execution.status,
+              wakeupAt: nextImmediateExecution.wakeupAt,
+            },
+          })
+
+          return {
+            activate: null,
+            nextWakeupAt,
+          }
+        }
+
+        const shortBreakDurationMs = getShortBreakDurationMs(
+          scopeState.scopeKey,
+          candidateAt,
+          sessionManagement.smartSession.shortBreak.delayMinutes,
+          sessionManagement.smartSession.shortBreak.durationMinutes,
+        )
+        const conflictingExecution = nextBlockingExecution
+          && nextBlockingExecution.wakeupAt <= (now + shortBreakDurationMs + SMART_SESSION_MIN_BUFFER_MS)
+          ? nextBlockingExecution
+          : null
+
+        if (!conflictingExecution) {
+          const reconnectAt = now + shortBreakDurationMs
+
+          logRunnerController('SMART_SESSION_ACTIVATE', {
+            scopeKey: scopeState.scopeKey,
+            reason: 'short-break',
+            candidateAt,
+            reconnectAt,
+            nextWakeupAt,
+            shortBreakDurationMs,
+            nextBlockingExecutionWakeupAt: nextBlockingExecution?.wakeupAt ?? null,
+          })
+
           return {
             activate: {
               reason: RECONNECT_RUNTIME_REASONS.SHORT_BREAK,
@@ -712,9 +992,30 @@ async function resolveSmartSessionDecision(
             nextWakeupAt,
           }
         }
+
+        nextWakeupAt = mergeWakeupAt(
+          nextWakeupAt,
+          getWakeupAtAfterExecution(conflictingExecution.wakeupAt),
+        )
+
+        logRunnerController('SMART_SESSION_PENDING', {
+          scopeKey: scopeState.scopeKey,
+          reason: 'short-break-blocked-by-execution',
+          candidateAt,
+          nextWakeupAt,
+          shortBreakDurationMs,
+          nextBlockingExecutionWakeupAt: conflictingExecution.wakeupAt,
+        })
       }
     }
   }
+
+  logRunnerController('SMART_SESSION_SKIP', {
+    scopeKey: scopeState.scopeKey,
+    reason: 'no-smart-session-action',
+    nextWakeupAt,
+    hasNextBlockingExecution: Boolean(nextBlockingExecution),
+  })
 
   return {
     activate: null,
@@ -728,50 +1029,42 @@ async function navigateScopeToReconnectLogin(
   const runner = getRunnerByScope(scopeState.scopeKey)
 
   if (!runner) {
+    logRunnerController('SMART_SESSION_LOGOUT_SKIPPED', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'no-runner',
+      lastKnownTabId: scopeState.lastKnownTabId,
+      lastKnownWindowId: scopeState.lastKnownWindowId,
+    })
+
     return false
   }
 
   try {
-    const results = await chrome.scripting.executeScript({
-      target: {
+    const response = await chrome.tabs.sendMessage(runner.tabId, {
+      extensionId: RELEASE_EXTENSION_ID,
+      type: SUPPORT_LOGOUT_MESSAGE_TYPE,
+      scopeKey: scopeState.scopeKey,
+    }) as {
+      ok?: boolean
+      href?: string | null
+      reason?: string | null
+      hasLinkBasePure?: boolean
+      hasCsrf?: boolean
+      type?: string
+    } | null
+    const navigated = response?.ok === true
+
+    if (!navigated) {
+      logRunnerController('SMART_SESSION_LOGOUT_SKIPPED', {
+        scopeKey: scopeState.scopeKey,
+        reason: 'support-returned-not-ok',
         tabId: runner.tabId,
-      },
-      func: () => {
-        const gameData = (window as Window & {
-          game_data?: {
-            csrf?: unknown
-            link_base_pure?: unknown
-          }
-        }).game_data
-        const linkBasePure = typeof gameData?.link_base_pure === 'string'
-          ? gameData.link_base_pure.trim()
-          : ''
-        const csrf = typeof gameData?.csrf === 'string'
-          ? gameData.csrf.trim()
-          : ''
+        windowId: runner.windowId,
+        response,
+      })
+    }
 
-        if (!linkBasePure || !csrf) {
-          return {
-            ok: false,
-            reason: 'missing-game-data-logout-parts',
-          }
-        }
-
-        const url = new URL(
-          `${linkBasePure}&action=logout&h=${csrf}`,
-          window.location.origin,
-        )
-
-        window.location.assign(url)
-
-        return {
-          href: url.href,
-          ok: true,
-        }
-      },
-    })
-
-    return results.some((result) => result.result?.ok === true)
+    return navigated
   } catch (error) {
     console.warn('[SW][RUNNER_CONTROLLER] smart reconnect navigation failed', {
       scopeKey: scopeState.scopeKey,
@@ -810,6 +1103,11 @@ async function activateSmartSessionReconnect(
   })
 
   if (!stopped) {
+    logRunnerController('SMART_SESSION_ABORT', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'stop-current-failed',
+      decision,
+    })
     await clearReconnectRuntimeActive(scopeState.scopeKey)
     return false
   }
@@ -817,6 +1115,11 @@ async function activateSmartSessionReconnect(
   const navigated = await navigateScopeToReconnectLogin(scopeState)
 
   if (!navigated) {
+    logRunnerController('SMART_SESSION_ABORT', {
+      scopeKey: scopeState.scopeKey,
+      reason: 'logout-navigation-failed',
+      decision,
+    })
     await clearReconnectRuntimeActive(scopeState.scopeKey)
     return false
   }
@@ -831,18 +1134,9 @@ async function activateSmartSessionReconnect(
 async function clearReconnectRuntimeIfReturned(
   scopeKey: string,
 ) {
-  const reconnectRuntimeState = await getReconnectRuntimeState(scopeKey)
-
-  if (
-    reconnectRuntimeState?.activeReason === null
-    || reconnectRuntimeState?.activeLoginSeenAt === null
-  ) {
-    return false
-  }
-
-  await clearReconnectRuntimeActive(scopeKey)
-
-  return true
+  return Boolean(
+    await clearReconnectRuntimeActiveOnGameReturn(scopeKey),
+  )
 }
 
 function createInstructionFromExecution(
@@ -919,6 +1213,22 @@ function isBotProtectInstruction(instruction: ControllerRunInstruction | null) {
 
   return instruction.kind === EXECUTION_KINDS.BOT_PROTECT
     || instruction.machine === 'solver'
+}
+
+function shouldDispatchBotProtectInstruction(
+  scopeState: ScopeRuntimeState,
+  {
+    isBotProtected,
+  }: {
+    isBotProtected?: boolean
+  } = {},
+) {
+  if (isBotProtected === true) {
+    return true
+  }
+
+  return isBotProtectInstruction(scopeState.current)
+    || isBotProtectInstruction(scopeState.pending)
 }
 
 function shouldDeferIncomingApplyPreemption(
@@ -1295,8 +1605,10 @@ async function dispatchControllerForScopeInternal(
     })
   }
 
-  const hasBotProtect = scopeState.botProtectActive
-  const dueInstruction = hasBotProtect
+  const shouldDispatchBotProtect = shouldDispatchBotProtectInstruction(scopeState, {
+    isBotProtected,
+  })
+  const dueInstruction = shouldDispatchBotProtect
     ? createFallbackInstruction(scopeState, {
       screen,
       isBotProtected: true,
@@ -1307,7 +1619,7 @@ async function dispatchControllerForScopeInternal(
       source,
       reason,
     })
-  const smartSessionDecision = !hasBotProtect && !dueInstruction
+  const smartSessionDecision = !shouldDispatchBotProtect && !dueInstruction
     ? await resolveSmartSessionDecision(scopeState)
     : null
 
@@ -1326,8 +1638,8 @@ async function dispatchControllerForScopeInternal(
     || (allowFallback
       ? createFallbackInstruction(scopeState, {
         screen,
-        isBotProtected: hasBotProtect,
-        reason: hasBotProtect ? 'bot-protect-active' : 'stage-fallback',
+        isBotProtected: shouldDispatchBotProtect,
+        reason: shouldDispatchBotProtect ? 'bot-protect-active' : 'stage-fallback',
         source,
       })
       : null)

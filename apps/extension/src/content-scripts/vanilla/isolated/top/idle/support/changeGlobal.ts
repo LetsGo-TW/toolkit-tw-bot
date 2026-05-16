@@ -1,12 +1,12 @@
 /// <reference types="chrome" />
 
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
-import ProtectingBot from "@toolkit-tw-bot/document/protectingBot"
 import { random } from "@toolkit-tw-bot/core"
 import {
   isActiveTabAttributeEnabled,
   watchActiveTabAttribute,
 } from "../../../../shared/watchActiveTabAttribute"
+import { getFreshGameBotProtectObservation } from "./current"
 
 const BOOTSTRAP_KEY = '__toolkitTwBotIsolatedTopIdleSupportChangeGlobal__'
 const IDLE_MESSAGE_TYPE = 'CHANGE_GLOBAL_TRIBAL_WARS'
@@ -121,7 +121,7 @@ function getFocusDiagnostics(data?: {
   twActivitySnapshot?: unknown
 }): FocusDiagnostics {
   const activeLease = getTwActiveLease()
-  const isBotProtected = ProtectingBot['bot-protect-all-in-game'].active(document)
+  const isBotProtected = getFreshGameBotProtectObservation(document).active
   const idleHeartbeatAgeMs = lastIdleHeartbeatAt > 0
     ? Date.now() - lastIdleHeartbeatAt
     : null

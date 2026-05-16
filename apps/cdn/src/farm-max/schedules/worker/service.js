@@ -1,3 +1,4 @@
+import { DOC_REQUEST_TIMEOUT_MS } from "@toolkit-tw-bot/browser";
 import { sleep } from "../../utils/sleep"
 
 export default class Service {
@@ -42,7 +43,7 @@ export default class Service {
             signal: this.#controller.signal
           })
 
-          const t = setTimeout(() => this.#controller.abort(), 8000);
+          const t = setTimeout(() => this.#controller.abort(), DOC_REQUEST_TIMEOUT_MS);
 
           try {
             const result = await fetch(request);

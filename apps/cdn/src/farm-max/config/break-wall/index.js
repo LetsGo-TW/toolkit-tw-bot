@@ -27,6 +27,8 @@ const playerId = getCurrentPlayerId()
 const storageBreakWallTemplates = StorageLocalCompat.create({ world, playerId, path: ['break-wall-template'] })
 const storageBreakWallReports = StorageLocalCompat.create({ world, playerId, path: ['break-wall-report'] })
 const storageBreakWallTargetsSent = StorageLocalCompat.create({ world, playerId, path: ['break-wall-sent'] })
+const storageBreakWallBlacklist = StorageLocalCompat.create({ world, playerId, path: ['break-wall-blacklist'] });
+const storageBreakWallRedReviewed = StorageLocalCompat.create({ world, playerId, path: ['break-wall-red-reviewed'] });
 
 async function initBreakWallConfig() {
   if (!(await storageBreakWallTemplates.exists())) await storageBreakWallTemplates.set(templates)
@@ -34,7 +36,5 @@ async function initBreakWallConfig() {
 
 export {
   initBreakWallConfig,
-  storageBreakWallTemplates,
-  storageBreakWallReports,
-  storageBreakWallTargetsSent
+  storageBreakWallTemplates, storageBreakWallReports, storageBreakWallTargetsSent, storageBreakWallBlacklist, storageBreakWallRedReviewed
 }

@@ -2,6 +2,10 @@
 const entries = require('../entries/entries')
 
 function getEntryConfigs(group) {
+  if (Array.isArray(group)) {
+    return Object.assign({}, ...group.map((groupName) => entries[groupName] || {}))
+  }
+
   return entries[group] || {}
 }
 

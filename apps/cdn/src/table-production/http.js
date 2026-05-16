@@ -1,4 +1,4 @@
-import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser"
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxBody, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser"
 import { assertNoCaptchaInGame } from "../shared/assertNoCaptchaInGame"
 import { assertNoGameUpdateOrBlockedRequest } from "../shared/assertNoGameUpdateOrBlockedRequest"
 import { gameData } from "./context"
@@ -30,7 +30,7 @@ async function setPageSize(pageSize, screen, newPageSize = 1000, { signal } = {}
   const body = makeAjaxBody(payloadSenders)
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000)
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS)
 
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
@@ -60,7 +60,7 @@ async function getProductionPageHtml(groupId = 0, page = -1, { signal } = {}) {
   const url = new URL(`${gameData.link_base_pure}overview_villages&mode=prod&group=${groupId}&page=${page}`, window.origin)
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000)
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS)
 
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
@@ -89,7 +89,7 @@ async function getOverviewVillagesHtml({ signal } = {}) {
   const url = new URL(`${gameData.link_base_pure}overview_villages`, window.origin)
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000)
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS)
 
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])

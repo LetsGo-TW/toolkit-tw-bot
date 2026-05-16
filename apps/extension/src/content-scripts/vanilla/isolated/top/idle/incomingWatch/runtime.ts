@@ -1,7 +1,7 @@
 /// <reference types="chrome" />
 
 import { v4 as uuidv4 } from 'uuid'
-import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersGetDoc, StorageLocalCompat } from '@toolkit-tw-bot/browser'
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxBody, makeAjaxHeadersGetDoc, StorageLocalCompat } from '@toolkit-tw-bot/browser'
 import { Distance, getParamsUrl, nDateTime, strTimeToSec } from '@toolkit-tw-bot/core'
 import {
   assertNoCaptchaInGame,
@@ -1290,7 +1290,7 @@ async function getDoc(screen: string, villageId: string | number | null = null, 
   if (villageId) url.searchParams.set('village', String(villageId))
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const timeoutId = setTimeout(() => timeoutCtrl.abort(new Error('timeout')), 8000)
+  const timeoutId = setTimeout(() => timeoutCtrl.abort(new Error('timeout')), DOC_REQUEST_TIMEOUT_MS)
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])
     : timeoutCtrl.signal
@@ -1376,7 +1376,7 @@ async function postChangePageSize(
 
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const timeoutId = setTimeout(() => timeoutCtrl.abort(new Error('timeout')), 8000)
+  const timeoutId = setTimeout(() => timeoutCtrl.abort(new Error('timeout')), DOC_REQUEST_TIMEOUT_MS)
 
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])

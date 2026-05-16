@@ -1,4 +1,4 @@
-import { combineAbortControllerSignals, makeAjaxBody, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser"
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxBody, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser"
 import { getGameData } from "@toolkit-tw-bot/document"
 import { assertNoCaptchaInGame } from "../shared/assertNoCaptchaInGame"
 import { assertNoGameUpdateOrBlockedRequest } from "../shared/assertNoGameUpdateOrBlockedRequest"
@@ -32,7 +32,7 @@ export async function postChangePageSize(pageSize, screen, newPageSize = 1000, {
   const body = makeAjaxBody(payloadSenders)
   const headers = makeAjaxHeadersGetDoc()
   const timeoutCtrl = new AbortController()
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000)
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS)
 
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])

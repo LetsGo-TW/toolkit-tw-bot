@@ -1,4 +1,5 @@
-import { assetBasePath, extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+// import { assetBasePath, extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 import {
   PREPARED_CONNECT_SERVER_ERROR_ATTRIBUTE,
   PREPARED_READY_ATTRIBUTE,
@@ -12,29 +13,32 @@ const CONNECT_SERVER_RETRY_BASE_DELAY_MS = 2_000
 const CONNECT_SERVER_RETRY_MAX_DELAY_MS = 15_000
 const EXTENSION_ASSET_ORIGIN = `chrome-extension://${RELEASE_EXTENSION_ID}`
 
-function shouldUseExtensionAssetOrigin(assetOrigin: string) {
-  try {
-    const url = new URL(assetOrigin)
+// function shouldUseExtensionAssetOrigin(assetOrigin: string) {
+//   try {
+//     const url = new URL(assetOrigin)
 
-    return url.hostname === 'localhost' || url.hostname === '127.0.0.1'
-  } catch {
-    return false
-  }
-}
+//     return url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+//   } catch {
+//     return false
+//   }
+// }
 
 const getPreparedScriptUrl = () => {
-  const assetOrigin = process.env.EXTENSION_ASSET_ORIGIN
-
-  if (!assetOrigin) {
-    throw new Error('Missing EXTENSION_ASSET_ORIGIN')
-  }
-
-  if (shouldUseExtensionAssetOrigin(assetOrigin)) {
-    return `${EXTENSION_ASSET_ORIGIN}${assetBasePath}/web/game.prepared.js`
-  }
-
-  return new URL(`${assetBasePath}/web/game.prepared.js`, assetOrigin).toString()
+  return new URL(`/content-scripts/game.prepared.js`, EXTENSION_ASSET_ORIGIN).toString()
 }
+// const getPreparedScriptUrl = () => {
+//   const assetOrigin = process.env.EXTENSION_ASSET_ORIGIN
+
+//   if (!assetOrigin) {
+//     throw new Error('Missing EXTENSION_ASSET_ORIGIN')
+//   }
+
+//   if (shouldUseExtensionAssetOrigin(assetOrigin)) {
+//     return `${EXTENSION_ASSET_ORIGIN}${assetBasePath}/web/game.prepared.js`
+//   }
+
+//   return new URL(`${assetBasePath}/web/game.prepared.js`, assetOrigin).toString()
+// }
 
 function notifyPreparedReady() {
   document.documentElement?.setAttribute(PREPARED_READY_ATTRIBUTE, 'true')
@@ -125,16 +129,7 @@ export async function starter() {
   const preparedScriptUrl = getPreparedScriptUrl()
 
   try {
-    // try {
-    //   await insertTagScript(preparedScriptUrl)
-    //   console.log('[Starter] prepared injected via tag')
-    // } catch (error) {
-    //   console.error(error)
-    //   await insertJQueryScript(preparedScriptUrl)
-    //   console.log('[Starter] prepared injected via jquery')
-    // }
     await insertPreparedScriptWithRetry(preparedScriptUrl)
-
     notifyPreparedReady()
   } catch (error) {
     notifyPreparedError(error)

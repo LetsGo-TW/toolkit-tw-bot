@@ -173,9 +173,30 @@ span#go-farm-status {
     0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
+button#go-farm-alive-show,
+button#go-farm-black-show,
+button#go-farm-check-show {
+  background: none;
+  color: #2a85a6e1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  transition: 0.2s ease-in-out;
+}
+
+button#go-farm-alive-show.active,
+button#go-farm-black-show.active,
+button#go-farm-check-show.active {
+  color: #79c9e6e1;
+  font-weight: 600;
+}
+
 a#go-farm-edit-template-buttom,
-a#go-farm-schedules-show,
-a#go-farm-alive-show {
+a#go-farm-schedules-show {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 4px 10px rgba(0, 0, 0, 0.2);
@@ -188,9 +209,10 @@ a#go-farm-alive-show {
 
 a#go-farm-edit-template-buttom:hover,
 a#go-farm-schedules-show:hover,
-a#go-farm-alive-show:hover {
+button#go-farm-alive-show.active:hover,
+button#go-farm-black-show.active:hover,
+button#go-farm-check-show.active:hover {
   border: 1px solid #2a85a6e1;
-  border-radius: 0.25rem;
 }
 
 div#go-farm-edit-template {
@@ -241,6 +263,8 @@ div#go-farm-schedules.show {
   margin-right: 0.25rem;
 }
 
+div#go-farm-check,
+div#go-farm-black,
 div#go-farm-alive {
   width: 100%;
   max-height: 310px;
@@ -254,6 +278,8 @@ div#go-farm-alive {
   border-top: solid 0.01rem #b8b6b6ff;
 }
 
+div#go-farm-check.show,
+div#go-farm-black.show,
 div#go-farm-alive.show {
   display: flex;
 }

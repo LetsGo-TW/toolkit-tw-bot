@@ -1,6 +1,22 @@
 /// <reference types="chrome" />
 
-import type { SessionManagementConfig, SWMessage } from '../../types'
+import {
+  DEFAULT_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+  MAX_SMART_LONG_REST_INTERVAL_HOURS,
+  MAX_SMART_LONG_REST_START_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+  MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+  MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES,
+  MIN_SMART_LONG_REST_DURATION_MINUTES,
+  MIN_SMART_LONG_REST_START_DELAY_MINUTES,
+  MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+  MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+  MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+  type SessionManagementConfig,
+  type SWMessage,
+} from '../../types'
 import { syncTabActionByTabId } from '../action-state'
 import { syncControllerScopeAlarm } from '../controller/runner-controller'
 import { SET_SMART_SESSION_CONFIG_MESSAGE_TYPE } from '../message/types'
@@ -12,15 +28,6 @@ import {
   ensureSessionManagementLoaded,
   setPlayerSmartSessionConfig,
 } from './index'
-
-const MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES = 3
-const MIN_SMART_SHORT_BREAK_DELAY_MINUTES = 1
-const MIN_SMART_LONG_REST_DURATION_MINUTES = 10
-const MIN_SMART_LONG_REST_DURATION_DELAY_MINUTES = 1
-const MAX_SMART_LONG_REST_DURATION_DELAY_MINUTES = 5
-const MAX_SMART_LONG_REST_INTERVAL_HOURS = 12
-const MIN_SMART_LONG_REST_START_DELAY_MINUTES = 5
-const MAX_SMART_LONG_REST_START_DELAY_MINUTES = 10
 
 type SetSmartSessionConfigRequest = Partial<SWMessage> & PopupStateRequest & {
   world?: unknown
@@ -116,6 +123,81 @@ function normalizeScheduledTimes(value: unknown) {
     : null
 }
 
+function normalizeSmartShortBreakInput(
+  value: {
+    enabled?: unknown
+    everyMinutes?: unknown
+    durationMinutes?: unknown
+    delayMinutes?: unknown
+    minIdleMinutes?: unknown
+  } | null | undefined,
+) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const enabled = normalizeStrictBoolean(value.enabled)
+
+  if (enabled === null) {
+    return null
+  }
+
+  const usesCurrentShape = (
+    Object.prototype.hasOwnProperty.call(value, 'everyMinutes')
+    || Object.prototype.hasOwnProperty.call(value, 'durationMinutes')
+  )
+
+  if (!usesCurrentShape) {
+    const everyMinutes = normalizePositiveIntegerInRange(value.delayMinutes, {
+      min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+    })
+    const durationMinutes = normalizePositiveIntegerInRange(value.minIdleMinutes, {
+      min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+      max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+    })
+
+    if (everyMinutes === null || durationMinutes === null) {
+      return null
+    }
+
+    return {
+      enabled,
+      everyMinutes,
+      durationMinutes,
+      delayMinutes: DEFAULT_SMART_SHORT_BREAK_DELAY_MINUTES,
+    }
+  }
+
+  const everyMinutes = normalizePositiveIntegerInRange(value.everyMinutes, {
+    min: MIN_SMART_SHORT_BREAK_EVERY_MINUTES,
+    max: MAX_SMART_SHORT_BREAK_EVERY_MINUTES,
+  })
+  const durationMinutes = normalizePositiveIntegerInRange(value.durationMinutes, {
+    min: MIN_SMART_SHORT_BREAK_DURATION_MINUTES,
+    max: MAX_SMART_SHORT_BREAK_DURATION_MINUTES,
+  })
+  const delayMinutes = normalizePositiveIntegerInRange(value.delayMinutes, {
+    min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
+    max: MAX_SMART_SHORT_BREAK_DELAY_MINUTES,
+  })
+
+  if (
+    everyMinutes === null
+    || durationMinutes === null
+    || delayMinutes === null
+  ) {
+    return null
+  }
+
+  return {
+    enabled,
+    everyMinutes,
+    durationMinutes,
+    delayMinutes,
+  }
+}
+
 function normalizeSmartSessionInput(value: unknown): SessionManagementConfig['smartSession'] | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null
@@ -124,8 +206,10 @@ function normalizeSmartSessionInput(value: unknown): SessionManagementConfig['sm
   const candidate = value as {
     shortBreak?: {
       enabled?: unknown
-      minIdleMinutes?: unknown
+      everyMinutes?: unknown
+      durationMinutes?: unknown
       delayMinutes?: unknown
+      minIdleMinutes?: unknown
     } | null
     longRest?: {
       enabled?: unknown
@@ -137,13 +221,7 @@ function normalizeSmartSessionInput(value: unknown): SessionManagementConfig['sm
       scheduledTimes?: unknown
     } | null
   }
-  const shortBreakEnabled = normalizeStrictBoolean(candidate.shortBreak?.enabled)
-  const shortBreakMinIdleMinutes = normalizePositiveIntegerInRange(candidate.shortBreak?.minIdleMinutes, {
-    min: MIN_SMART_SHORT_BREAK_MIN_IDLE_MINUTES,
-  })
-  const shortBreakDelayMinutes = normalizePositiveIntegerInRange(candidate.shortBreak?.delayMinutes, {
-    min: MIN_SMART_SHORT_BREAK_DELAY_MINUTES,
-  })
+  const shortBreak = normalizeSmartShortBreakInput(candidate.shortBreak)
   const longRestEnabled = normalizeStrictBoolean(candidate.longRest?.enabled)
   const longRestMode = candidate.longRest?.mode === 'interval' || candidate.longRest?.mode === 'schedule'
     ? candidate.longRest.mode
@@ -166,9 +244,7 @@ function normalizeSmartSessionInput(value: unknown): SessionManagementConfig['sm
   const longRestScheduledTimes = normalizeScheduledTimes(candidate.longRest?.scheduledTimes)
 
   if (
-    shortBreakEnabled === null
-    || shortBreakMinIdleMinutes === null
-    || shortBreakDelayMinutes === null
+    !shortBreak
     || longRestEnabled === null
     || longRestDurationMinutes === null
     || longRestDurationDelayMinutes === null
@@ -187,11 +263,7 @@ function normalizeSmartSessionInput(value: unknown): SessionManagementConfig['sm
   }
 
   return {
-    shortBreak: {
-      enabled: shortBreakEnabled,
-      minIdleMinutes: shortBreakMinIdleMinutes,
-      delayMinutes: shortBreakDelayMinutes,
-    },
+    shortBreak,
     longRest: {
       enabled: longRestEnabled,
       mode: longRestMode,
@@ -241,12 +313,29 @@ export async function setSmartSessionConfig(
   await setPlayerSmartSessionConfig(world, playerId, smartSession)
   const worldPlayer = getWorldPlayer(world, playerId)
   const openTwTabIds = await getOpenTwTabIds()
+
+  console.log('[SW][SESSION_MANAGEMENT][SET_SMART_SESSION_CONFIG]', {
+    world,
+    playerId,
+    worldPlayerScopeKey: worldPlayer?.scopeKey ?? null,
+    worldPlayerUpdatedAt: worldPlayer?.updatedAt ?? null,
+    openTwTabIds,
+    shortBreak: smartSession.shortBreak,
+    longRest: smartSession.longRest,
+  })
+
   await Promise.all(
     openTwTabIds.map((tabId) => syncTabActionByTabId(tabId)),
   )
 
   if (worldPlayer?.scopeKey) {
     await syncControllerScopeAlarm(worldPlayer.scopeKey)
+  } else {
+    console.warn('[SW][SESSION_MANAGEMENT][SET_SMART_SESSION_CONFIG] missing scopeKey for world player', {
+      world,
+      playerId,
+      openTwTabIds,
+    })
   }
 
   return getPopupState(request)

@@ -1,5 +1,5 @@
 import { getGameData } from "@toolkit-tw-bot/document";
-import { combineAbortControllerSignals, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
+import { combineAbortControllerSignals, DOC_REQUEST_TIMEOUT_MS, makeAjaxHeadersGetDoc } from "@toolkit-tw-bot/browser";
 import { assertNoCaptchaInGame } from "../shared/assertNoCaptchaInGame";
 import { assertNoGameUpdateOrBlockedRequest } from "../shared/assertNoGameUpdateOrBlockedRequest";
 
@@ -9,7 +9,7 @@ export async function getPlaceTemplates({ signal } = {}) {
   const headers = makeAjaxHeadersGetDoc();
   // controller só pro timeout
   const timeoutCtrl = new AbortController();
-  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), 8000);
+  const t = setTimeout(() => timeoutCtrl.abort(new Error("timeout")), DOC_REQUEST_TIMEOUT_MS);
   // ✅ combina: abort externo + timeout
   const combinedSignal = signal
     ? combineAbortControllerSignals([signal, timeoutCtrl.signal])

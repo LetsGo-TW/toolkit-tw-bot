@@ -2,7 +2,7 @@ __webpack_nonce__ = 'c29tZSBjb29sIHN0cmluZyB3aWxsIHBvcCB1cCAxMjM='
 
 import { getParamsUrl, resolvePreparedBaseUrl, syncPreparedBaseUrl } from '@toolkit-tw-bot/core'
 import { getGameData } from '@toolkit-tw-bot/document'
-import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
+import { assetBasePath, extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release'
 
 const CONNECT = 'CONNECT'
 const CTX = 'CTX'
@@ -13,6 +13,7 @@ const GAME_START_EVENT = 'toolkit:game:start'
 const GAME_STOP_EVENT = 'toolkit:game:stop'
 const PREPARED_ENTRY_PATTERN = /\/game\.prepared\.js(?:[?#].*)?$/
 const PREPARED_BASE_URL_KEY = '__toolkitTwBotPreparedBaseUrl__'
+const EXTENSION_ASSET_ORIGIN = `chrome-extension://${RELEASE_EXTENSION_ID}`
 
 /**
  * @typedef {Object} RunnerState
@@ -35,6 +36,9 @@ const runnerState = {
   stagedScriptEl: null,
   preparedBaseUrl: resolvePreparedBaseUrl({
     preparedEntryPattern: PREPARED_ENTRY_PATTERN,
+    assetOrigin: process.env.EXTENSION_ASSET_ORIGIN,
+    extensionAssetOrigin: EXTENSION_ASSET_ORIGIN,
+    assetBasePath,
   }),
 }
 

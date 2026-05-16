@@ -108,5 +108,6 @@ function makeContentScriptVanillaConfig({
 }
 
 module.exports = () => (
-  getGroupedEntryConfigs('csVanilla').map((group) => makeContentScriptVanillaConfig(group))
+  getGroupedEntryConfigs(['csVanilla', 'csAssetVanilla'])
+    .map((group) => makeContentScriptVanillaConfig(group))
 )

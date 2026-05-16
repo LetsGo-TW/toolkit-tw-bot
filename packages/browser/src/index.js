@@ -17,9 +17,12 @@ const {
   makeAjaxBody,
 } = require('./make-ajax')
 
+const DOC_REQUEST_TIMEOUT_MS = 30_000
+
 module.exports = {
   combineAbortControllerSignals,
   createIndexedDbDocStore,
+  DOC_REQUEST_TIMEOUT_MS,
   SCRIPT_STORAGE_MESSAGE_TYPE,
   createScriptStorageCompose,
   getScriptStorage,
