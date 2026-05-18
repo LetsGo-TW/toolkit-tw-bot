@@ -6,6 +6,17 @@ const DEFAULT_DB_NAMES = {
   test: "toolkit_tw_bot_test",
 };
 
+function readEnvValue(...names) {
+  for (const name of names) {
+    const value = String(process.env[name] || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function toBoolean(value) {
   return String(value || "").trim().toLowerCase() === "true";
 }
@@ -15,8 +26,14 @@ function isRemoteMongoUri(uri = "") {
 }
 
 function getDefaultDbName(nodeEnv) {
-  if (process.env.MONGODB_DB_NAME) {
-    return process.env.MONGODB_DB_NAME;
+  const configuredDbName = readEnvValue(
+    "MONGODB_DB_NAME",
+    "MONGO_DB_NAME",
+    "DATABASE_NAME",
+  );
+
+  if (configuredDbName) {
+    return configuredDbName;
   }
 
   if (nodeEnv === "production" && process.env.DB_NAME) {
@@ -33,7 +50,10 @@ function buildLegacyAtlasUri(databaseName) {
     return null;
   }
 
-  return `mongodb+srv://${DB_USER}:${DB_PASS}@cluster0.llt1v3s.mongodb.net/${databaseName}?retryWrites=true&w=majority&appName=Cluster0`;
+  const encodedUser = encodeURIComponent(DB_USER);
+  const encodedPass = encodeURIComponent(DB_PASS);
+
+  return `mongodb+srv://${encodedUser}:${encodedPass}@cluster0.llt1v3s.mongodb.net/${databaseName}?retryWrites=true&w=majority&appName=Cluster0`;
 }
 
 function resolveMongoConfig() {
@@ -41,7 +61,12 @@ function resolveMongoConfig() {
 
   const nodeEnv = getNodeEnv();
   const dbName = getDefaultDbName(nodeEnv);
-  let uri = String(process.env.MONGODB_URI || "").trim();
+  let uri = readEnvValue(
+    "MONGODB_URI",
+    "MONGO_URI",
+    "MONGO_URL",
+    "DATABASE_URL",
+  );
 
   if (!uri && nodeEnv === "production") {
     uri = buildLegacyAtlasUri(dbName);
@@ -53,7 +78,7 @@ function resolveMongoConfig() {
 
   if (!uri) {
     throw new Error(
-      "MongoDB não configurado. Defina MONGODB_URI ou, em produção, DB_USER/DB_PASS.",
+      "MongoDB não configurado. Defina MONGODB_URI/MONGO_URI/DATABASE_URL ou, em produção, DB_USER/DB_PASS.",
     );
   }
 

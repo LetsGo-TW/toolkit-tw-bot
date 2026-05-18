@@ -12,12 +12,37 @@ function getMonorepoRoot() {
   return path.resolve(__dirname, "../../../..");
 }
 
-function getAppRoot() {
+function getDefaultAppRoot() {
   return path.join(getMonorepoRoot(), "apps", "api");
 }
 
-function getEnvPaths(nodeEnv = getNodeEnv()) {
-  const appRoot = getAppRoot();
+function resolveRuntimeAppRoot(cwd = process.cwd()) {
+  const monorepoRoot = getMonorepoRoot();
+  const relativeCwd = path.relative(monorepoRoot, cwd);
+
+  if (!relativeCwd || relativeCwd.startsWith("..") || path.isAbsolute(relativeCwd)) {
+    return null;
+  }
+
+  const segments = relativeCwd.split(path.sep).filter(Boolean);
+  if (segments[0] !== "apps" || !segments[1]) {
+    return null;
+  }
+
+  return path.join(monorepoRoot, "apps", segments[1]);
+}
+
+function getAppRoot() {
+  return resolveRuntimeAppRoot() || getDefaultAppRoot();
+}
+
+function getEnvRoots() {
+  return [getAppRoot(), getDefaultAppRoot()].filter(
+    (appRoot, index, roots) => roots.indexOf(appRoot) === index,
+  );
+}
+
+function getEnvPaths(nodeEnv = getNodeEnv(), appRoot = getAppRoot()) {
   const paths = [];
 
   if (nodeEnv !== "test") {
@@ -40,23 +65,27 @@ function loadEnv() {
   }
 
   const nodeEnv = getNodeEnv();
+  const envRoots = getEnvRoots();
   const loadedPaths = [];
 
-  getEnvPaths(nodeEnv).forEach((envPath) => {
-    if (!fs.existsSync(envPath)) {
-      return;
-    }
+  envRoots.forEach((appRoot) => {
+    getEnvPaths(nodeEnv, appRoot).forEach((envPath) => {
+      if (!fs.existsSync(envPath)) {
+        return;
+      }
 
-    dotenv.config({
-      path: envPath,
-      quiet: true,
+      dotenv.config({
+        path: envPath,
+        quiet: true,
+      });
+
+      loadedPaths.push(envPath);
     });
-
-    loadedPaths.push(envPath);
   });
 
   cachedEnvState = {
     appRoot: getAppRoot(),
+    envRoots,
     loadedPaths,
     nodeEnv,
   };
