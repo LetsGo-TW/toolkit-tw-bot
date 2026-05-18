@@ -129,6 +129,7 @@ const TableProduction = (html = document) => {
 
     const storage = parseTwInt((tds[col + 2] || {}).innerText || 0)
     const trader = parseTwInt(String((tds[col + 3] || {}).innerText || "").split("/")[0] || 0)
+    const traderAll = parseTwInt(String((tds[col + 3] || {}).innerText || "").split("/")[1] || 0);
 
     const popValues = String((tds[col + 4] || {}).innerText || "0/0").split("/")
     const pop = parseTwInt(popValues[0] || 0)
@@ -152,6 +153,7 @@ const TableProduction = (html = document) => {
       iron,
       storage,
       trader,
+      traderAll,
       pop,
       pop_max,
       build,
