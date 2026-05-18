@@ -180,8 +180,10 @@
 .go-bvcp-detail-header {
   padding: 0.25rem;
   display: flex;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .go-bvcp-detail-title-wrap {
