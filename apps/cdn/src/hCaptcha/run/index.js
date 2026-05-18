@@ -212,12 +212,14 @@ export async function run(data) {
     cleanup();
 
     await ReportSession.finish('success', message);
-    await reportState?.({
-      status: 'completed',
-      detail: {
-        message,
-      },
-    });
+    /**
+     * Não reportamos `completed` aqui.
+     *
+     * Enquanto o captcha ainda está montado no DOM, o controller interpreta o
+     * runtime como encerrado e despacha um novo solver imediatamente. Isso
+     * reinicia o fluxo antes do reload controlado pelo próprio solver e gera
+     * loop de recarregamento.
+     */
 
     runDetached(() => reload(), 'reload-after-success');
   };
@@ -267,14 +269,11 @@ export async function run(data) {
       await storageBackoffUntil.set(backoffUntil);
 
       printMessage.error(`hCaptcha não resolvido após 3 tentativas! Pausa de segurança de ~${Math.round(waitTimeSec / 60)} min.`, 10000);
-      await reportState?.({
-        status: 'failed',
-        detail: {
-          attempts,
-          message: finalMessage,
-          waitTimeSec,
-        },
-      });
+      /**
+       * Também não reportamos `failed` enquanto o solver ainda controla a
+       * página. O controller tratava isso como fim do runtime e disparava um
+       * novo ciclo com captcha ainda ativo.
+       */
 
       sessionStorage.removeItem('_attemps_h');
 

@@ -184,11 +184,15 @@ export async function handleLogin(request: LoginRequest = {}, sender: chrome.run
     await markReconnectRuntimeLoginSeen(scopeKey)
   }
 
+  const hasManagedSessionExpiredReconnect = Boolean(
+    reconnectReason === RECONNECT_RUNTIME_REASONS.SESSION_EXPIRED
+    && reconnectOnSessionExpired
+  )
   const canReconnect = Boolean(
     canUseReconnect
     && reconnectAt !== null
     && (
-      (reconnectReason === RECONNECT_RUNTIME_REASONS.SESSION_EXPIRED && reconnectOnSessionExpired && urlParams.sessionExpired)
+      hasManagedSessionExpiredReconnect
       || isSmartReconnectReason(reconnectReason)
     )
   )

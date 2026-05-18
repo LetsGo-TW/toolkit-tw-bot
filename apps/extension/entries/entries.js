@@ -24,10 +24,14 @@ const TRIBAL_WARS_MATCHES = [
   'https://*.tribalwars.cash/*',
 ]
 
+const HELP_EXCLUDE_MATCHES = TRIBAL_WARS_MATCHES
+  .map((match) => match.replace('https://*.', 'https://help.'))
+
 const DEFAULT_EXCLUDE_MATCHES = [
   'https://*.google.com/*',
   'https://*/create_village.php?/*',
   '*://extensions/*',
+  ...HELP_EXCLUDE_MATCHES,
 ]
 
 module.exports = {
