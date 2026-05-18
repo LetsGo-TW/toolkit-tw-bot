@@ -74,7 +74,8 @@ export default class Groups {
           this.group_id = Number(group_id)
 
           this.values = [
-            ...result.filter(g => g.type !== 'separator').reduce((groups, group) => {
+            // ...result.filter(g => g.type !== 'separator').reduce((groups, group) => {
+            ...result.reduce((groups, group) => {
               const group_id = Number(group.group_id)
 
               const url = new URL(gameData?.link_base_pure + screen, window.location.origin)

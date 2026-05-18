@@ -1,0 +1,163 @@
+<div class="go-exchange-config-container">
+  <form id="market-config-form">
+    <div class="go-exchange-config-card">
+      <div class="go-exchange-card-header no-bottom">
+        <span>
+          <label for="go-exchange-group"
+            data-go-title="Selecionar o grupo das vilas para exchange."
+          >Grupo</label>
+        </span>
+        <select class="go-exchange-input-select" name="groupId" id="exchange-group">
+          <option value="0">todos</option>
+        </select>
+      </div>
+    </div>
+    <div class="go-exchange-config-card go-exchange-header">
+      <span class="go-exchange-card-header">Modo de Mercado</span>
+      <div id="market-type-selectors" class="go-exchange-card-header around">
+        <label for="trade">
+          <input type="radio" name="marketType" id="trade" value="trade" checked>
+          Trade
+        </label>
+        <label for="premium">
+          <input type="radio" name="marketType" id="premium" value="premium">
+          Premium
+        </label>
+        <label for="sprinter">
+          <input type="radio" name="marketType" id="sprinter" value="sprinter">
+          Sprinter
+        </label>
+      </div>
+    </div>
+
+    <div class="go-exchange-content-cards">
+      <div id="buy-config" class="go-exchange-config-card go-exchange-buy-border">
+        <div class="go-exchange-card-header">
+          <span class="go-exchange-title-buy">
+            <label for="buy-active">Estratégia de Compra</label>
+          </span>
+          <label class="go-switch-toggle">
+            <input type="checkbox" id="buy-active" name="buy.active">
+            <span class="go-slider-toggle"></span>
+          </label>
+        </div>
+
+        <div class="go-exchange-card-body">
+          <div class="go-exchange-input-group">
+            <label for="buy-maxPerBuy">Máx. por Compra</label>
+            <input type="number" id="buy-maxPerBuy" value="5000" name="buy.maxPerBuy">
+          </div>
+          <div class="go-exchange-input-group">
+            <label for="buy-storageLimit">Limite Armazém (%)</label>
+            <input type="number" id="buy-storageLimit" value="80" name="buy.storageLimit">
+          </div>
+          <div class="go-exchange-input-group">
+            <label for="buy-dailyPpLimit">Limite PPs/Dia</label>
+            <input type="number" id="buy-dailyPpLimit" value="100" name="buy.dailyPpLimit">
+          </div>
+          <div class="go-exchange-input-group">
+            <label for="buy-limitPremium">Reserva Premium</label>
+            <input type="number" id="buy-limitPremium" value="0" name="buy.limitPremium">
+          </div>
+
+          <div class="go-exchange-manual-rate-box">
+            <div class="go-exchange-card-header">
+              <span class="go-exchange-title-buy">
+                <label for="buy-manualRate-active">Taxa Manual Base</label>
+              </span>
+              <label class="go-switch-toggle">
+                <input type="checkbox" id="buy-manualRate-active" name="buy.manualRate.active">
+                <span class="go-slider-toggle"></span>
+              </label>
+            </div>
+
+            <div class="go-exchange-card-header around">
+              <div class="go-exchange-input-group">
+                <label for="buy-wood-manual-rate">
+                  Madeira
+                  <input type="number" id="buy-wood-manual-rate" value="63" class="go-exchange-small-input" name="buy.manualRate.baseRate.wood">
+                </label>
+              </div>
+              <div class="go-exchange-input-group">
+                <label for="buy-stone-manual-rate">
+                  Argila
+                  <input type="number" id="buy-stone-manual-rate" value="63" class="go-exchange-small-input" name="buy.manualRate.baseRate.stone">
+                </label>
+              </div>
+              <div class="go-exchange-input-group">
+                <label for="buy-iron-manual-rate">
+                  Ferro
+                  <input type="number" id="buy-iron-manual-rate" value="63" class="go-exchange-small-input" name="buy.manualRate.baseRate.iron">
+                </label>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="sell-config" class="go-exchange-config-card go-exchange-sell-border">
+        <div class="go-exchange-card-header">
+          <span class="go-exchange-title-sell">
+            <label for="sell-active">Estratégia de Venda</label>
+          </span>
+          <label class="go-switch-toggle">
+            <input type="checkbox" id="sell-active" name="sell.active">
+            <span class="go-slider-toggle"></span>
+          </label>
+        </div>
+
+        <div class="go-exchange-card-body">
+          <div class="go-exchange-input-group">
+            <label for="sell-minStorageReserve">Reserva Mínima (%)</label>
+            <input type="number" id="sell-minStorageReserve" value="10" name="sell.minStorageReserve">
+          </div>
+          <div class="go-exchange-input-group">
+            <label for="sell-maxPerSell">Máx. por Venda</label>
+            <input type="number" id="sell-maxPerSell" value="2000" name="sell.maxPerSell">
+          </div>
+
+          <div class="go-exchange-options-group">
+            <label class="go-exchange-checkbox-label" for="sell-maxTransportOnly">
+              <input type="checkbox" id="sell-maxTransportOnly" checked name="sell.maxTransportOnly"> Apenas Transportes Cheios
+            </label>
+            <label class="go-exchange-checkbox-label" for="sell-proportionalMerchants">
+              <input type="checkbox" id="sell-proportionalMerchants" name="sell.proportionalMerchants"> Mercadores Proporcionais
+            </label>
+          </div>
+
+          <div class="go-exchange-manual-rate-box">
+            <div class="go-exchange-card-header">
+              <span class="go-exchange-title-sell">
+                <label for="sell-manualRate-active">Taxa Manual Base</label>
+              </span>
+              <label class="go-switch-toggle">
+                <input type="checkbox" id="sell-manualRate-active" name="sell.manualRate.active">
+                <span class="go-slider-toggle"></span>
+              </label>
+            </div>
+
+            <div class="go-exchange-card-header around">
+              <div class="go-exchange-input-group">
+                <label for="sell-wood-manual-rate">Madeira</label>
+                <input type="number" id="sell-wood-manual-rate" value="73" class="go-exchange-small-input" name="sell.manualRate.baseRate.wood">
+              </div>
+              <div class="go-exchange-input-group">
+                <label for="sell-stone-manual-rate">Argila</label>
+                <input type="number" id="sell-stone-manual-rate" value="73" class="go-exchange-small-input" name="sell.manualRate.baseRate.stone">
+              </div>
+              <div class="go-exchange-input-group">
+                <label for="sell-iron-manual-rate">Ferro</label>
+                <input type="number" id="sell-iron-manual-rate" value="73" class="go-exchange-small-input" name="sell.manualRate.baseRate.iron">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="submit">Salvar</button>
+  </form>
+  <div id="fine-tune-rate-slot">
+
+  </div>
+</div>

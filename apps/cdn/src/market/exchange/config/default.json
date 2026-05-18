@@ -1,0 +1,35 @@
+{
+  "active": false,
+  "marketType": "trade",
+  "groupId": 0,
+  "buy": {
+    "active": false,
+    "maxPerBuy": 5000,
+    "storageLimit": 0.8,
+    "limitPremium": 0,
+    "dailyPpLimit": 100,
+    "manualRate": {
+      "active": true,
+      "baseRate": {
+        "wood": 63,
+        "stone": 63,
+        "iron": 63
+      }
+    }
+  },
+  "sell": {
+    "active": false,
+    "minStorageReserve": 0.1,
+    "maxPerSell": 2000,
+    "maxTransportOnly": true,
+    "proportionalMerchants": false,
+    "manualRate": {
+      "active": true,
+      "baseRate": {
+        "wood": 73,
+        "stone": 73,
+        "iron": 73
+      }
+    }
+  }
+}

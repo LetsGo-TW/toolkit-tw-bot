@@ -7,6 +7,12 @@ export const SCRIPT_REGISTRY = [
     label: 'Farm Max',
     viewMode: 'inline',
   },
+  {
+    id: 'exchange',
+    type: 'auto',
+    label: 'Premium Exchange',
+    viewMode: 'inline',
+  },
   // globals
   {
     id: 'hcaptcha',

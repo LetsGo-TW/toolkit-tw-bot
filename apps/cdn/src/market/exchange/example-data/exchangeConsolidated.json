@@ -1,0 +1,55 @@
+{
+  "date": "2026-05-09",
+  "summary_id": "20260509_global",
+  "continents": {
+    "55": {
+      "iron": {
+        "total_bought": 1000,
+        "total_sold": 2500,
+        "pp_spent": 5,
+        "pp_received": 10,
+        "net_pp_profit": 5,
+        "avg_buy_rate": 186,
+        "avg_sell_rate": 86,
+        "market_limits": {
+          "min": 100,
+          "max": 500
+        },
+        "trade_count": 2
+      },
+      "wood": {
+        "total_bought": 0,
+        "total_sold": 0,
+        "pp_spent": 0,
+        "pp_received": 0,
+        "net_pp_profit": 0,
+        "avg_buy_rate": 0,
+        "avg_sell_rate": 0,
+        "market_limits": {
+          "min": 100,
+          "max": 500
+        }
+      }
+    },
+    "44": {
+      "stone": {
+        "total_bought": 0,
+        "total_sold": 0,
+        "pp_spent": 0,
+        "pp_received": 0,
+        "net_pp_profit": 0,
+        "avg_buy_rate": 0,
+        "avg_sell_rate": 0,
+        "market_limits": {
+          "min": 110,
+          "max": 490
+        }
+      }
+    }
+  },
+  "totals": {
+    "total_pp_profit": 5,
+    "total_trades": 2,
+    "most_profitable_k": "55"
+  }
+}

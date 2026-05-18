@@ -1,4 +1,3 @@
-import Groups from "../../groups";
 import youtubeLinkImage from "../../components/youtube-link-image";
 import farmHTML from './index.html'
 import farmCSS from './style.css'
@@ -7,13 +6,12 @@ import { configBase, storageConfigFarm, storageFarmSchedules } from "../config";
 import { initBreakWallConfig, storageBreakWallTemplates } from "../config/break-wall";
 import { getAllAliveTargets } from "../handler/alive-targets";
 import { Distance } from "@toolkit-tw-bot/core";
-import { getGameData, ProtectingBot } from "@toolkit-tw-bot/document";
+import { getGameData } from "@toolkit-tw-bot/document";
 import { extensionId as RELEASE_EXTENSION_ID } from '@toolkit-tw-bot/release';
 import { BotViewStatus } from "../../shared/bot-view-status";
 import { getBlacklist } from "../config/break-wall/targets-black";
 import { getAvaiablesSents } from "../config/break-wall/targets-sent";
-
-const handlerGroups = new Groups()
+import { hydrateGroupsSelect } from "../../groups/hydrateGroupSelect";
 
 const source = 'FARM-VIEW'
 const target = 'GO-FARM'
@@ -35,46 +33,6 @@ async function setStatusMessage(message) {
         : 'Desativado. Configure e ative o auto-farm para iniciar.'
     }
     statusMessage.textContent = message
-  }
-}
-
-async function hydrateGroupsSelect() {
-  const goFarmGroup = document.querySelector('#go-farm-group')
-  if (!goFarmGroup) return
-
-  const pendingValue = String(goFarmGroup.dataset.pendingValue ?? goFarmGroup.value ?? 0)
-  goFarmGroup.dataset.pendingValue = pendingValue
-  goFarmGroup.dataset.loading = 'true'
-  goFarmGroup.disabled = true
-  goFarmGroup.innerHTML = '<option value="0">Carregando grupos...</option>'
-
-  try {
-    const groups = await handlerGroups.get()
-    const htmlGroup = [
-      '<option value="0">todos</option>',
-      ...groups.map(({ group_id, name }) => `<option value="${group_id}">${name}</option>`)
-    ]
-
-    goFarmGroup.innerHTML = htmlGroup.join('')
-    goFarmGroup.value = pendingValue
-
-    if (goFarmGroup.value !== pendingValue) {
-      goFarmGroup.value = '0'
-    }
-  } catch (error) {
-    if (
-      error?.message === 'Identified bot protection'
-      || ProtectingBot["bot-protect-all-in-game"].active()
-    ) {
-      try { ProtectingBot.redirect() } catch { /* intentionally empty */ }
-      return
-    }
-
-    console.error(error.message || error.toString())
-    goFarmGroup.innerHTML = '<option value="0">Falha ao carregar grupos</option>'
-  } finally {
-    delete goFarmGroup.dataset.loading
-    goFarmGroup.disabled = false
   }
 }
 
@@ -100,21 +58,6 @@ async function onClickActive(e) {
 
   console.log('[FARM_STATE_CHANGED]: ', config)
 }
-
-// async function configOpen() {
-//   const goFarmConfigContent = document.querySelector('.go-farm-config-content')
-//   const classNames = goFarmConfigContent.getAttribute('class').trim().split(' ')
-//   if (!classNames.includes('show')) {
-//     const config = await storageConfigFarm.get() || configBase
-//     const goFarmGroup = document.querySelector('#go-farm-group')
-//     goFarmGroup.value = config.groupId
-
-//     classNames.push('show')
-//   } else {
-//     classNames.pop()
-//   }
-//   goFarmConfigContent.setAttribute('class', classNames.join(' '))
-// }
 
 async function goFormSubmit(event) {
   event.preventDefault()
@@ -719,7 +662,8 @@ async function render(containerElement = null) {
   goCheckButton?.addEventListener('click', breakWallShow, true)
   goBlackButton?.addEventListener('click', breakWallShow, true)
   goAliveButton?.addEventListener('click', breakWallShow, true)
-  void hydrateGroupsSelect()
+  const goFarmGroup = document.querySelector('#go-farm-group')
+  void hydrateGroupsSelect(goFarmGroup)
 
   const { avaible: breakWallSents = [] } = (await getAvaiablesSents()) || {}
   if (breakWallSents.length) {

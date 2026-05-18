@@ -1,0 +1,15 @@
+{
+  "date": "2026-05-09",
+  "continents": {
+    "55": {
+      "wood": { "min": 100, "max": 500, "current": 200 },
+      "stone": { "min": 100, "max": 500, "current": 200 },
+      "iron": { "min": 100, "max": 500, "current": 200 }
+    },
+    "44": {
+      "wood": { "min": 120, "max": 480, "current": 200 },
+      "stone": { "min": 110, "max": 490, "current": 200 },
+      "iron": { "min": 95, "max": 510, "current": 200 }
+    }
+  }
+}

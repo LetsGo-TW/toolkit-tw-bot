@@ -342,12 +342,13 @@ export function createBotViewConfigPopover({
             ${section.renderMode === 'detail' ? '' : 'hidden'}
           >▸</span>
         </button>
-        <button
-          type="button"
-          class="go-bvcp-menu-row-action"
-          data-bvcp-menu-action="${section.id}"
-          ${section.renderMode === 'button-action' ? '' : 'hidden'}
-        >${section.actionLabel || 'Ir'}</button>
+        ${section.renderMode === 'button-action' ? (`
+          <button
+            type="button"
+            class="go-bvcp-menu-row-action"
+            data-bvcp-menu-action="${section.id}"
+          >${section.actionLabel || 'Ir'}</button>
+        `) : ""}
       </div>
     `
 

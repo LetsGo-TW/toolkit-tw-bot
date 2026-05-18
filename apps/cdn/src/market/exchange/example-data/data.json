@@ -1,0 +1,29 @@
+{
+  "stock": {
+    "wood": 449873,
+    "stone": 455713,
+    "iron": 430635
+  },
+  "capacity": {
+    "wood": 458450,
+    "stone": 466939,
+    "iron": 456327
+  },
+  "rates": {
+    "wood": 0.0010839786811579037,
+    "stone": 0.001149081507129229,
+    "iron": 0.0016197003319148393
+  },
+  "tax": {
+    "buy": 0.03,
+    "sell": 0
+  },
+  "constants": {
+    "resource_base_price": 0.015,
+    "resource_price_elasticity": 0.0148,
+    "stock_size_modifier": 20000
+  },
+  "duration": 4800,
+  "merchants": 110,
+  "status_bar": "<div id=\"market_status_bar\">\n\t<table class=\"vis\">\n\t\t<tr>\n\t\t\t<th>Comerciantes: <span id=\"market_merchant_available_count\">110</span>/<span id=\"market_merchant_total_count\">110</span></th>\n\t\t\t<th>Quantidade máxima de transporte: <span id=\"market_merchant_max_transport\">110000</span></th>\n\t\t\t\t\t</tr>\n\t</table>\n\n\t</div>\n"
+}

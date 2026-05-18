@@ -1,0 +1,22 @@
+[
+  {
+    "timestamp": 1715273369000,
+    "date": "2026-05-09",
+    "k": "55",
+    "type": "buy",
+    "resource": "iron",
+    "amount": 1000,
+    "pp_spent": 5,
+    "rate_at_send": 186
+  },
+  {
+    "timestamp": 1715273400000,
+    "date": "2026-05-09",
+    "k": "55",
+    "type": "sell",
+    "resource": "iron",
+    "amount": 2500,
+    "pp_received": 10,
+    "rate_at_send": 86
+  }
+]

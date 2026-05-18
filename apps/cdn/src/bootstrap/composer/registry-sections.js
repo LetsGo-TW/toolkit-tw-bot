@@ -2,6 +2,7 @@ import { getGameData } from '@toolkit-tw-bot/document'
 import { createHCaptchaBotViewSection } from '../../hCaptcha/config/bot-view-section'
 import { createSearchBarbariansConfigSection } from '../../map/config-sections'
 import { createFarmMaxBotViewSection } from '../../farm-max/view/bot-view-section';
+import { createExchangeBotViewSection } from '../../market/exchange/view/bot-view-section';
 import { insertNotify, getNotifyBadgeState } from '../../notify';
 import { insertConfigCopyToClipboard, getClipboardBadgeState } from '../../clipboard/view';
 
@@ -131,6 +132,14 @@ async function createInlineSection(entry, context = {}) {
 
     case 'farm-max': {
       const section = await createFarmMaxBotViewSection(context)
+      return createMenuSection({
+        ...section,
+        renderMode: 'detail',
+      })
+    }
+
+    case 'exchange': {
+      const section = await createExchangeBotViewSection(context)
       return createMenuSection({
         ...section,
         renderMode: 'detail',
